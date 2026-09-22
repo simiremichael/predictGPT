@@ -1,0 +1,67 @@
+{
+  "name": "football-ai-mobile",
+  "description": "Football AI mobile application",
+  "slug": "football-ai-mobile",
+  "version": "1.0.0",
+  "orientation": "portrait",
+  "icon": "./assets/icon.png",
+  "userInterfaceStyle": "automatic",
+  "splash": {
+    "image": "./assets/splash.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#f4f4f2"
+  },
+  "assetBundlePatterns": [
+    "assets/*"
+  ],
+  "ios": {
+    "bundleIdentifier": "com.footballai.mobile",
+    "infoPlist": {
+      "NSAppTransportSecurity": {
+        "NSAllowsArbitraryLoads": true
+      },
+      "UIBackgroundColors": ["UIStatusBarStyleDefault"]
+    }
+  },
+  "android": {
+    "package": "com.footballai.mobile",
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#0d7450"
+    },
+    "permissions": [
+      "INTERNET"
+    ]
+  },
+  "scheme": "footballai",
+  "linking": {
+    "enabled": true,
+    "config": {
+      "footballai": {
+        "screens": {
+          "match/[id]": {
+            "path": "match/:id",
+            "parse": {
+              "id": ":id"
+            }
+          },
+          "team/[id]": {
+            "path": "team/:id",
+            "parse": {
+              "id": ":id"
+            }
+          },
+          "league/[id]": {
+            "path": "league/:id",
+            "parse": {
+              "id": ":id"
+            }
+          }
+        }
+      }
+    }
+  },
+  "runtimePermission": [
+    "NOTIFICATIONS"
+  ]
+}

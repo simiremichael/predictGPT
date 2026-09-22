@@ -1,0 +1,1396 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\DELL\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.19.1
+2 info using node@v24.11.0
+3 silly config load:file:C:\Users\DELL\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\DELL\Desktop\predictGPT\web\.npmrc
+5 silly config load:file:C:\Users\DELL\.npmrc
+6 silly config load:file:C:\Users\DELL\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--include" "dev" "--force" "--cache" ".npm-cache" "--loglevel" "verbose"
+9 verbose logfile logs-max:10 dir:C:\Users\DELL\Desktop\predictGPT\web\.npm-cache\_logs\2026-09-20T00_08_21_542Z-
+10 verbose logfile C:\Users\DELL\Desktop\predictGPT\web\.npm-cache\_logs\2026-09-20T00_08_21_542Z-debug-0.log
+11 warn using --force Recommended protections disabled.
+12 silly logfile done cleaning log files
+13 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+14 silly idealTree buildDeps
+15 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\ajv' ]
+16 silly reify mark retired [
+16 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array-includes'
+16 silly reify ]
+17 silly reify mark retired [
+17 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlast'
+17 silly reify ]
+18 silly reify mark retired [
+18 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlastindex'
+18 silly reify ]
+19 silly reify mark retired [
+19 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flat'
+19 silly reify ]
+20 silly reify mark retired [
+20 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flatmap'
+20 silly reify ]
+21 silly reify mark retired [
+21 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.tosorted'
+21 silly reify ]
+22 silly reify mark retired [
+22 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\arraybuffer.prototype.slice'
+22 silly reify ]
+23 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axe-core' ]
+24 silly reify mark retired [
+24 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axobject-query'
+24 silly reify ]
+25 silly reify mark retired [
+25 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\caniuse-lite'
+25 silly reify ]
+26 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns' ]
+27 silly reify mark retired [
+27 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\electron-to-chromium'
+27 silly reify ]
+28 silly reify mark retired [
+28 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\enhanced-resolve'
+28 silly reify ]
+29 silly reify mark retired [
+29 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\es-iterator-helpers'
+29 silly reify ]
+30 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint' ]
+31 silly reify mark retired [
+31 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-config-next'
+31 silly reify ]
+32 silly reify mark retired [
+32 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-module-utils'
+32 silly reify ]
+33 silly reify mark retired [
+33 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-import'
+33 silly reify ]
+34 silly reify mark retired [
+34 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react'
+34 silly reify ]
+35 silly reify mark retired [
+35 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react-hooks'
+35 silly reify ]
+36 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\esquery' ]
+37 silly reify mark retired [
+37 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-glob'
+37 silly reify ]
+38 silly reify mark retired [
+38 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-json-stable-stringify'
+38 silly reify ]
+39 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\flatted' ]
+40 silly reify mark retired [
+40 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\framer-motion'
+40 silly reify ]
+41 silly reify mark retired [
+41 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-symbols'
+41 silly reify ]
+42 silly reify mark retired [
+42 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-tostringtag'
+42 silly reify ]
+43 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jiti' ]
+44 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\js-yaml' ]
+45 silly reify mark retired [
+45 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsx-ast-utils'
+45 silly reify ]
+46 silly reify mark retired [
+46 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\language-subtag-registry'
+46 silly reify ]
+47 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\minimist' ]
+48 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\nanoid' ]
+49 silly reify mark retired [
+49 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\napi-postinstall'
+49 silly reify ]
+50 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next' ]
+51 silly reify mark retired [
+51 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object-inspect'
+51 silly reify ]
+52 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\postcss' ]
+53 silly reify mark retired [
+53 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\prop-types'
+53 silly reify ]
+54 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react' ]
+55 silly reify mark retired [
+55 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react-dom'
+55 silly reify ]
+56 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\resolve' ]
+57 silly reify mark retired [
+57 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\scheduler'
+57 silly reify ]
+58 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\sharp' ]
+59 silly reify mark retired [
+59 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.trim'
+59 silly reify ]
+60 silly reify mark retired [
+60 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\styled-jsx'
+60 silly reify ]
+61 silly reify mark retired [
+61 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tailwindcss'
+61 silly reify ]
+62 silly reify mark retired [
+62 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript'
+62 silly reify ]
+63 silly reify mark retired [
+63 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript-eslint'
+63 silly reify ]
+64 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\zod' ]
+65 silly reify mark retired [
+65 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\compat-data'
+65 silly reify ]
+66 silly reify mark retired [
+66 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\core'
+66 silly reify ]
+67 silly reify mark retired [
+67 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\generator'
+67 silly reify ]
+68 silly reify mark retired [
+68 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-imports'
+68 silly reify ]
+69 silly reify mark retired [
+69 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-transforms'
+69 silly reify ]
+70 silly reify mark retired [
+70 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\template'
+70 silly reify ]
+71 silly reify mark retired [
+71 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\traverse'
+71 silly reify ]
+72 silly reify mark retired [
+72 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@eslint\\eslintrc'
+72 silly reify ]
+73 silly reify mark retired [
+73 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@humanwhocodes\\retry'
+73 silly reify ]
+74 silly reify mark retired [
+74 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@img\\sharp-win32-x64'
+74 silly reify ]
+75 silly reify mark retired [
+75 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\env'
+75 silly reify ]
+76 silly reify mark retired [
+76 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\eslint-plugin-next'
+76 silly reify ]
+77 silly reify mark retired [
+77 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\swc-win32-x64-msvc'
+77 silly reify ]
+78 silly reify mark retired [
+78 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@swc\\helpers'
+78 silly reify ]
+79 silly reify mark retired [
+79 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\node'
+79 silly reify ]
+80 silly reify mark retired [
+80 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide'
+80 silly reify ]
+81 silly reify mark retired [
+81 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide-win32-x64-msvc'
+81 silly reify ]
+82 silly reify mark retired [
+82 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\query-core'
+82 silly reify ]
+83 silly reify mark retired [
+83 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\postcss'
+83 silly reify ]
+84 silly reify mark retired [
+84 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\react-query'
+84 silly reify ]
+85 silly reify mark retired [
+85 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\node'
+85 silly reify ]
+86 silly reify mark retired [
+86 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\react'
+86 silly reify ]
+87 silly reify mark retired [
+87 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\parser'
+87 silly reify ]
+88 silly reify mark retired [
+88 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\project-service'
+88 silly reify ]
+89 silly reify mark retired [
+89 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\tsconfig-utils'
+89 silly reify ]
+90 silly reify mark retired [
+90 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\type-utils'
+90 silly reify ]
+91 silly reify mark retired [
+91 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\typescript-estree'
+91 silly reify ]
+92 silly reify mark retired [
+92 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\utils'
+92 silly reify ]
+93 silly reify mark retired [
+93 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\visitor-keys'
+93 silly reify ]
+94 silly reify mark retired [
+94 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\types'
+94 silly reify ]
+95 silly reify mark retired [
+95 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\acorn',
+95 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\acorn',
+95 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\acorn.cmd',
+95 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\acorn.ps1'
+95 silly reify ]
+96 silly reify mark retired [
+96 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\baseline-browser-mapping',
+96 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\baseline-browser-mapping',
+96 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\baseline-browser-mapping.cmd',
+96 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\baseline-browser-mapping.ps1'
+96 silly reify ]
+97 silly reify mark retired [
+97 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\browserslist',
+97 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\browserslist',
+97 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\browserslist.cmd',
+97 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\browserslist.ps1'
+97 silly reify ]
+98 silly reify mark retired [
+98 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\is-bun-module\\node_modules\\semver'
+98 silly reify ]
+99 silly reify mark retired [
+99 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsesc',
+99 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\jsesc',
+99 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\jsesc.cmd',
+99 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\jsesc.ps1'
+99 silly reify ]
+100 silly reify mark retired [
+100 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\json5',
+100 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\json5',
+100 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\json5.cmd',
+100 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\json5.ps1'
+100 silly reify ]
+101 silly reify mark retired [
+101 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\loose-envify',
+101 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\loose-envify',
+101 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\loose-envify.cmd',
+101 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\loose-envify.ps1'
+101 silly reify ]
+102 silly reify mark retired [
+102 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.fromentries\\node_modules\\es-abstract'
+102 silly reify ]
+103 silly reify mark retired [
+103 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.groupby\\node_modules\\es-abstract'
+103 silly reify ]
+104 silly reify mark retired [
+104 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\semver',
+104 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\semver',
+104 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\semver.cmd',
+104 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\semver.ps1'
+104 silly reify ]
+105 silly reify mark retired [
+105 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.matchall\\node_modules\\es-abstract'
+105 silly reify ]
+106 silly reify mark retired [
+106 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\reflect.getprototypeof\\node_modules\\es-abstract'
+106 silly reify ]
+107 silly reify mark retired [
+107 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.includes\\node_modules\\es-abstract'
+107 silly reify ]
+108 silly reify mark retired [
+108 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tsconfig-paths\\node_modules\\json5'
+108 silly reify ]
+109 silly reify mark retired [
+109 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.repeat\\node_modules\\es-abstract'
+109 silly reify ]
+110 silly reify mark retired [
+110 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\update-browserslist-db',
+110 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\update-browserslist-db',
+110 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\update-browserslist-db.cmd',
+110 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\update-browserslist-db.ps1'
+110 silly reify ]
+111 silly reify mark retired [
+111 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\which',
+111 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\node-which',
+111 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\node-which.cmd',
+111 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\node-which.ps1'
+111 silly reify ]
+112 silly reify mark retired [
+112 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\parser',
+112 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\parser',
+112 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\parser.cmd',
+112 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\parser.ps1'
+112 silly reify ]
+113 silly reify moves {
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\ajv': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.ajv-RX0uRkxT',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array-includes': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array-includes-MOIbHSHJ',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlast': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.findlast-QDrjpbpl',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlastindex': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.findlastindex-u5HydYKg',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flat': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.flat-zOiy6Jbd',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flatmap': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.flatmap-UdG6kRGn',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.tosorted': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.tosorted-Yf1Gcxhk',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\arraybuffer.prototype.slice': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.arraybuffer.prototype.slice-26yPY3AR',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axe-core': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.axe-core-UWDvGnnk',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axobject-query': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.axobject-query-wJgCxcjk',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\caniuse-lite': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.caniuse-lite-vnywyNuQ',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.date-fns-xEFy4Ka6',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\electron-to-chromium': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.electron-to-chromium-Kqa9xw0Q',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\enhanced-resolve': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.enhanced-resolve-vjvBmlXf',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\es-iterator-helpers': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.es-iterator-helpers-8lwq4Lzp',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-Sab5qnn0',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-config-next': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-config-next-9bHAJcTd',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-module-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-module-utils-mQY6bAia',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-import': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-plugin-import-xulv3Iop',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-plugin-react-cNMvpbI5',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react-hooks': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-plugin-react-hooks-1tA6ptAz',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\esquery': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.esquery-FmiTCcBj',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-glob': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.fast-glob-8UmuVh45',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-json-stable-stringify': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.fast-json-stable-stringify-NsjuyhPS',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\flatted': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.flatted-uYtGHWtb',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\framer-motion': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.framer-motion-rZUqASpU',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-symbols': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.has-symbols-wE47dmz9',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-tostringtag': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.has-tostringtag-6y0mtVmv',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jiti': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.jiti-LYSIUdjr',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\js-yaml': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.js-yaml-WSIzYiZO',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsx-ast-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.jsx-ast-utils-Ja5B5v71',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\language-subtag-registry': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.language-subtag-registry-hLUd90YR',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\minimist': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.minimist-LvSMVPzf',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\nanoid': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.nanoid-m1yl5px2',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\napi-postinstall': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.napi-postinstall-KEv209fv',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.next-OU2aOOBi',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object-inspect': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.object-inspect-KkQrJl8V',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\postcss': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.postcss-LPvonLLH',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\prop-types': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.prop-types-Fmq5nJOb',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.react-b4HyirIu',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react-dom': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.react-dom-bgtS85do',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\resolve': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.resolve-5Uu4c52E',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\scheduler': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.scheduler-IqRsY90G',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\sharp': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.sharp-tHZrws7n',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.trim': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.string.prototype.trim-TeycgdCp',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\styled-jsx': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.styled-jsx-BPA8jj3d',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tailwindcss': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.tailwindcss-fkTt8kJT',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.typescript-Vx7RLN9I',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript-eslint': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.typescript-eslint-o3khSsz5',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\zod': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.zod-wasTBuYD',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\compat-data': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.compat-data-kOJ16kBq',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\core': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.core-HI2eQEYW',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\generator': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.generator-MwUesEmK',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-imports': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.helper-module-imports-6aQHU3oO',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-transforms': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.helper-module-transforms-jXBS3Nc9',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\template': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.template-CNakkdX7',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\traverse': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.traverse-xPLKApuy',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@eslint\\eslintrc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@eslint\\.eslintrc-ma7LRib6',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@humanwhocodes\\retry': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@humanwhocodes\\.retry-pJRXFK9m',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@img\\sharp-win32-x64': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@img\\.sharp-win32-x64-4Kkhz7RN',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\env': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\.env-47CS7S4D',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\eslint-plugin-next': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\.eslint-plugin-next-0um8d6gL',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\swc-win32-x64-msvc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\.swc-win32-x64-msvc-7vCCLQeF',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@swc\\helpers': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@swc\\.helpers-R4IVJ1Wr',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\node': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.node-88JDqhsD',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.oxide-kJbahnSJ',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide-win32-x64-msvc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.oxide-win32-x64-msvc-PIERnh5L',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\query-core': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\.query-core-fnip9KpU',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\postcss': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.postcss-zkpsgiPT',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\react-query': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\.react-query-WBqsL0k2',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\node': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\.node-C8YsDrye',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\react': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\.react-kYcaH8ac',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\parser': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.parser-3deC9Cxx',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\project-service': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.project-service-12GJQC3V',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\tsconfig-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.tsconfig-utils-KHgTQupw',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\type-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.type-utils-dzmG6iCF',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\typescript-estree': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.typescript-estree-u09AQzrZ',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.utils-Eo0YEcKs',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\visitor-keys': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.visitor-keys-IJvj97UR',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\types': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.types-YuMFutgG',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\acorn': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.acorn-ktdv1jvH',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\acorn': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.acorn-S8Eq1nNm',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\acorn.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.acorn.cmd-0vvdoF0i',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\acorn.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.acorn.ps1-eIYD7z6F',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\baseline-browser-mapping': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.baseline-browser-mapping-Pn3zuj4W',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\baseline-browser-mapping': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.baseline-browser-mapping-UtahFni5',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\baseline-browser-mapping.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.baseline-browser-mapping.cmd-OH65aTYo',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\baseline-browser-mapping.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.baseline-browser-mapping.ps1-eKu0fXqX',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\browserslist': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.browserslist-jQxM35ch',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\browserslist': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.browserslist-3eey35sQ',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\browserslist.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.browserslist.cmd-ciFkkLaS',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\browserslist.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.browserslist.ps1-InnDeynC',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\is-bun-module\\node_modules\\semver': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\is-bun-module\\node_modules\\.semver-DtqsUjmN',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsesc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.jsesc-8KeVy4vy',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\jsesc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.jsesc-8BXbE6CP',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\jsesc.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.jsesc.cmd-DAbE2HBD',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\jsesc.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.jsesc.ps1-2orZjnJG',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\json5': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.json5-iKttAGHD',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\json5': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.json5-7l8gb3Lp',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\json5.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.json5.cmd-luhkUk4t',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\json5.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.json5.ps1-WMzEl7p8',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\loose-envify': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.loose-envify-gKtd5hva',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\loose-envify': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.loose-envify-AtoHBUjR',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\loose-envify.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.loose-envify.cmd-upJ5nWEv',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\loose-envify.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.loose-envify.ps1-qPw4NZ09',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.fromentries\\node_modules\\es-abstract': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.fromentries\\node_modules\\.es-abstract-PMCHcFkk',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.groupby\\node_modules\\es-abstract': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.groupby\\node_modules\\.es-abstract-BraPE22J',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\semver': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.semver-hnI0nUdu',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\semver': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.semver-O5HA8ZQC',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\semver.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.semver.cmd-KPR4WwpO',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\semver.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.semver.ps1-ruhSI6xb',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.matchall\\node_modules\\es-abstract': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.matchall\\node_modules\\.es-abstract-WxzkUkbn',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\reflect.getprototypeof\\node_modules\\es-abstract': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\reflect.getprototypeof\\node_modules\\.es-abstract-TuslwuPC',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.includes\\node_modules\\es-abstract': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.includes\\node_modules\\.es-abstract-2tLzH7iI',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tsconfig-paths\\node_modules\\json5': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tsconfig-paths\\node_modules\\.json5-PkQ0gTsF',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.repeat\\node_modules\\es-abstract': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.repeat\\node_modules\\.es-abstract-hrlDqTtH',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\update-browserslist-db': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.update-browserslist-db-4w8Yl8rq',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\update-browserslist-db': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.update-browserslist-db-8eFcwcH4',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\update-browserslist-db.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.update-browserslist-db.cmd-KM0v05PT',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\update-browserslist-db.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.update-browserslist-db.ps1-hxIsJ4Nf',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\which': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.which-hfbbGy21',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\node-which': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.node-which-SegrDOK0',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\node-which.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.node-which.cmd-P5rVpMSQ',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\node-which.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.node-which.ps1-obPSEDFi',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\parser': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.parser-1oqwBGzM',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\parser': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.parser-qyBpLXnR',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\parser.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.parser.cmd-gV738pTw',
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\parser.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.parser.ps1-h2eD24bZ'
+113 silly reify }
+114 silly audit bulk request {
+114 silly audit   '@alloc/quick-lru': [ '5.3.0' ],
+114 silly audit   '@babel/code-frame': [ '7.29.7' ],
+114 silly audit   '@babel/compat-data': [ '7.29.7' ],
+114 silly audit   '@babel/core': [ '7.29.7' ],
+114 silly audit   '@babel/helpers': [ '7.29.7' ],
+114 silly audit   '@babel/types': [ '7.29.8' ],
+114 silly audit   '@babel/generator': [ '7.29.8' ],
+114 silly audit   '@babel/helper-compilation-targets': [ '7.29.7' ],
+114 silly audit   '@babel/helper-globals': [ '7.29.7' ],
+114 silly audit   '@babel/helper-module-imports': [ '7.29.7' ],
+114 silly audit   '@babel/helper-module-transforms': [ '7.29.7' ],
+114 silly audit   '@babel/helper-string-parser': [ '7.29.7' ],
+114 silly audit   '@babel/helper-validator-identifier': [ '7.29.7' ],
+114 silly audit   '@babel/helper-validator-option': [ '7.29.7' ],
+114 silly audit   '@babel/parser': [ '7.29.9' ],
+114 silly audit   '@babel/template': [ '7.29.7' ],
+114 silly audit   '@babel/traverse': [ '7.29.8' ],
+114 silly audit   '@emnapi/core': [ '1.10.0' ],
+114 silly audit   '@emnapi/runtime': [ '1.10.0', '1.11.3' ],
+114 silly audit   '@emnapi/wasi-threads': [ '1.2.1' ],
+114 silly audit   '@eslint-community/eslint-utils': [ '4.10.1', '4.9.1' ],
+114 silly audit   'eslint-visitor-keys': [ '3.4.3', '5.0.1', '4.2.1' ],
+114 silly audit   '@eslint-community/regexpp': [ '4.12.2' ],
+114 silly audit   '@eslint/config-array': [ '0.21.2' ],
+114 silly audit   '@eslint/config-helpers': [ '0.4.2' ],
+114 silly audit   '@eslint/core': [ '0.17.0' ],
+114 silly audit   '@eslint/eslintrc': [ '3.3.7' ],
+114 silly audit   '@eslint/js': [ '9.39.5' ],
+114 silly audit   '@eslint/object-schema': [ '2.1.7' ],
+114 silly audit   '@eslint/plugin-kit': [ '0.4.1' ],
+114 silly audit   '@floating-ui/core': [ '1.8.0' ],
+114 silly audit   '@floating-ui/dom': [ '1.8.0' ],
+114 silly audit   '@floating-ui/react-dom': [ '2.1.9' ],
+114 silly audit   '@floating-ui/utils': [ '0.2.12' ],
+114 silly audit   '@humanfs/core': [ '0.19.2' ],
+114 silly audit   '@humanfs/node': [ '0.16.8' ],
+114 silly audit   '@humanfs/types': [ '0.15.0' ],
+114 silly audit   '@humanwhocodes/module-importer': [ '1.0.1' ],
+114 silly audit   '@humanwhocodes/retry': [ '0.4.3' ],
+114 silly audit   '@img/colour': [ '1.1.0' ],
+114 silly audit   '@img/sharp-darwin-arm64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-darwin-x64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-freebsd-wasm32': [ '0.35.4' ],
+114 silly audit   '@img/sharp-libvips-darwin-arm64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-darwin-x64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linux-arm': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linux-arm64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linux-ppc64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linux-riscv64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linux-s390x': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linux-x64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linuxmusl-arm64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-libvips-linuxmusl-x64': [ '1.3.3' ],
+114 silly audit   '@img/sharp-linux-arm': [ '0.35.4' ],
+114 silly audit   '@img/sharp-linux-arm64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-linux-ppc64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-linux-riscv64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-linux-s390x': [ '0.35.4' ],
+114 silly audit   '@img/sharp-linux-x64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-linuxmusl-arm64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-linuxmusl-x64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-wasm32': [ '0.35.4' ],
+114 silly audit   '@img/sharp-webcontainers-wasm32': [ '0.35.4' ],
+114 silly audit   '@img/sharp-win32-arm64': [ '0.35.4' ],
+114 silly audit   '@img/sharp-win32-ia32': [ '0.35.4' ],
+114 silly audit   '@img/sharp-win32-x64': [ '0.35.4' ],
+114 silly audit   '@jridgewell/gen-mapping': [ '0.3.13' ],
+114 silly audit   '@jridgewell/remapping': [ '2.3.5' ],
+114 silly audit   '@jridgewell/resolve-uri': [ '3.1.2' ],
+114 silly audit   '@jridgewell/sourcemap-codec': [ '1.6.0' ],
+114 silly audit   '@jridgewell/trace-mapping': [ '0.3.31' ],
+114 silly audit   '@napi-rs/wasm-runtime': [ '1.2.4' ],
+114 silly audit   '@next/env': [ '16.3.5' ],
+114 silly audit   '@next/eslint-plugin-next': [ '16.3.5' ],
+114 silly audit   '@next/swc-darwin-arm64': [ '16.3.5' ],
+114 silly audit   '@next/swc-darwin-x64': [ '16.3.5' ],
+114 silly audit   '@next/swc-linux-arm64-gnu': [ '16.3.5' ],
+114 silly audit   '@next/swc-linux-arm64-musl': [ '16.3.5' ],
+114 silly audit   '@next/swc-linux-x64-gnu': [ '16.3.5' ],
+114 silly audit   '@next/swc-linux-x64-musl': [ '16.3.5' ],
+114 silly audit   '@next/swc-win32-arm64-msvc': [ '16.3.5' ],
+114 silly audit   '@next/swc-win32-x64-msvc': [ '16.3.5' ],
+114 silly audit   '@nodelib/fs.scandir': [ '2.1.5' ],
+114 silly audit   '@nodelib/fs.stat': [ '2.0.5' ],
+114 silly audit   '@nodelib/fs.walk': [ '1.2.8' ],
+114 silly audit   '@nolyfill/is-core-module': [ '1.0.39' ],
+114 silly audit   '@radix-ui/number': [ '1.1.3' ],
+114 silly audit   '@radix-ui/primitive': [ '1.1.7' ],
+114 silly audit   '@radix-ui/react-arrow': [ '1.1.15' ],
+114 silly audit   '@radix-ui/react-collection': [ '1.1.15' ],
+114 silly audit   '@radix-ui/react-compose-refs': [ '1.1.5' ],
+114 silly audit   '@radix-ui/react-context': [ '1.2.2' ],
+114 silly audit   '@radix-ui/react-direction': [ '1.1.4' ],
+114 silly audit   '@radix-ui/react-dismissable-layer': [ '1.1.19' ],
+114 silly audit   '@radix-ui/react-focus-guards': [ '1.1.6' ],
+114 silly audit   '@radix-ui/react-focus-scope': [ '1.1.16' ],
+114 silly audit   '@radix-ui/react-id': [ '1.1.4' ],
+114 silly audit   '@radix-ui/react-popper': [ '1.3.7' ],
+114 silly audit   '@radix-ui/react-portal': [ '1.1.17' ],
+114 silly audit   '@radix-ui/react-presence': [ '1.1.10' ],
+114 silly audit   '@radix-ui/react-primitive': [ '2.1.10' ],
+114 silly audit   '@radix-ui/react-select': [ '2.3.7' ],
+114 silly audit   '@radix-ui/react-slot': [ '1.3.3' ],
+114 silly audit   '@radix-ui/react-switch': [ '1.3.7' ],
+114 silly audit   '@radix-ui/react-tooltip': [ '1.2.16' ],
+114 silly audit   '@radix-ui/react-use-callback-ref': [ '1.1.4' ],
+114 silly audit   '@radix-ui/react-use-controllable-state': [ '1.2.6' ],
+114 silly audit   '@radix-ui/react-use-effect-event': [ '0.0.5' ],
+114 silly audit   '@radix-ui/react-use-layout-effect': [ '1.1.4' ],
+114 silly audit   '@radix-ui/react-use-previous': [ '1.1.4' ],
+114 silly audit   '@radix-ui/react-use-rect': [ '1.1.4' ],
+114 silly audit   '@radix-ui/react-use-size': [ '1.1.4' ],
+114 silly audit   '@radix-ui/react-visually-hidden': [ '1.2.11' ],
+114 silly audit   '@radix-ui/rect': [ '1.1.3' ],
+114 silly audit   '@rtsao/scc': [ '1.1.0' ],
+114 silly audit   '@swc/helpers': [ '0.5.23' ],
+114 silly audit   '@tailwindcss/node': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-android-arm64': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-darwin-arm64': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-darwin-x64': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-freebsd-x64': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-linux-arm-gnueabihf': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-linux-arm64-gnu': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-linux-arm64-musl': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-linux-x64-gnu': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-linux-x64-musl': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-wasm32-wasi': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-win32-arm64-msvc': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/oxide-win32-x64-msvc': [ '4.3.3' ],
+114 silly audit   '@tailwindcss/postcss': [ '4.3.3' ],
+114 silly audit   '@tanstack/query-core': [ '5.103.1' ],
+114 silly audit   '@tanstack/react-query': [ '5.103.1' ],
+114 silly audit   '@tybys/wasm-util': [ '0.10.4' ],
+114 silly audit   '@types/estree': [ '1.0.9' ],
+114 silly audit   '@types/json-schema': [ '7.0.15' ],
+114 silly audit   '@types/json5': [ '0.0.29' ],
+114 silly audit   '@types/node': [ '20.19.43' ],
+114 silly audit   '@types/react': [ '19.3.0' ],
+114 silly audit   '@types/react-dom': [ '19.3.0' ],
+114 silly audit   '@typescript-eslint/parser': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/scope-manager': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/project-service': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/tsconfig-utils': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/type-utils': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/types': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/typescript-estree': [ '8.70.0' ],
+114 silly audit   'balanced-match': [ '4.0.4', '1.0.2' ],
+114 silly audit   'brace-expansion': [ '5.0.12', '1.1.21' ],
+114 silly audit   minimatch: [ '10.2.6', '3.1.5' ],
+114 silly audit   semver: [ '7.8.5', '6.3.1' ],
+114 silly audit   '@typescript-eslint/utils': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/visitor-keys': [ '8.70.0' ],
+114 silly audit   '@unrs/resolver-binding-android-arm-eabi': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-android-arm64': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-darwin-arm64': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-darwin-x64': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-freebsd-x64': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-arm-gnueabihf': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-arm-musleabihf': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-arm64-gnu': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-arm64-musl': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-loong64-gnu': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-loong64-musl': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-ppc64-gnu': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-riscv64-gnu': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-riscv64-musl': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-s390x-gnu': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-x64-gnu': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-linux-x64-musl': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-openharmony-arm64': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-wasm32-wasi': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-win32-arm64-msvc': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-win32-ia32-msvc': [ '1.12.2' ],
+114 silly audit   '@unrs/resolver-binding-win32-x64-msvc': [ '1.12.2' ],
+114 silly audit   acorn: [ '8.18.0' ],
+114 silly audit   'acorn-jsx': [ '5.3.2' ],
+114 silly audit   ajv: [ '6.15.0' ],
+114 silly audit   'ansi-styles': [ '4.3.0' ],
+114 silly audit   argparse: [ '2.0.1' ],
+114 silly audit   'aria-hidden': [ '1.2.6' ],
+114 silly audit   'array-buffer-byte-length': [ '1.0.2' ],
+114 silly audit   'array-includes': [ '3.2.0' ],
+114 silly audit   'es-abstract': [ '1.24.2' ],
+114 silly audit   'array.prototype.findlast': [ '1.2.5' ],
+114 silly audit   'array.prototype.findlastindex': [ '1.2.6' ],
+114 silly audit   'array.prototype.flat': [ '1.3.3' ],
+114 silly audit   'array.prototype.flatmap': [ '1.3.3' ],
+114 silly audit   'array.prototype.tosorted': [ '1.1.4' ],
+114 silly audit   'arraybuffer.prototype.slice': [ '1.0.4' ],
+114 silly audit   'ast-types-flow': [ '0.0.8' ],
+114 silly audit   'async-function': [ '1.0.0' ],
+114 silly audit   'available-typed-arrays': [ '1.0.7' ],
+114 silly audit   'axe-core': [ '4.13.0' ],
+114 silly audit   'axobject-query': [ '4.1.0' ],
+114 silly audit   'baseline-browser-mapping': [ '2.11.25' ],
+114 silly audit   braces: [ '3.0.3' ],
+114 silly audit   browserslist: [ '4.29.0' ],
+114 silly audit   'call-bind': [ '1.0.9' ],
+114 silly audit   'call-bind-apply-helpers': [ '1.0.2' ],
+114 silly audit   'call-bound': [ '1.0.4' ],
+114 silly audit   callsites: [ '3.1.0' ],
+114 silly audit   'caniuse-lite': [ '1.0.30001810' ],
+114 silly audit   chalk: [ '4.1.2' ],
+114 silly audit   'class-variance-authority': [ '0.7.1' ],
+114 silly audit   'client-only': [ '0.0.1' ],
+114 silly audit   clsx: [ '2.1.1' ],
+114 silly audit   'color-convert': [ '2.0.1' ],
+114 silly audit   'color-name': [ '1.1.4' ],
+114 silly audit   'concat-map': [ '0.0.1' ],
+114 silly audit   'convert-source-map': [ '2.0.0' ],
+114 silly audit   'cross-spawn': [ '7.0.6' ],
+114 silly audit   csstype: [ '3.2.3' ],
+114 silly audit   'damerau-levenshtein': [ '1.0.8' ],
+114 silly audit   'data-view-buffer': [ '1.0.2' ],
+114 silly audit   'data-view-byte-length': [ '1.0.2' ],
+114 silly audit   'data-view-byte-offset': [ '1.0.1' ],
+114 silly audit   'date-fns': [ '4.4.0' ],
+114 silly audit   debug: [ '4.4.3', '3.2.7' ],
+114 silly audit   'deep-is': [ '0.1.4' ],
+114 silly audit   'define-data-property': [ '1.1.4' ],
+114 silly audit   'define-properties': [ '1.2.1' ],
+114 silly audit   'detect-libc': [ '2.1.2' ],
+114 silly audit   'detect-node-es': [ '1.1.0' ],
+114 silly audit   doctrine: [ '2.1.0' ],
+114 silly audit   'dunder-proto': [ '1.0.1' ],
+114 silly audit   'electron-to-chromium': [ '1.5.433' ],
+114 silly audit   'emoji-regex': [ '9.2.2' ],
+114 silly audit   'enhanced-resolve': [ '5.25.1' ],
+114 silly audit   'es-abstract-get': [ '1.0.0' ],
+114 silly audit   'es-define-property': [ '1.0.1' ],
+114 silly audit   'es-errors': [ '1.3.0' ],
+114 silly audit   'es-iterator-helpers': [ '1.4.0' ],
+114 silly audit   'es-object-atoms': [ '1.1.2' ],
+114 silly audit   'es-set-tostringtag': [ '2.1.0' ],
+114 silly audit   'es-shim-unscopables': [ '1.1.0' ],
+114 silly audit   'es-to-primitive': [ '1.3.4' ],
+114 silly audit   escalade: [ '3.2.0' ],
+114 silly audit   'escape-string-regexp': [ '4.0.0' ],
+114 silly audit   eslint: [ '9.39.5' ],
+114 silly audit   'eslint-config-next': [ '16.3.5' ],
+114 silly audit   'aria-query': [ '5.3.2' ],
+114 silly audit   'eslint-plugin-jsx-a11y': [ '6.10.2' ],
+114 silly audit   globals: [ '16.4.0', '14.0.0' ],
+114 silly audit   'eslint-import-resolver-node': [ '0.3.10' ],
+114 silly audit   'eslint-import-resolver-typescript': [ '3.10.1' ],
+114 silly audit   'eslint-module-utils': [ '2.14.0' ],
+114 silly audit   'eslint-plugin-import': [ '2.32.0' ],
+114 silly audit   'eslint-plugin-react': [ '7.37.5' ],
+114 silly audit   'eslint-plugin-react-hooks': [ '7.1.1' ],
+114 silly audit   'eslint-scope': [ '8.4.0' ],
+114 silly audit   espree: [ '10.4.0' ],
+114 silly audit   esquery: [ '1.7.0' ],
+114 silly audit   esrecurse: [ '4.3.0' ],
+114 silly audit   estraverse: [ '5.3.0' ],
+114 silly audit   esutils: [ '2.0.3' ],
+114 silly audit   'fast-deep-equal': [ '3.1.3' ],
+114 silly audit   'fast-glob': [ '3.3.1' ],
+114 silly audit   'glob-parent': [ '5.1.2', '6.0.2' ],
+114 silly audit   'fast-json-stable-stringify': [ '2.1.0' ],
+114 silly audit   'fast-levenshtein': [ '2.0.6' ],
+114 silly audit   fastq: [ '1.20.3' ],
+114 silly audit   'file-entry-cache': [ '8.0.0' ],
+114 silly audit   'fill-range': [ '7.1.1' ],
+114 silly audit   'find-up': [ '5.0.0' ],
+114 silly audit   'flat-cache': [ '4.0.1' ],
+114 silly audit   flatted: [ '3.4.4' ],
+114 silly audit   'for-each': [ '0.3.5' ],
+114 silly audit   'framer-motion': [ '13.4.0' ],
+114 silly audit   'function-bind': [ '1.1.2' ],
+114 silly audit   'function.prototype.name': [ '1.2.0' ],
+114 silly audit   'functions-have-names': [ '1.2.3' ],
+114 silly audit   'generator-function': [ '2.0.1' ],
+114 silly audit   gensync: [ '1.0.0-beta.2' ],
+114 silly audit   'get-intrinsic': [ '1.3.0' ],
+114 silly audit   'get-nonce': [ '1.0.1' ],
+114 silly audit   'get-proto': [ '1.0.1' ],
+114 silly audit   'get-symbol-description': [ '1.1.0' ],
+114 silly audit   'get-tsconfig': [ '4.14.3' ],
+114 silly audit   globalthis: [ '1.0.4' ],
+114 silly audit   gopd: [ '1.2.0' ],
+114 silly audit   'graceful-fs': [ '4.2.11' ],
+114 silly audit   'has-bigints': [ '1.1.0' ],
+114 silly audit   'has-flag': [ '4.0.0' ],
+114 silly audit   'has-property-descriptors': [ '1.0.2' ],
+114 silly audit   'has-proto': [ '1.2.0' ],
+114 silly audit   'has-symbols': [ '1.1.0' ],
+114 silly audit   'has-tostringtag': [ '1.0.2' ],
+114 silly audit   hasown: [ '2.0.4' ],
+114 silly audit   'hermes-estree': [ '0.25.1' ],
+114 silly audit   'hermes-parser': [ '0.25.1' ],
+114 silly audit   ignore: [ '5.3.2', '7.0.9' ],
+114 silly audit   'import-fresh': [ '3.3.1' ],
+114 silly audit   imurmurhash: [ '0.1.4' ],
+114 silly audit   'internal-slot': [ '1.1.0' ],
+114 silly audit   'is-array-buffer': [ '3.0.5' ],
+114 silly audit   'is-async-function': [ '2.1.1' ],
+114 silly audit   'is-bigint': [ '1.1.0' ],
+114 silly audit   'is-boolean-object': [ '1.2.2' ],
+114 silly audit   'is-bun-module': [ '2.0.0' ],
+114 silly audit   'is-callable': [ '1.2.7' ],
+114 silly audit   'is-core-module': [ '2.17.0' ],
+114 silly audit   'is-data-view': [ '1.0.2' ],
+114 silly audit   'is-date-object': [ '1.1.0' ],
+114 silly audit   'is-document.all': [ '1.0.0' ],
+114 silly audit   'is-extglob': [ '2.1.1' ],
+114 silly audit   'is-finalizationregistry': [ '1.1.1' ],
+114 silly audit   'is-generator-function': [ '1.1.2' ],
+114 silly audit   'is-glob': [ '4.0.3' ],
+114 silly audit   'is-map': [ '2.0.3' ],
+114 silly audit   'is-negative-zero': [ '2.0.3' ],
+114 silly audit   'is-number': [ '7.0.0' ],
+114 silly audit   'is-number-object': [ '1.1.1' ],
+114 silly audit   'is-regex': [ '1.2.1' ],
+114 silly audit   'is-set': [ '2.0.3' ],
+114 silly audit   'is-shared-array-buffer': [ '1.0.4' ],
+114 silly audit   'is-string': [ '1.1.1' ],
+114 silly audit   'is-symbol': [ '1.1.1' ],
+114 silly audit   'is-typed-array': [ '1.1.15' ],
+114 silly audit   'is-weakmap': [ '2.0.2' ],
+114 silly audit   'is-weakref': [ '1.1.1' ],
+114 silly audit   'is-weakset': [ '2.0.4' ],
+114 silly audit   isarray: [ '2.0.5' ],
+114 silly audit   isexe: [ '2.0.0' ],
+114 silly audit   'iterator.prototype': [ '1.1.5' ],
+114 silly audit   jiti: [ '2.7.0' ],
+114 silly audit   'js-tokens': [ '4.0.0' ],
+114 silly audit   'js-yaml': [ '4.3.2' ],
+114 silly audit   jsesc: [ '3.1.0' ],
+114 silly audit   'json-buffer': [ '3.0.1' ],
+114 silly audit   'json-schema-traverse': [ '0.4.1' ],
+114 silly audit   'json-stable-stringify-without-jsonify': [ '1.0.1' ],
+114 silly audit   json5: [ '2.2.3', '1.0.2' ],
+114 silly audit   'jsx-ast-utils': [ '3.3.5' ],
+114 silly audit   keyv: [ '4.5.4' ],
+114 silly audit   'language-subtag-registry': [ '0.3.23' ],
+114 silly audit   'language-tags': [ '1.0.9' ],
+114 silly audit   levn: [ '0.4.1' ],
+114 silly audit   lightningcss: [ '1.32.0' ],
+114 silly audit   'lightningcss-android-arm64': [ '1.32.0' ],
+114 silly audit   'lightningcss-darwin-arm64': [ '1.32.0' ],
+114 silly audit   'lightningcss-darwin-x64': [ '1.32.0' ],
+114 silly audit   'lightningcss-freebsd-x64': [ '1.32.0' ],
+114 silly audit   'lightningcss-linux-arm-gnueabihf': [ '1.32.0' ],
+114 silly audit   'lightningcss-linux-arm64-gnu': [ '1.32.0' ],
+114 silly audit   'lightningcss-linux-arm64-musl': [ '1.32.0' ],
+114 silly audit   'lightningcss-linux-x64-gnu': [ '1.32.0' ],
+114 silly audit   'lightningcss-linux-x64-musl': [ '1.32.0' ],
+114 silly audit   'lightningcss-win32-arm64-msvc': [ '1.32.0' ],
+114 silly audit   'lightningcss-win32-x64-msvc': [ '1.32.0' ],
+114 silly audit   'locate-path': [ '6.0.0' ],
+114 silly audit   'lodash.merge': [ '4.6.2' ],
+114 silly audit   'loose-envify': [ '1.4.0' ],
+114 silly audit   'lru-cache': [ '5.1.1' ],
+114 silly audit   'lucide-react': [ '1.47.0' ],
+114 silly audit   'magic-string': [ '0.30.21' ],
+114 silly audit   'math-intrinsics': [ '1.1.0' ],
+114 silly audit   merge2: [ '1.4.1' ],
+114 silly audit   micromatch: [ '4.0.8' ],
+114 silly audit   minimist: [ '1.2.8' ],
+114 silly audit   'motion-dom': [ '13.3.0' ],
+114 silly audit   'motion-utils': [ '13.3.0' ],
+114 silly audit   ms: [ '2.1.3' ],
+114 silly audit   nanoid: [ '3.3.19' ],
+114 silly audit   'napi-postinstall': [ '0.3.4' ],
+114 silly audit   'natural-compare': [ '1.4.0' ],
+114 silly audit   next: [ '16.3.5' ],
+114 silly audit   'next-themes': [ '0.4.6' ],
+114 silly audit   postcss: [ '8.5.23', '8.5.28' ],
+114 silly audit   'node-exports-info': [ '1.6.2' ],
+114 silly audit   'node-releases': [ '2.0.56' ],
+114 silly audit   'object-assign': [ '4.1.1' ],
+114 silly audit   'object-inspect': [ '1.13.4' ],
+114 silly audit   'object-keys': [ '1.1.1' ],
+114 silly audit   'object.assign': [ '4.1.7' ],
+114 silly audit   'object.entries': [ '1.1.9' ],
+114 silly audit   'object.fromentries': [ '2.0.8' ],
+114 silly audit   'object.groupby': [ '1.0.3' ],
+114 silly audit   'object.values': [ '1.2.1' ],
+114 silly audit   optionator: [ '0.9.4' ],
+114 silly audit   'own-keys': [ '1.0.2' ],
+114 silly audit   'p-limit': [ '3.1.0' ],
+114 silly audit   'p-locate': [ '5.0.0' ],
+114 silly audit   'parent-module': [ '1.0.1' ],
+114 silly audit   'path-exists': [ '4.0.0' ],
+114 silly audit   'path-key': [ '3.1.1' ],
+114 silly audit   'path-parse': [ '1.0.7' ],
+114 silly audit   picocolors: [ '1.1.1' ],
+114 silly audit   picomatch: [ '2.3.2', '4.0.7' ],
+114 silly audit   'possible-typed-array-names': [ '1.1.0' ],
+114 silly audit   'prelude-ls': [ '1.2.1' ],
+114 silly audit   'prop-types': [ '15.8.1' ],
+114 silly audit   'react-is': [ '16.13.1' ],
+114 silly audit   punycode: [ '2.3.1' ],
+114 silly audit   'queue-microtask': [ '1.2.3' ],
+114 silly audit   react: [ '19.2.8' ],
+114 silly audit   'react-dom': [ '19.2.8' ],
+114 silly audit   'react-remove-scroll': [ '2.7.2' ],
+114 silly audit   'react-remove-scroll-bar': [ '2.3.8' ],
+114 silly audit   'react-style-singleton': [ '2.2.3' ],
+114 silly audit   'reflect.getprototypeof': [ '1.0.10' ],
+114 silly audit   'regexp.prototype.flags': [ '1.5.4' ],
+114 silly audit   resolve: [ '2.0.0-next.7' ],
+114 silly audit   'resolve-from': [ '4.0.0' ],
+114 silly audit   'resolve-pkg-maps': [ '1.0.0' ],
+114 silly audit   reusify: [ '1.1.0' ],
+114 silly audit   'run-parallel': [ '1.2.0' ],
+114 silly audit   'safe-array-concat': [ '1.1.4' ],
+114 silly audit   'safe-push-apply': [ '1.0.0' ],
+114 silly audit   'safe-regex-test': [ '1.1.0' ],
+114 silly audit   scheduler: [ '0.27.0' ],
+114 silly audit   'set-function-length': [ '1.2.2' ],
+114 silly audit   'set-function-name': [ '2.0.2' ],
+114 silly audit   'set-proto': [ '1.0.0' ],
+114 silly audit   sharp: [ '0.35.4' ],
+114 silly audit   'shebang-command': [ '2.0.0' ],
+114 silly audit   'shebang-regex': [ '3.0.0' ],
+114 silly audit   'side-channel': [ '1.1.1' ],
+114 silly audit   'side-channel-list': [ '1.0.1' ],
+114 silly audit   'side-channel-map': [ '1.0.1' ],
+114 silly audit   'side-channel-weakmap': [ '1.0.2' ],
+114 silly audit   sonner: [ '2.0.8' ],
+114 silly audit   'source-map-js': [ '1.2.1' ],
+114 silly audit   'stable-hash': [ '0.0.5' ],
+114 silly audit   'stop-iteration-iterator': [ '1.1.0' ],
+114 silly audit   'string.prototype.includes': [ '2.0.1' ],
+114 silly audit   'string.prototype.matchall': [ '4.1.0' ],
+114 silly audit   'string.prototype.repeat': [ '1.0.0' ],
+114 silly audit   'string.prototype.trim': [ '1.2.11' ],
+114 silly audit   'string.prototype.trimend': [ '1.0.10' ],
+114 silly audit   'string.prototype.trimstart': [ '1.0.8' ],
+114 silly audit   'strip-bom': [ '3.0.0' ],
+114 silly audit   'strip-json-comments': [ '3.1.1' ],
+114 silly audit   'styled-jsx': [ '5.1.6' ],
+114 silly audit   'supports-color': [ '7.2.0' ],
+114 silly audit   'supports-preserve-symlinks-flag': [ '1.0.0' ],
+114 silly audit   'tailwind-merge': [ '3.7.0' ],
+114 silly audit   tailwindcss: [ '4.3.3' ],
+114 silly audit   tapable: [ '2.3.3' ],
+114 silly audit   tinyglobby: [ '0.2.17' ],
+114 silly audit   fdir: [ '6.5.0' ],
+114 silly audit   'to-regex-range': [ '5.0.1' ],
+114 silly audit   'ts-api-utils': [ '2.5.0' ],
+114 silly audit   'tsconfig-paths': [ '3.15.0' ],
+114 silly audit   tslib: [ '2.8.1' ],
+114 silly audit   'type-check': [ '0.4.0' ],
+114 silly audit   'typed-array-buffer': [ '1.0.3' ],
+114 silly audit   'typed-array-byte-length': [ '1.0.3' ],
+114 silly audit   'typed-array-byte-offset': [ '1.0.5' ],
+114 silly audit   'typed-array-length': [ '1.0.8' ],
+114 silly audit   typescript: [ '5.9.3' ],
+114 silly audit   'typescript-eslint': [ '8.70.0' ],
+114 silly audit   '@typescript-eslint/eslint-plugin': [ '8.70.0' ],
+114 silly audit   'unbox-primitive': [ '1.1.0' ],
+114 silly audit   'undici-types': [ '6.21.0' ],
+114 silly audit   'unrs-resolver': [ '1.12.2' ],
+114 silly audit   'update-browserslist-db': [ '1.3.3' ],
+114 silly audit   'uri-js': [ '4.4.1' ],
+114 silly audit   'use-callback-ref': [ '1.3.3' ],
+114 silly audit   'use-sidecar': [ '1.1.3' ],
+114 silly audit   which: [ '2.0.2' ],
+114 silly audit   'which-boxed-primitive': [ '1.1.1' ],
+114 silly audit   'which-builtin-type': [ '1.2.1' ],
+114 silly audit   'which-collection': [ '1.0.2' ],
+114 silly audit   'which-typed-array': [ '1.1.24' ],
+114 silly audit   'word-wrap': [ '1.2.5' ],
+114 silly audit   yallist: [ '3.1.1' ],
+114 silly audit   'yocto-queue': [ '0.1.0' ],
+114 silly audit   zod: [ '4.6.5' ],
+114 silly audit   'zod-validation-error': [ '4.0.2' ]
+114 silly audit }
+115 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fparser cache-miss
+116 silly packumentCache corgi:https://registry.npmjs.org/which cache-miss
+117 silly packumentCache corgi:https://registry.npmjs.org/update-browserslist-db cache-miss
+118 silly packumentCache corgi:https://registry.npmjs.org/json5 cache-miss
+119 silly packumentCache corgi:https://registry.npmjs.org/semver cache-miss
+120 silly packumentCache corgi:https://registry.npmjs.org/json5 cache-miss
+121 silly packumentCache corgi:https://registry.npmjs.org/loose-envify cache-miss
+122 silly packumentCache corgi:https://registry.npmjs.org/jsesc cache-miss
+123 silly packumentCache corgi:https://registry.npmjs.org/semver cache-miss
+124 silly packumentCache corgi:https://registry.npmjs.org/browserslist cache-miss
+125 silly packumentCache corgi:https://registry.npmjs.org/baseline-browser-mapping cache-miss
+126 silly packumentCache corgi:https://registry.npmjs.org/acorn cache-miss
+127 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftypes cache-miss
+128 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2fvisitor-keys cache-miss
+129 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2futils cache-miss
+130 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftypescript-estree cache-miss
+131 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftsconfig-utils cache-miss
+132 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftype-utils cache-miss
+133 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2fproject-service cache-miss
+134 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2fparser cache-miss
+135 silly packumentCache corgi:https://registry.npmjs.org/@types%2freact cache-miss
+136 silly packumentCache corgi:https://registry.npmjs.org/@types%2fnode cache-miss
+137 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2fpostcss cache-miss
+138 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2foxide-win32-x64-msvc cache-miss
+139 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2foxide cache-miss
+140 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2fnode cache-miss
+141 silly packumentCache corgi:https://registry.npmjs.org/@next%2fenv cache-miss
+142 silly packumentCache corgi:https://registry.npmjs.org/@next%2fswc-win32-x64-msvc cache-miss
+143 silly packumentCache corgi:https://registry.npmjs.org/@img%2fsharp-win32-x64 cache-miss
+144 silly packumentCache corgi:https://registry.npmjs.org/@eslint%2feslintrc cache-miss
+145 silly packumentCache corgi:https://registry.npmjs.org/@humanwhocodes%2fretry cache-miss
+146 silly packumentCache corgi:https://registry.npmjs.org/@next%2feslint-plugin-next cache-miss
+147 silly packumentCache corgi:https://registry.npmjs.org/@babel%2ftraverse cache-miss
+148 silly packumentCache corgi:https://registry.npmjs.org/@babel%2ftemplate cache-miss
+149 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fhelper-module-transforms cache-miss
+150 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fgenerator cache-miss
+151 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fcore cache-miss
+152 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fcompat-data cache-miss
+153 http cache @babel/helpers@https://registry.npmjs.org/@babel/helpers/-/helpers-7.29.7.tgz 6ms (cache hit)
+154 http cache ignore@https://registry.npmjs.org/ignore/-/ignore-7.0.9.tgz 0ms (cache hit)
+155 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fhelper-module-imports cache-miss
+156 silly packumentCache corgi:https://registry.npmjs.org/tailwindcss cache-miss
+157 silly packumentCache corgi:https://registry.npmjs.org/typescript-eslint cache-miss
+158 silly packumentCache corgi:https://registry.npmjs.org/typescript cache-miss
+159 silly packumentCache corgi:https://registry.npmjs.org/zod cache-miss
+160 silly packumentCache corgi:https://registry.npmjs.org/styled-jsx cache-miss
+161 silly packumentCache corgi:https://registry.npmjs.org/string.prototype.trim cache-miss
+162 silly packumentCache corgi:https://registry.npmjs.org/sharp cache-miss
+163 silly packumentCache corgi:https://registry.npmjs.org/scheduler cache-miss
+164 silly packumentCache corgi:https://registry.npmjs.org/semver cache-miss
+165 silly packumentCache corgi:https://registry.npmjs.org/resolve cache-miss
+166 silly packumentCache corgi:https://registry.npmjs.org/react-dom cache-miss
+167 silly packumentCache corgi:https://registry.npmjs.org/react cache-miss
+168 silly packumentCache corgi:https://registry.npmjs.org/react-is cache-miss
+169 silly packumentCache corgi:https://registry.npmjs.org/prop-types cache-miss
+170 silly packumentCache corgi:https://registry.npmjs.org/postcss cache-miss
+171 silly packumentCache corgi:https://registry.npmjs.org/postcss cache-miss
+172 silly packumentCache corgi:https://registry.npmjs.org/napi-postinstall cache-miss
+173 silly packumentCache corgi:https://registry.npmjs.org/nanoid cache-miss
+174 silly packumentCache corgi:https://registry.npmjs.org/object-inspect cache-miss
+175 silly packumentCache corgi:https://registry.npmjs.org/language-subtag-registry cache-miss
+176 silly packumentCache corgi:https://registry.npmjs.org/minimist cache-miss
+177 silly packumentCache corgi:https://registry.npmjs.org/jsx-ast-utils cache-miss
+178 silly packumentCache corgi:https://registry.npmjs.org/js-yaml cache-miss
+179 silly packumentCache corgi:https://registry.npmjs.org/jiti cache-miss
+180 silly packumentCache corgi:https://registry.npmjs.org/has-tostringtag cache-miss
+181 silly packumentCache corgi:https://registry.npmjs.org/has-symbols cache-miss
+182 silly packumentCache corgi:https://registry.npmjs.org/flatted cache-miss
+183 silly packumentCache corgi:https://registry.npmjs.org/fast-json-stable-stringify cache-miss
+184 silly packumentCache corgi:https://registry.npmjs.org/fast-glob cache-miss
+185 silly packumentCache corgi:https://registry.npmjs.org/eslint-plugin-react cache-miss
+186 silly packumentCache corgi:https://registry.npmjs.org/esquery cache-miss
+187 silly packumentCache corgi:https://registry.npmjs.org/eslint-plugin-react-hooks cache-miss
+188 silly packumentCache corgi:https://registry.npmjs.org/eslint-plugin-import cache-miss
+189 silly packumentCache corgi:https://registry.npmjs.org/eslint-module-utils cache-miss
+190 silly packumentCache corgi:https://registry.npmjs.org/eslint-config-next cache-miss
+191 silly packumentCache corgi:https://registry.npmjs.org/globals cache-miss
+192 silly packumentCache corgi:https://registry.npmjs.org/es-iterator-helpers cache-miss
+193 silly packumentCache corgi:https://registry.npmjs.org/electron-to-chromium cache-miss
+194 silly packumentCache corgi:https://registry.npmjs.org/axobject-query cache-miss
+195 silly packumentCache corgi:https://registry.npmjs.org/axe-core cache-miss
+196 silly packumentCache corgi:https://registry.npmjs.org/arraybuffer.prototype.slice cache-miss
+197 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.flat cache-miss
+198 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.flatmap cache-miss
+199 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.findlast cache-miss
+200 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.findlastindex cache-miss
+201 silly packumentCache corgi:https://registry.npmjs.org/array-includes cache-miss
+202 silly packumentCache corgi:https://registry.npmjs.org/ajv cache-miss
+203 silly tarball no local data for @babel/helpers@https://registry.npmjs.org/@babel/helpers/-/helpers-7.29.7.tgz. Extracting by manifest.
+204 silly tarball no local data for ignore@https://registry.npmjs.org/ignore/-/ignore-7.0.9.tgz. Extracting by manifest.
+205 silly packumentCache corgi:https://registry.npmjs.org/enhanced-resolve cache-miss
+206 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.tosorted cache-miss
+207 http cache es-abstract@https://registry.npmjs.org/es-abstract/-/es-abstract-1.24.2.tgz 1ms (cache hit)
+208 silly tarball no local data for es-abstract@https://registry.npmjs.org/es-abstract/-/es-abstract-1.24.2.tgz. Extracting by manifest.
+209 http cache @tanstack/react-query@https://registry.npmjs.org/@tanstack/react-query/-/react-query-5.103.1.tgz 0ms (cache hit)
+210 http cache @babel/types@https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz 0ms (cache hit)
+211 silly tarball no local data for @tanstack/react-query@https://registry.npmjs.org/@tanstack/react-query/-/react-query-5.103.1.tgz. Extracting by manifest.
+212 http cache es-abstract@https://registry.npmjs.org/es-abstract/-/es-abstract-1.24.2.tgz 0ms (cache hit)
+213 silly tarball no local data for @babel/types@https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz. Extracting by manifest.
+214 silly tarball no local data for es-abstract@https://registry.npmjs.org/es-abstract/-/es-abstract-1.24.2.tgz. Extracting by manifest.
+215 http fetch POST 200 https://registry.npmjs.org/-/npm/v1/security/advisories/bulk 2941ms
+216 silly audit report {}
+217 http cache @babel/types@https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz 0ms (cache hit)
+218 http cache @babel/types@https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz 0ms (cache hit)
+219 silly tarball no local data for @babel/types@https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz. Extracting by manifest.
+220 silly tarball no local data for @babel/types@https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz. Extracting by manifest.
+221 http fetch GET 200 https://registry.npmjs.org/json5 3277ms (cache miss)
+222 silly packumentCache corgi:https://registry.npmjs.org/json5 set size:undefined disposed:false
+223 http fetch GET 200 https://registry.npmjs.org/update-browserslist-db 3317ms (cache miss)
+224 silly packumentCache corgi:https://registry.npmjs.org/update-browserslist-db set size:undefined disposed:false
+225 http fetch GET 200 https://registry.npmjs.org/which 3327ms (cache miss)
+226 silly packumentCache corgi:https://registry.npmjs.org/which set size:undefined disposed:false
+227 http fetch GET 200 https://registry.npmjs.org/loose-envify 3319ms (cache miss)
+228 silly packumentCache corgi:https://registry.npmjs.org/loose-envify set size:undefined disposed:false
+229 http fetch GET 200 https://registry.npmjs.org/json5 3331ms (cache miss)
+230 silly packumentCache corgi:https://registry.npmjs.org/json5 set size:undefined disposed:false
+231 http fetch GET 200 https://registry.npmjs.org/jsesc 3344ms (cache miss)
+232 silly packumentCache corgi:https://registry.npmjs.org/jsesc set size:undefined disposed:false
+233 http fetch GET 200 https://registry.npmjs.org/baseline-browser-mapping 3799ms (cache miss)
+234 silly packumentCache corgi:https://registry.npmjs.org/baseline-browser-mapping set size:undefined disposed:false
+235 http fetch GET 200 https://registry.npmjs.org/semver 3880ms (cache miss)
+236 silly packumentCache corgi:https://registry.npmjs.org/semver set size:undefined disposed:false
+237 http fetch GET 200 https://registry.npmjs.org/semver 3981ms (cache miss)
+238 silly packumentCache corgi:https://registry.npmjs.org/semver set size:undefined disposed:false
+239 http fetch GET 200 https://registry.npmjs.org/acorn 4333ms (cache miss)
+240 silly packumentCache corgi:https://registry.npmjs.org/acorn set size:undefined disposed:false
+241 http fetch GET 200 https://registry.npmjs.org/browserslist 4700ms (cache miss)
+242 silly packumentCache corgi:https://registry.npmjs.org/browserslist set size:undefined disposed:false
+243 http fetch GET 200 https://registry.npmjs.org/@babel%2fparser 4936ms (cache miss)
+244 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fparser set size:undefined disposed:false
+245 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2ftsconfig-utils 6555ms (cache miss)
+246 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftsconfig-utils set size:undefined disposed:false
+247 http fetch GET 200 https://registry.npmjs.org/@tailwindcss%2fpostcss 7068ms (cache miss)
+248 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2fpostcss set size:undefined disposed:false
+249 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2fproject-service 7264ms (cache miss)
+250 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2fproject-service set size:undefined disposed:false
+251 http fetch GET 200 https://registry.npmjs.org/@tailwindcss%2fnode 7344ms (cache miss)
+252 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2fnode set size:undefined disposed:false
+253 http fetch GET 200 https://registry.npmjs.org/@img%2fsharp-win32-x64 7747ms (cache miss)
+254 silly packumentCache corgi:https://registry.npmjs.org/@img%2fsharp-win32-x64 set size:undefined disposed:false
+255 http fetch GET 200 https://registry.npmjs.org/@eslint%2feslintrc 7854ms (cache miss)
+256 silly packumentCache corgi:https://registry.npmjs.org/@eslint%2feslintrc set size:undefined disposed:false
+257 http fetch GET 200 https://registry.npmjs.org/@types%2freact 8245ms (cache miss)
+258 silly packumentCache corgi:https://registry.npmjs.org/@types%2freact set size:undefined disposed:false
+259 http fetch GET 200 https://registry.npmjs.org/@humanwhocodes%2fretry 8648ms (cache miss)
+260 silly packumentCache corgi:https://registry.npmjs.org/@humanwhocodes%2fretry set size:undefined disposed:false
+261 http fetch GET 200 https://registry.npmjs.org/@tailwindcss%2foxide-win32-x64-msvc 10028ms (cache miss)
+262 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2foxide-win32-x64-msvc set size:undefined disposed:false
+263 http fetch GET 200 https://registry.npmjs.org/@babel%2ftemplate 10333ms (cache miss)
+264 silly packumentCache corgi:https://registry.npmjs.org/@babel%2ftemplate set size:undefined disposed:false
+265 http fetch GET 200 https://registry.npmjs.org/@babel%2ftraverse 10941ms (cache miss)
+266 silly packumentCache corgi:https://registry.npmjs.org/@babel%2ftraverse set size:undefined disposed:false
+267 http fetch GET 200 https://registry.npmjs.org/@tailwindcss%2foxide 11037ms (cache miss)
+268 silly packumentCache corgi:https://registry.npmjs.org/@tailwindcss%2foxide set size:undefined disposed:false
+269 http fetch GET 200 https://registry.npmjs.org/@babel%2fhelper-module-transforms 11889ms (cache miss)
+270 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fhelper-module-transforms set size:undefined disposed:false
+271 http fetch GET 200 https://registry.npmjs.org/@babel%2fhelper-module-imports 12932ms (cache miss)
+272 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fhelper-module-imports set size:undefined disposed:false
+273 http fetch GET 200 https://registry.npmjs.org/@babel%2fcompat-data 13052ms (cache miss)
+274 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fcompat-data set size:undefined disposed:false
+275 http fetch GET 200 https://registry.npmjs.org/@babel%2fcore 13618ms (cache miss)
+276 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fcore set size:undefined disposed:false
+277 http fetch GET 200 https://registry.npmjs.org/@babel%2fgenerator 15510ms (cache miss)
+278 silly packumentCache corgi:https://registry.npmjs.org/@babel%2fgenerator set size:undefined disposed:false
+279 http fetch GET 200 https://registry.npmjs.org/typescript-eslint 16007ms (cache miss)
+280 silly packumentCache corgi:https://registry.npmjs.org/typescript-eslint set size:undefined disposed:false
+281 http fetch GET 200 https://registry.npmjs.org/styled-jsx 16570ms (cache miss)
+282 silly packumentCache corgi:https://registry.npmjs.org/styled-jsx set size:undefined disposed:false
+283 http fetch GET 200 https://registry.npmjs.org/string.prototype.trim 18051ms (cache miss)
+284 silly packumentCache corgi:https://registry.npmjs.org/string.prototype.trim set size:undefined disposed:false
+285 http fetch GET 200 https://registry.npmjs.org/sharp 19278ms (cache miss)
+286 silly packumentCache corgi:https://registry.npmjs.org/sharp set size:undefined disposed:false
+287 http fetch GET 200 https://registry.npmjs.org/@next%2fenv 20956ms (cache miss)
+288 silly packumentCache corgi:https://registry.npmjs.org/@next%2fenv set size:undefined disposed:false
+289 http fetch GET 200 https://registry.npmjs.org/semver 21160ms (cache miss)
+290 silly packumentCache corgi:https://registry.npmjs.org/semver set size:undefined disposed:false
+291 http fetch GET 200 https://registry.npmjs.org/@next%2fswc-win32-x64-msvc 22118ms (cache miss)
+292 silly packumentCache corgi:https://registry.npmjs.org/@next%2fswc-win32-x64-msvc set size:undefined disposed:false
+293 http fetch GET 200 https://registry.npmjs.org/resolve 23497ms (cache miss)
+294 silly packumentCache corgi:https://registry.npmjs.org/resolve set size:undefined disposed:false
+295 http fetch GET 200 https://registry.npmjs.org/@next%2feslint-plugin-next 23999ms (cache miss)
+296 silly packumentCache corgi:https://registry.npmjs.org/@next%2feslint-plugin-next set size:undefined disposed:false
+297 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2ftype-utils 24208ms (cache miss)
+298 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftype-utils set size:undefined disposed:false
+299 http fetch GET 200 https://registry.npmjs.org/prop-types 25237ms (cache miss)
+300 silly packumentCache corgi:https://registry.npmjs.org/prop-types set size:undefined disposed:false
+301 http fetch GET 200 https://registry.npmjs.org/zod 25909ms (cache miss)
+302 silly packumentCache corgi:https://registry.npmjs.org/zod set size:undefined disposed:false
+303 http fetch GET 200 https://registry.npmjs.org/postcss 26465ms (cache miss)
+304 silly packumentCache corgi:https://registry.npmjs.org/postcss set size:undefined disposed:false
+305 http fetch GET 200 https://registry.npmjs.org/napi-postinstall 26613ms (cache miss)
+306 silly packumentCache corgi:https://registry.npmjs.org/napi-postinstall set size:undefined disposed:false
+307 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2futils 27362ms (cache miss)
+308 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2futils set size:undefined disposed:false
+309 http fetch GET 200 https://registry.npmjs.org/postcss 27516ms (cache miss)
+310 silly packumentCache corgi:https://registry.npmjs.org/postcss set size:undefined disposed:false
+311 http fetch GET 200 https://registry.npmjs.org/object-inspect 28062ms (cache miss)
+312 silly packumentCache corgi:https://registry.npmjs.org/object-inspect set size:undefined disposed:false
+313 http fetch GET 200 https://registry.npmjs.org/@types%2fnode 28210ms (cache miss)
+314 silly packumentCache corgi:https://registry.npmjs.org/@types%2fnode set size:undefined disposed:false
+315 http fetch GET 200 https://registry.npmjs.org/nanoid 28243ms (cache miss)
+316 silly packumentCache corgi:https://registry.npmjs.org/nanoid set size:undefined disposed:false
+317 http fetch GET 200 https://registry.npmjs.org/language-subtag-registry 28509ms (cache miss)
+318 silly packumentCache corgi:https://registry.npmjs.org/language-subtag-registry set size:undefined disposed:false
+319 http fetch GET 200 https://registry.npmjs.org/minimist 28828ms (cache miss)
+320 silly packumentCache corgi:https://registry.npmjs.org/minimist set size:undefined disposed:false
+321 http fetch GET 200 https://registry.npmjs.org/react-dom 29017ms (cache miss)
+322 silly packumentCache corgi:https://registry.npmjs.org/react-dom set size:undefined disposed:false
+323 http fetch GET 200 https://registry.npmjs.org/jsx-ast-utils 29270ms (cache miss)
+324 silly packumentCache corgi:https://registry.npmjs.org/jsx-ast-utils set size:undefined disposed:false
+325 http fetch GET 200 https://registry.npmjs.org/js-yaml 29418ms (cache miss)
+326 silly packumentCache corgi:https://registry.npmjs.org/js-yaml set size:undefined disposed:false
+327 http fetch GET 200 https://registry.npmjs.org/has-tostringtag 29559ms (cache miss)
+328 silly packumentCache corgi:https://registry.npmjs.org/has-tostringtag set size:undefined disposed:false
+329 http fetch GET 200 https://registry.npmjs.org/jiti 29708ms (cache miss)
+330 silly packumentCache corgi:https://registry.npmjs.org/jiti set size:undefined disposed:false
+331 http fetch GET 200 https://registry.npmjs.org/has-symbols 29798ms (cache miss)
+332 silly packumentCache corgi:https://registry.npmjs.org/has-symbols set size:undefined disposed:false
+333 http fetch GET 200 https://registry.npmjs.org/flatted 29951ms (cache miss)
+334 silly packumentCache corgi:https://registry.npmjs.org/flatted set size:undefined disposed:false
+335 http fetch GET 200 https://registry.npmjs.org/fast-json-stable-stringify 30113ms (cache miss)
+336 silly packumentCache corgi:https://registry.npmjs.org/fast-json-stable-stringify set size:undefined disposed:false
+337 http fetch GET 200 https://registry.npmjs.org/tailwindcss 30571ms (cache miss)
+338 silly packumentCache corgi:https://registry.npmjs.org/tailwindcss set size:undefined disposed:false
+339 http fetch GET 200 https://registry.npmjs.org/esquery 30826ms (cache miss)
+340 silly packumentCache corgi:https://registry.npmjs.org/esquery set size:undefined disposed:false
+341 http fetch GET 200 https://registry.npmjs.org/fast-glob 30943ms (cache miss)
+342 silly packumentCache corgi:https://registry.npmjs.org/fast-glob set size:undefined disposed:false
+343 http fetch GET 200 https://registry.npmjs.org/eslint-plugin-import 31037ms (cache miss)
+344 silly packumentCache corgi:https://registry.npmjs.org/eslint-plugin-import set size:undefined disposed:false
+345 http fetch GET 200 https://registry.npmjs.org/eslint-module-utils 31502ms (cache miss)
+346 silly packumentCache corgi:https://registry.npmjs.org/eslint-module-utils set size:undefined disposed:false
+347 http fetch GET 200 https://registry.npmjs.org/eslint-plugin-react 32027ms (cache miss)
+348 silly packumentCache corgi:https://registry.npmjs.org/eslint-plugin-react set size:undefined disposed:false
+349 http fetch GET 200 https://registry.npmjs.org/es-iterator-helpers 33094ms (cache miss)
+350 silly packumentCache corgi:https://registry.npmjs.org/es-iterator-helpers set size:undefined disposed:false
+351 http fetch GET 200 https://registry.npmjs.org/globals 33287ms (cache miss)
+352 silly packumentCache corgi:https://registry.npmjs.org/globals set size:undefined disposed:false
+353 http fetch GET 200 https://registry.npmjs.org/axobject-query 33855ms (cache miss)
+354 silly packumentCache corgi:https://registry.npmjs.org/axobject-query set size:undefined disposed:false
+355 http fetch GET 200 https://registry.npmjs.org/arraybuffer.prototype.slice 34334ms (cache miss)
+356 silly packumentCache corgi:https://registry.npmjs.org/arraybuffer.prototype.slice set size:undefined disposed:false
+357 http fetch GET 200 https://registry.npmjs.org/array.prototype.flat 34369ms (cache miss)
+358 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.flat set size:undefined disposed:false
+359 http fetch GET 200 https://registry.npmjs.org/array.prototype.flatmap 35390ms (cache miss)
+360 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.flatmap set size:undefined disposed:false
+361 http fetch GET 200 https://registry.npmjs.org/typescript 35760ms (cache miss)
+362 silly packumentCache corgi:https://registry.npmjs.org/typescript set size:undefined disposed:false
+363 http fetch GET 200 https://registry.npmjs.org/array.prototype.findlast 36718ms (cache miss)
+364 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.findlast set size:undefined disposed:false
+365 http fetch GET 200 https://registry.npmjs.org/array.prototype.findlastindex 36880ms (cache miss)
+366 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.findlastindex set size:undefined disposed:false
+367 http fetch GET 200 https://registry.npmjs.org/array-includes 37800ms (cache miss)
+368 silly packumentCache corgi:https://registry.npmjs.org/array-includes set size:undefined disposed:false
+369 http fetch GET 200 https://registry.npmjs.org/array.prototype.tosorted 37902ms (cache miss)
+370 silly packumentCache corgi:https://registry.npmjs.org/array.prototype.tosorted set size:undefined disposed:false
+371 http fetch GET 200 https://registry.npmjs.org/ignore/-/ignore-7.0.9.tgz 38867ms (cache miss)
+372 http fetch GET 200 https://registry.npmjs.org/react-is 39704ms (cache miss)
+373 silly packumentCache corgi:https://registry.npmjs.org/react-is set size:undefined disposed:false
+374 http fetch GET 200 https://registry.npmjs.org/enhanced-resolve 38874ms (cache miss)
+375 silly packumentCache corgi:https://registry.npmjs.org/enhanced-resolve set size:undefined disposed:false
+376 http fetch GET 200 https://registry.npmjs.org/ajv 39909ms (cache miss)
+377 silly packumentCache corgi:https://registry.npmjs.org/ajv set size:undefined disposed:false
+378 http fetch GET 200 https://registry.npmjs.org/react 42905ms (cache miss)
+379 silly packumentCache corgi:https://registry.npmjs.org/react set size:undefined disposed:false
+380 http fetch GET 200 https://registry.npmjs.org/which/-/which-2.0.2.tgz 40351ms (cache miss)
+381 http fetch GET 200 https://registry.npmjs.org/update-browserslist-db/-/update-browserslist-db-1.3.3.tgz 40616ms (cache miss)
+382 http fetch GET 200 https://registry.npmjs.org/json5/-/json5-1.0.2.tgz 41630ms (cache miss)
+383 http fetch GET 200 https://registry.npmjs.org/jsesc/-/jsesc-3.1.0.tgz 41932ms (cache miss)
+384 http fetch GET 200 https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz 41992ms (cache miss)
+385 http fetch GET 200 https://registry.npmjs.org/json5/-/json5-2.2.3.tgz 42701ms (cache miss)
+386 http fetch GET 200 https://registry.npmjs.org/semver/-/semver-7.8.5.tgz 42394ms (cache miss)
+387 http fetch GET 200 https://registry.npmjs.org/semver/-/semver-6.3.1.tgz 42578ms (cache miss)
+388 http fetch GET 200 https://registry.npmjs.org/baseline-browser-mapping/-/baseline-browser-mapping-2.11.25.tgz 42818ms (cache miss)
+389 http fetch GET 200 https://registry.npmjs.org/browserslist/-/browserslist-4.29.0.tgz 42419ms (cache miss)
+390 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/tsconfig-utils/-/tsconfig-utils-8.70.0.tgz 41236ms (cache miss)
+391 http fetch GET 200 https://registry.npmjs.org/scheduler 48202ms (cache miss)
+392 silly packumentCache corgi:https://registry.npmjs.org/scheduler set size:undefined disposed:false
+393 http fetch GET 200 https://registry.npmjs.org/@tailwindcss/postcss/-/postcss-4.3.3.tgz 41289ms (cache miss)
+394 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/project-service/-/project-service-8.70.0.tgz 41461ms (cache miss)
+395 http fetch GET 200 https://registry.npmjs.org/@humanwhocodes/retry/-/retry-0.4.3.tgz 40395ms (cache miss)
+396 http fetch GET 200 https://registry.npmjs.org/semver/-/semver-7.8.5.tgz 28410ms (cache miss)
+397 http fetch GET 200 https://registry.npmjs.org/@tailwindcss/oxide/-/oxide-4.3.3.tgz 38665ms (cache miss)
+398 http fetch GET 200 https://registry.npmjs.org/@tailwindcss/node/-/node-4.3.3.tgz 42985ms (cache miss)
+399 http fetch GET 200 https://registry.npmjs.org/typescript-eslint/-/typescript-eslint-8.70.0.tgz 34169ms (cache miss)
+400 http fetch GET 200 https://registry.npmjs.org/@babel/template/-/template-7.29.7.tgz 40129ms (cache miss)
+401 http fetch GET 200 https://registry.npmjs.org/@babel/helper-module-imports/-/helper-module-imports-7.29.7.tgz 37468ms (cache miss)
+402 http fetch GET 200 https://registry.npmjs.org/string.prototype.trim/-/string.prototype.trim-1.2.11.tgz 32419ms (cache miss)
+403 http fetch GET 200 https://registry.npmjs.org/@babel/compat-data/-/compat-data-7.29.7.tgz 38051ms (cache miss)
+404 http fetch GET 200 https://registry.npmjs.org/@babel/helper-module-transforms/-/helper-module-transforms-7.29.7.tgz 39300ms (cache miss)
+405 http fetch GET 200 https://registry.npmjs.org/@next/env/-/env-16.3.5.tgz 30811ms (cache miss)
+406 http fetch GET 200 https://registry.npmjs.org/resolve/-/resolve-2.0.0-next.7.tgz 29445ms (cache miss)
+407 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/type-utils/-/type-utils-8.70.0.tgz 28819ms (cache miss)
+408 http fetch GET 200 https://registry.npmjs.org/@next/eslint-plugin-next/-/eslint-plugin-next-16.3.5.tgz 29429ms (cache miss)
+409 http fetch GET 200 https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz 28539ms (cache miss)
+410 http fetch GET 200 https://registry.npmjs.org/napi-postinstall/-/napi-postinstall-0.3.4.tgz 27199ms (cache miss)
+411 http fetch GET 200 https://registry.npmjs.org/nanoid/-/nanoid-3.3.19.tgz 25894ms (cache miss)
+412 http fetch GET 200 https://registry.npmjs.org/postcss/-/postcss-8.5.28.tgz 28405ms (cache miss)
+413 http fetch GET 200 https://registry.npmjs.org/jsx-ast-utils/-/jsx-ast-utils-3.3.5.tgz 25878ms (cache miss)
+414 http fetch GET 200 https://registry.npmjs.org/fast-json-stable-stringify/-/fast-json-stable-stringify-2.1.0.tgz 25015ms (cache miss)
+415 http fetch GET 200 https://registry.npmjs.org/postcss/-/postcss-8.5.23.tgz 28056ms (cache miss)
+416 http fetch GET 200 https://registry.npmjs.org/object-inspect/-/object-inspect-1.13.4.tgz 27639ms (cache miss)
+417 http fetch GET 200 https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz 26902ms (cache miss)
+418 http fetch GET 200 https://registry.npmjs.org/has-tostringtag/-/has-tostringtag-1.0.2.tgz 26163ms (cache miss)
+419 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/utils/-/utils-8.70.0.tgz 28752ms (cache miss)
+420 http fetch GET 200 https://registry.npmjs.org/has-symbols/-/has-symbols-1.1.0.tgz 26364ms (cache miss)
+421 http fetch GET 200 https://registry.npmjs.org/flatted/-/flatted-3.4.4.tgz 26264ms (cache miss)
+422 http fetch GET 200 https://registry.npmjs.org/fast-glob/-/fast-glob-3.3.1.tgz 26129ms (cache miss)
+423 http fetch GET 200 https://registry.npmjs.org/eslint-module-utils/-/eslint-module-utils-2.14.0.tgz 25617ms (cache miss)
+424 http fetch GET 200 https://registry.npmjs.org/globals/-/globals-16.4.0.tgz 24069ms (cache miss)
+425 http fetch GET 200 https://registry.npmjs.org/array.prototype.flat/-/array.prototype.flat-1.3.3.tgz 22944ms (cache miss)
+426 http fetch GET 200 https://registry.npmjs.org/arraybuffer.prototype.slice/-/arraybuffer.prototype.slice-1.0.4.tgz 23019ms (cache miss)
+427 http fetch GET 200 https://registry.npmjs.org/array.prototype.flatmap/-/array.prototype.flatmap-1.3.3.tgz 21880ms (cache miss)
+428 http fetch GET 200 https://registry.npmjs.org/es-iterator-helpers/-/es-iterator-helpers-1.4.0.tgz 24350ms (cache miss)
+429 http fetch GET 200 https://registry.npmjs.org/axobject-query/-/axobject-query-4.1.0.tgz 23695ms (cache miss)
+430 http fetch GET 200 https://registry.npmjs.org/array.prototype.findlast/-/array.prototype.findlast-1.2.5.tgz 20734ms (cache miss)
+431 http fetch GET 200 https://registry.npmjs.org/array-includes/-/array-includes-3.2.0.tgz 20294ms (cache miss)
+432 http fetch GET 200 https://registry.npmjs.org/array.prototype.findlastindex/-/array.prototype.findlastindex-1.2.6.tgz 21289ms (cache miss)
+433 http fetch GET 200 https://registry.npmjs.org/array.prototype.tosorted/-/array.prototype.tosorted-1.1.4.tgz 20317ms (cache miss)
+434 http fetch GET 200 https://registry.npmjs.org/react-is/-/react-is-16.13.1.tgz 19640ms (cache miss)
+435 http fetch GET 200 https://registry.npmjs.org/scheduler/-/scheduler-0.27.0.tgz 11861ms (cache miss)
+436 http fetch GET 200 https://registry.npmjs.org/react/-/react-19.2.8.tgz 18554ms (cache miss)
+437 http fetch GET 200 https://registry.npmjs.org/acorn/-/acorn-8.18.0.tgz 59271ms (cache miss)
+438 http fetch GET 200 https://registry.npmjs.org/electron-to-chromium 66592ms (cache miss)
+439 silly packumentCache corgi:https://registry.npmjs.org/electron-to-chromium set size:undefined disposed:false
+440 http fetch GET 200 https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.433.tgz 3647ms (cache miss)
+441 http fetch GET 200 https://registry.npmjs.org/@types/react/-/react-19.3.0.tgz 63405ms (cache miss)
+442 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2ftypes 72069ms (cache miss)
+443 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftypes set size:undefined disposed:false
+444 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/types/-/types-8.70.0.tgz 4438ms (cache miss)
+445 http fetch GET 200 https://registry.npmjs.org/styled-jsx/-/styled-jsx-5.1.6.tgz 60578ms (cache miss)
+446 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2ftypescript-estree 77833ms (cache miss)
+447 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2ftypescript-estree set size:undefined disposed:false
+448 http fetch GET 200 https://registry.npmjs.org/esquery/-/esquery-1.7.0.tgz 46974ms (cache miss)
+449 http fetch GET 200 https://registry.npmjs.org/@babel/parser/-/parser-7.29.9.tgz 74953ms (cache miss)
+450 http fetch GET 200 https://registry.npmjs.org/jiti/-/jiti-2.7.0.tgz 50590ms (cache miss)
+451 http fetch GET 200 https://registry.npmjs.org/eslint-config-next 81636ms (cache miss)
+452 silly packumentCache corgi:https://registry.npmjs.org/eslint-config-next set size:undefined disposed:false
+453 http fetch GET 200 https://registry.npmjs.org/eslint-plugin-react-hooks 82555ms (cache miss)
+454 silly packumentCache corgi:https://registry.npmjs.org/eslint-plugin-react-hooks set size:undefined disposed:false
+455 http fetch GET 200 https://registry.npmjs.org/eslint-config-next/-/eslint-config-next-16.3.5.tgz 2324ms (cache miss)
+456 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2fvisitor-keys 84446ms (cache miss)
+457 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2fvisitor-keys set size:undefined disposed:false
+458 http fetch GET 200 https://registry.npmjs.org/language-subtag-registry/-/language-subtag-registry-0.3.23.tgz 56737ms (cache miss)
+459 http fetch GET 200 https://registry.npmjs.org/tailwindcss/-/tailwindcss-4.3.3.tgz 54860ms (cache miss)
+460 http fetch GET 200 https://registry.npmjs.org/axe-core 87407ms (cache miss)
+461 silly packumentCache corgi:https://registry.npmjs.org/axe-core set size:undefined disposed:false
+462 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/visitor-keys/-/visitor-keys-8.70.0.tgz 3441ms (cache miss)
+463 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint%2fparser 91191ms (cache miss)
+464 silly packumentCache corgi:https://registry.npmjs.org/@typescript-eslint%2fparser set size:undefined disposed:false
+465 http fetch GET 200 https://registry.npmjs.org/@eslint/eslintrc/-/eslintrc-3.3.7.tgz 83528ms (cache miss)
+466 http fetch GET 200 https://registry.npmjs.org/@tailwindcss/oxide-win32-x64-msvc/-/oxide-win32-x64-msvc-4.3.3.tgz 82169ms (cache miss)
+467 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/parser/-/parser-8.70.0.tgz 3105ms (cache miss)
+468 http fetch GET 200 https://registry.npmjs.org/@babel/generator/-/generator-7.29.8.tgz 83756ms (cache miss)
+469 http fetch GET 200 https://registry.npmjs.org/js-yaml/-/js-yaml-4.3.2.tgz 71556ms (cache miss)
+470 http fetch GET 200 https://registry.npmjs.org/sharp/-/sharp-0.35.4.tgz 83362ms (cache miss)
+471 http fetch GET 200 https://registry.npmjs.org/eslint-plugin-react-hooks/-/eslint-plugin-react-hooks-7.1.1.tgz 23217ms (cache miss)
+472 http fetch GET 200 https://registry.npmjs.org/@types/node/-/node-20.19.43.tgz 80602ms (cache miss)
+473 http fetch GET 200 https://registry.npmjs.org/enhanced-resolve/-/enhanced-resolve-5.25.1.tgz 68879ms (cache miss)
+474 http fetch GET 200 https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz 27251ms (cache miss)
+475 http fetch GET 200 https://registry.npmjs.org/@babel/traverse/-/traverse-7.29.8.tgz 104867ms (cache miss)
+476 http fetch GET 200 https://registry.npmjs.org/react-dom/-/react-dom-19.2.8.tgz 92881ms (cache miss)
+477 http fetch GET 200 https://registry.npmjs.org/@typescript-eslint/typescript-estree/-/typescript-estree-8.70.0.tgz 44123ms (cache miss)
+478 http fetch GET 200 https://registry.npmjs.org/ajv/-/ajv-6.15.0.tgz 88209ms (cache miss)
+479 http fetch GET 200 https://registry.npmjs.org/@babel/core/-/core-7.29.7.tgz 128716ms (cache miss)
+480 http fetch GET 200 https://registry.npmjs.org/eslint-plugin-import/-/eslint-plugin-import-2.32.0.tgz 114051ms (cache miss)
+481 http fetch GET 200 https://registry.npmjs.org/@img/sharp-win32-x64/-/sharp-win32-x64-0.35.4.tgz 143656ms (cache miss)
+482 http fetch GET 200 https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz 157292ms (cache miss)
+483 http fetch GET 200 https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz 157256ms (cache miss)
+484 http fetch GET 200 https://registry.npmjs.org/@babel/types/-/types-7.29.8.tgz 158841ms (cache miss)
+485 http fetch GET 200 https://registry.npmjs.org/@babel/helpers/-/helpers-7.29.7.tgz 169095ms (cache miss)
+486 http fetch GET 200 https://registry.npmjs.org/eslint-plugin-react/-/eslint-plugin-react-7.37.5.tgz 143132ms (cache miss)
+487 http fetch GET 200 https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz 141819ms (cache miss)
+488 http fetch GET 200 https://registry.npmjs.org/@tanstack/react-query/-/react-query-5.103.1.tgz 209185ms (cache miss)
+489 http fetch GET 200 https://registry.npmjs.org/@next/swc-win32-x64-msvc/-/swc-win32-x64-msvc-16.3.5.tgz 215451ms (cache miss)
+490 http fetch GET 200 https://registry.npmjs.org/zod/-/zod-4.6.5.tgz 253509ms (cache miss)
+491 http fetch GET 200 https://registry.npmjs.org/es-abstract/-/es-abstract-1.24.2.tgz 482045ms (cache miss)
+492 http fetch GET 200 https://registry.npmjs.org/es-abstract/-/es-abstract-1.24.2.tgz 482150ms (cache miss)
+493 warn cleanup Failed to remove some directories [
+493 warn cleanup   [
+493 warn cleanup     '\\\\?\\C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns',
+493 warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\date-fns\fp'] {
+493 warn cleanup       errno: -4051,
+493 warn cleanup       code: 'ENOTEMPTY',
+493 warn cleanup       syscall: 'rmdir',
+493 warn cleanup       path: 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns\\fp'
+493 warn cleanup     }
+493 warn cleanup   ],
+493 warn cleanup   [
+493 warn cleanup     'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns',
+493 warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\date-fns\fp'] {
+493 warn cleanup       errno: -4051,
+493 warn cleanup       code: 'ENOTEMPTY',
+493 warn cleanup       syscall: 'rmdir',
+493 warn cleanup       path: 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns\\fp'
+493 warn cleanup     }
+493 warn cleanup   ],
+493 warn cleanup   [
+493 warn cleanup     '\\\\?\\C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next',
+493 warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\next\dist\compiled\lru-cache'] {
+493 warn cleanup       errno: -4051,
+493 warn cleanup       code: 'ENOTEMPTY',
+493 warn cleanup       syscall: 'rmdir',
+493 warn cleanup       path: 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next\\dist\\compiled\\lru-cache'
+493 warn cleanup     }
+493 warn cleanup   ],
+493 warn cleanup   [
+493 warn cleanup     'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next',
+493 warn cleanup     [Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\next\dist\compiled\lodash.curry'] {
+493 warn cleanup       errno: -4051,
+493 warn cleanup       code: 'ENOTEMPTY',
+493 warn cleanup       syscall: 'rmdir',
+493 warn cleanup       path: 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next\\dist\\compiled\\lodash.curry'
+493 warn cleanup     }
+493 warn cleanup   ],
+493 warn cleanup   [
+493 warn cleanup     '\\\\?\\C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array-includes',
+493 warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\array-includes\node_modules\es-abstract\2025'] {
+493 warn cleanup       errno: -4048,
+493 warn cleanup       code: 'EPERM',
+493 warn cleanup       syscall: 'rmdir',
+493 warn cleanup       path: 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array-includes\\node_modules\\es-abstract\\2025'
+493 warn cleanup     }
+493 warn cleanup   ],
+493 warn cleanup   [
+493 warn cleanup     'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-imports',
+493 warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\@babel\helper-module-imports\node_modules'] {
+493 warn cleanup       errno: -4048,
+493 warn cleanup       code: 'EPERM',
+493 warn cleanup       syscall: 'rmdir',
+493 warn cleanup       path: 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-imports\\node_modules'
+493 warn cleanup     }
+493 warn cleanup   ],
+493 warn cleanup   [
+493 warn cleanup     '\\\\?\\C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\generator',
+493 warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\@babel\generator\node_modules'] {
+493 warn cleanup       errno: -4048,
+493 warn cleanup       code: 'EPERM',
+493 warn cleanup       syscall: 'rmdir',
+493 warn cleanup       path: 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\generator\\node_modules'
+493 warn cleanup     }
+493 warn cleanup   ]
+493 warn cleanup ]
+494 verbose stack Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\@babel\parser\node_modules\@babel\types\lib\validators'
+495 error code ENOTEMPTY
+496 error syscall rmdir
+497 error path C:\Users\DELL\Desktop\predictGPT\web\node_modules\@babel\parser\node_modules\@babel\types\lib\validators
+498 error errno -4051
+499 error ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\@babel\parser\node_modules\@babel\types\lib\validators'
+500 silly unfinished npm timer reify 1789862908807
+501 silly unfinished npm timer reify:unpack 1789862919071
+502 silly unfinished npm timer reifyNode:node_modules/@babel/parser/node_modules/@babel/types 1789862919072
+503 silly unfinished npm timer reifyNode:node_modules/string.prototype.repeat/node_modules/es-abstract 1789862919072
+504 silly unfinished npm timer reifyNode:node_modules/string.prototype.includes/node_modules/es-abstract 1789862919072
+505 silly unfinished npm timer reifyNode:node_modules/reflect.getprototypeof/node_modules/es-abstract 1789862919072
+506 silly unfinished npm timer reifyNode:node_modules/string.prototype.matchall/node_modules/es-abstract 1789862919072
+507 silly unfinished npm timer reifyNode:node_modules/object.groupby/node_modules/es-abstract 1789862919072
+508 silly unfinished npm timer reifyNode:node_modules/object.fromentries/node_modules/es-abstract 1789862919072
+509 silly unfinished npm timer reifyNode:node_modules/@typescript-eslint/utils/node_modules/@typescript-eslint/scope-manager 1789862919072
+510 silly unfinished npm timer reifyNode:node_modules/@typescript-eslint/parser/node_modules/@typescript-eslint/scope-manager 1789862919072
+511 silly unfinished npm timer reifyNode:node_modules/@tanstack/query-core 1789862919073
+512 silly unfinished npm timer reifyNode:node_modules/@swc/helpers 1789862919073
+513 silly unfinished npm timer reifyNode:node_modules/@babel/helper-module-imports/node_modules/@babel/types 1789862919073
+514 silly unfinished npm timer reifyNode:node_modules/@babel/generator/node_modules/@babel/types 1789862919073
+515 silly unfinished npm timer reifyNode:node_modules/typescript-eslint/node_modules/@typescript-eslint/scope-manager 1789862919073
+516 silly unfinished npm timer reifyNode:node_modules/typescript-eslint/node_modules/@typescript-eslint/eslint-plugin 1789862919073
+517 silly unfinished npm timer reifyNode:node_modules/string.prototype.trim/node_modules/es-abstract 1789862919073
+518 silly unfinished npm timer reifyNode:node_modules/next 1789862919074
+519 silly unfinished npm timer reifyNode:node_modules/framer-motion 1789862919074
+520 silly unfinished npm timer reifyNode:node_modules/eslint-config-next/node_modules/eslint-plugin-jsx-a11y 1789862919074
+521 silly unfinished npm timer reifyNode:node_modules/eslint-config-next/node_modules/aria-query 1789862919074
+522 silly unfinished npm timer reifyNode:node_modules/eslint 1789862919074
+523 silly unfinished npm timer reifyNode:node_modules/es-iterator-helpers/node_modules/es-abstract 1789862919074
+524 silly unfinished npm timer reifyNode:node_modules/date-fns 1789862919074
+525 silly unfinished npm timer reifyNode:node_modules/caniuse-lite 1789862919074
+526 silly unfinished npm timer reifyNode:node_modules/array.prototype.flatmap/node_modules/es-abstract 1789862919074
+527 silly unfinished npm timer reifyNode:node_modules/array.prototype.flat/node_modules/es-abstract 1789862919075
+528 silly unfinished npm timer reifyNode:node_modules/array.prototype.findlastindex/node_modules/es-abstract 1789862919075
+529 silly unfinished npm timer reifyNode:node_modules/array.prototype.findlast/node_modules/es-abstract 1789862919075
+530 silly unfinished npm timer reifyNode:node_modules/array-includes/node_modules/es-abstract 1789862919075
+531 verbose cwd C:\Users\DELL\Desktop\predictGPT\web
+532 verbose os Windows_NT 10.0.26200
+533 verbose node v24.11.0
+534 verbose npm  v11.19.1
+535 verbose exit -4051
+536 verbose code -4051
+537 error A complete log of this run can be found in: C:\Users\DELL\Desktop\predictGPT\web\.npm-cache\_logs\2026-09-20T00_08_21_542Z-debug-0.log

@@ -1,0 +1,40 @@
+# Football AI Backend Requirements
+
+# Web framework
+fastapi
+
+# ASGI server
+uvicorn[standard]
+
+# Database
+sqlalchemy==2.0.51
+asyncpg==0.31.0
+alembic==1.18.5
+
+# Cache / queue
+redis==8.1.0
+
+# HTTP client
+httpx==0.28.1
+
+# Configuration & validation
+pydantic==2.13.4
+pydantic-settings==2.15.0
+
+# AI / LLM
+openai==1.66.3
+
+# Background tasks (Celery-style, replaced by lightweight scheduler in Phase 5+)
+celery==5.5.3
+
+# Testing
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==6.2.1
+httpx==0.28.1
+
+# Observability
+structlog==25.4.0
+
+# Utilities
+python-dateutil==2.9.0.post0

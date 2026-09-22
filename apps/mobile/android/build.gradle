@@ -1,0 +1,12 @@
+rootProject.ext = {
+    set('expo', [
+        'appName': 'main',
+        'bundler': 'expo',
+
+        'enableHermes': true,
+        'hermesFlags': ['-O', '-g'],
+        'includeTemplates': [],
+    ])
+}
+
+include ':app'

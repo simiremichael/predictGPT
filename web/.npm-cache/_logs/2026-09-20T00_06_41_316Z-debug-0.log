@@ -1,0 +1,403 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Users\DELL\AppData\Roaming\npm\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.19.1
+2 info using node@v24.11.0
+3 silly config load:file:C:\Users\DELL\AppData\Roaming\npm\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\DELL\Desktop\predictGPT\web\.npmrc
+5 silly config load:file:C:\Users\DELL\.npmrc
+6 silly config load:file:C:\Users\DELL\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--include" "dev" "--force" "--cache" ".npm-cache" "--loglevel" "verbose"
+9 verbose logfile logs-max:10 dir:C:\Users\DELL\Desktop\predictGPT\web\.npm-cache\_logs\2026-09-20T00_06_41_316Z-
+10 verbose logfile C:\Users\DELL\Desktop\predictGPT\web\.npm-cache\_logs\2026-09-20T00_06_41_316Z-debug-0.log
+11 warn using --force Recommended protections disabled.
+12 silly logfile done cleaning log files
+13 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+14 http fetch GET https://registry.npmjs.org/npm attempt 1 failed with EACCES
+15 silly idealTree buildDeps
+16 http fetch GET https://registry.npmjs.org/npm attempt 2 failed with EACCES
+17 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\acorn' ]
+18 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\ajv' ]
+19 silly reify mark retired [
+19 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array-includes'
+19 silly reify ]
+20 silly reify mark retired [
+20 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlast'
+20 silly reify ]
+21 silly reify mark retired [
+21 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlastindex'
+21 silly reify ]
+22 silly reify mark retired [
+22 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flat'
+22 silly reify ]
+23 silly reify mark retired [
+23 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flatmap'
+23 silly reify ]
+24 silly reify mark retired [
+24 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.tosorted'
+24 silly reify ]
+25 silly reify mark retired [
+25 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\arraybuffer.prototype.slice'
+25 silly reify ]
+26 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axe-core' ]
+27 silly reify mark retired [
+27 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axobject-query'
+27 silly reify ]
+28 silly reify mark retired [
+28 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\baseline-browser-mapping'
+28 silly reify ]
+29 silly reify mark retired [
+29 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\browserslist'
+29 silly reify ]
+30 silly reify mark retired [
+30 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\caniuse-lite'
+30 silly reify ]
+31 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns' ]
+32 silly reify mark retired [
+32 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\electron-to-chromium'
+32 silly reify ]
+33 silly reify mark retired [
+33 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\enhanced-resolve'
+33 silly reify ]
+34 silly reify mark retired [
+34 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\es-iterator-helpers'
+34 silly reify ]
+35 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint' ]
+36 silly reify mark retired [
+36 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-config-next'
+36 silly reify ]
+37 silly reify mark retired [
+37 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-module-utils'
+37 silly reify ]
+38 silly reify mark retired [
+38 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-import'
+38 silly reify ]
+39 silly reify mark retired [
+39 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react'
+39 silly reify ]
+40 silly reify mark retired [
+40 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react-hooks'
+40 silly reify ]
+41 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\esquery' ]
+42 silly reify mark retired [
+42 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-glob'
+42 silly reify ]
+43 silly reify mark retired [
+43 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-json-stable-stringify'
+43 silly reify ]
+44 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\flatted' ]
+45 silly reify mark retired [
+45 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\framer-motion'
+45 silly reify ]
+46 silly reify mark retired [
+46 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-symbols'
+46 silly reify ]
+47 silly reify mark retired [
+47 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-tostringtag'
+47 silly reify ]
+48 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jiti' ]
+49 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\js-yaml' ]
+50 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsesc' ]
+51 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\json5' ]
+52 silly reify mark retired [
+52 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsx-ast-utils'
+52 silly reify ]
+53 silly reify mark retired [
+53 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\language-subtag-registry'
+53 silly reify ]
+54 silly reify mark retired [
+54 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\loose-envify'
+54 silly reify ]
+55 silly reify mark retired [
+55 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\math-intrinsics'
+55 silly reify ]
+56 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\minimist' ]
+57 silly reify mark retired [
+57 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\napi-postinstall'
+57 silly reify ]
+58 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next' ]
+59 silly reify mark retired [
+59 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object-inspect'
+59 silly reify ]
+60 silly reify mark retired [
+60 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.fromentries'
+60 silly reify ]
+61 silly reify mark retired [
+61 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.groupby'
+61 silly reify ]
+62 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\postcss' ]
+63 silly reify mark retired [
+63 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\prop-types'
+63 silly reify ]
+64 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react' ]
+65 silly reify mark retired [
+65 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react-dom'
+65 silly reify ]
+66 silly reify mark retired [
+66 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\reflect.getprototypeof'
+66 silly reify ]
+67 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\resolve' ]
+68 silly reify mark retired [
+68 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\scheduler'
+68 silly reify ]
+69 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\semver' ]
+70 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\sharp' ]
+71 silly reify mark retired [
+71 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.includes'
+71 silly reify ]
+72 silly reify mark retired [
+72 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.matchall'
+72 silly reify ]
+73 silly reify mark retired [
+73 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.repeat'
+73 silly reify ]
+74 silly reify mark retired [
+74 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.trim'
+74 silly reify ]
+75 silly reify mark retired [
+75 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\styled-jsx'
+75 silly reify ]
+76 silly reify mark retired [
+76 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tailwindcss'
+76 silly reify ]
+77 silly reify mark retired [
+77 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript'
+77 silly reify ]
+78 silly reify mark retired [
+78 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript-eslint'
+78 silly reify ]
+79 silly reify mark retired [
+79 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\update-browserslist-db'
+79 silly reify ]
+80 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\uri-js' ]
+81 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\which' ]
+82 silly reify mark retired [ 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\zod' ]
+83 silly reify mark retired [
+83 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\compat-data'
+83 silly reify ]
+84 silly reify mark retired [
+84 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\core'
+84 silly reify ]
+85 silly reify mark retired [
+85 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\generator'
+85 silly reify ]
+86 silly reify mark retired [
+86 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-compilation-targets'
+86 silly reify ]
+87 silly reify mark retired [
+87 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-imports'
+87 silly reify ]
+88 silly reify mark retired [
+88 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-transforms'
+88 silly reify ]
+89 silly reify mark retired [
+89 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\parser'
+89 silly reify ]
+90 silly reify mark retired [
+90 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\template'
+90 silly reify ]
+91 silly reify mark retired [
+91 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\traverse'
+91 silly reify ]
+92 silly reify mark retired [
+92 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@eslint\\eslintrc'
+92 silly reify ]
+93 silly reify mark retired [
+93 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@humanwhocodes\\retry'
+93 silly reify ]
+94 silly reify mark retired [
+94 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@img\\sharp-win32-x64'
+94 silly reify ]
+95 silly reify mark retired [
+95 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\env'
+95 silly reify ]
+96 silly reify mark retired [
+96 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\eslint-plugin-next'
+96 silly reify ]
+97 silly reify mark retired [
+97 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\swc-win32-x64-msvc'
+97 silly reify ]
+98 silly reify mark retired [
+98 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@swc\\helpers'
+98 silly reify ]
+99 silly reify mark retired [
+99 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\node'
+99 silly reify ]
+100 silly reify mark retired [
+100 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide'
+100 silly reify ]
+101 silly reify mark retired [
+101 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide-win32-x64-msvc'
+101 silly reify ]
+102 silly reify mark retired [
+102 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\postcss'
+102 silly reify ]
+103 silly reify mark retired [
+103 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\query-core'
+103 silly reify ]
+104 silly reify mark retired [
+104 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\react-query'
+104 silly reify ]
+105 silly reify mark retired [
+105 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\node'
+105 silly reify ]
+106 silly reify mark retired [
+106 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\react'
+106 silly reify ]
+107 silly reify mark retired [
+107 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\parser'
+107 silly reify ]
+108 silly reify mark retired [
+108 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\tsconfig-utils'
+108 silly reify ]
+109 silly reify mark retired [
+109 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\type-utils'
+109 silly reify ]
+110 silly reify mark retired [
+110 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\project-service'
+110 silly reify ]
+111 silly reify mark retired [
+111 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\types'
+111 silly reify ]
+112 silly reify mark retired [
+112 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\typescript-estree'
+112 silly reify ]
+113 silly reify mark retired [
+113 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\utils'
+113 silly reify ]
+114 silly reify mark retired [
+114 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\visitor-keys'
+114 silly reify ]
+115 silly reify mark retired [
+115 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\is-bun-module\\node_modules\\semver'
+115 silly reify ]
+116 silly reify mark retired [
+116 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tsconfig-paths\\node_modules\\json5'
+116 silly reify ]
+117 silly reify mark retired [
+117 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\nanoid',
+117 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\nanoid',
+117 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\nanoid.cmd',
+117 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\nanoid.ps1'
+117 silly reify ]
+118 silly reify moves {
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\acorn': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.acorn-ktdv1jvH',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\ajv': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.ajv-RX0uRkxT',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array-includes': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array-includes-MOIbHSHJ',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlast': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.findlast-QDrjpbpl',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.findlastindex': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.findlastindex-u5HydYKg',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flat': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.flat-zOiy6Jbd',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.flatmap': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.flatmap-UdG6kRGn',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\array.prototype.tosorted': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.array.prototype.tosorted-Yf1Gcxhk',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\arraybuffer.prototype.slice': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.arraybuffer.prototype.slice-26yPY3AR',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axe-core': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.axe-core-UWDvGnnk',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\axobject-query': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.axobject-query-wJgCxcjk',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\baseline-browser-mapping': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.baseline-browser-mapping-Pn3zuj4W',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\browserslist': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.browserslist-jQxM35ch',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\caniuse-lite': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.caniuse-lite-vnywyNuQ',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\date-fns': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.date-fns-xEFy4Ka6',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\electron-to-chromium': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.electron-to-chromium-Kqa9xw0Q',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\enhanced-resolve': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.enhanced-resolve-vjvBmlXf',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\es-iterator-helpers': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.es-iterator-helpers-8lwq4Lzp',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-Sab5qnn0',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-config-next': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-config-next-9bHAJcTd',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-module-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-module-utils-mQY6bAia',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-import': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-plugin-import-xulv3Iop',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-plugin-react-cNMvpbI5',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\eslint-plugin-react-hooks': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.eslint-plugin-react-hooks-1tA6ptAz',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\esquery': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.esquery-FmiTCcBj',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-glob': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.fast-glob-8UmuVh45',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\fast-json-stable-stringify': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.fast-json-stable-stringify-NsjuyhPS',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\flatted': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.flatted-uYtGHWtb',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\framer-motion': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.framer-motion-rZUqASpU',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-symbols': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.has-symbols-wE47dmz9',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\has-tostringtag': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.has-tostringtag-6y0mtVmv',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jiti': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.jiti-LYSIUdjr',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\js-yaml': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.js-yaml-WSIzYiZO',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsesc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.jsesc-8KeVy4vy',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\json5': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.json5-iKttAGHD',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\jsx-ast-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.jsx-ast-utils-Ja5B5v71',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\language-subtag-registry': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.language-subtag-registry-hLUd90YR',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\loose-envify': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.loose-envify-gKtd5hva',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\math-intrinsics': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.math-intrinsics-BMbaFbxT',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\minimist': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.minimist-LvSMVPzf',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\napi-postinstall': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.napi-postinstall-KEv209fv',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\next': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.next-OU2aOOBi',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object-inspect': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.object-inspect-KkQrJl8V',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.fromentries': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.object.fromentries-3GjAIfoS',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\object.groupby': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.object.groupby-SXwOBO1t',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\postcss': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.postcss-LPvonLLH',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\prop-types': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.prop-types-Fmq5nJOb',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.react-b4HyirIu',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\react-dom': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.react-dom-bgtS85do',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\reflect.getprototypeof': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.reflect.getprototypeof-5dUWp52o',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\resolve': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.resolve-5Uu4c52E',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\scheduler': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.scheduler-IqRsY90G',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\semver': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.semver-hnI0nUdu',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\sharp': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.sharp-tHZrws7n',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.includes': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.string.prototype.includes-hNrT6Llt',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.matchall': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.string.prototype.matchall-0iJCMRVt',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.repeat': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.string.prototype.repeat-j997ylWy',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\string.prototype.trim': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.string.prototype.trim-TeycgdCp',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\styled-jsx': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.styled-jsx-BPA8jj3d',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tailwindcss': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.tailwindcss-fkTt8kJT',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.typescript-Vx7RLN9I',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\typescript-eslint': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.typescript-eslint-o3khSsz5',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\update-browserslist-db': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.update-browserslist-db-4w8Yl8rq',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\uri-js': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.uri-js-vtJVclag',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\which': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.which-hfbbGy21',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\zod': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.zod-wasTBuYD',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\compat-data': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.compat-data-kOJ16kBq',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\core': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.core-HI2eQEYW',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\generator': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.generator-MwUesEmK',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-compilation-targets': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.helper-compilation-targets-QcJK6wG9',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-imports': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.helper-module-imports-6aQHU3oO',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\helper-module-transforms': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.helper-module-transforms-jXBS3Nc9',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\parser': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.parser-1oqwBGzM',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\template': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.template-CNakkdX7',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\traverse': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@babel\\.traverse-xPLKApuy',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@eslint\\eslintrc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@eslint\\.eslintrc-ma7LRib6',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@humanwhocodes\\retry': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@humanwhocodes\\.retry-pJRXFK9m',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@img\\sharp-win32-x64': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@img\\.sharp-win32-x64-4Kkhz7RN',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\env': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\.env-47CS7S4D',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\eslint-plugin-next': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\.eslint-plugin-next-0um8d6gL',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\swc-win32-x64-msvc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@next\\.swc-win32-x64-msvc-7vCCLQeF',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@swc\\helpers': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@swc\\.helpers-R4IVJ1Wr',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\node': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.node-88JDqhsD',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.oxide-kJbahnSJ',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\oxide-win32-x64-msvc': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.oxide-win32-x64-msvc-PIERnh5L',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\postcss': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tailwindcss\\.postcss-zkpsgiPT',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\query-core': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\.query-core-fnip9KpU',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\react-query': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@tanstack\\.react-query-WBqsL0k2',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\node': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\.node-C8YsDrye',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\react': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@types\\.react-kYcaH8ac',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\parser': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.parser-3deC9Cxx',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\tsconfig-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.tsconfig-utils-KHgTQupw',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\type-utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.type-utils-dzmG6iCF',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\project-service': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.project-service-12GJQC3V',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\types': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.types-YuMFutgG',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\typescript-estree': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.typescript-estree-u09AQzrZ',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\utils': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.utils-Eo0YEcKs',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\visitor-keys': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\@typescript-eslint\\.visitor-keys-IJvj97UR',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\is-bun-module\\node_modules\\semver': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\is-bun-module\\node_modules\\.semver-DtqsUjmN',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tsconfig-paths\\node_modules\\json5': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\tsconfig-paths\\node_modules\\.json5-PkQ0gTsF',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\nanoid': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.nanoid-m1yl5px2',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\nanoid': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.nanoid-pfNamByj',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\nanoid.cmd': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.nanoid.cmd-uNbHOR88',
+118 silly reify   'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\nanoid.ps1': 'C:\\Users\\DELL\\Desktop\\predictGPT\\web\\node_modules\\.bin\\.nanoid.ps1-FPDTRkoe'
+118 silly reify }
+119 http fetch GET https://registry.npmjs.org/npm attempt 3 failed with EACCES
+120 verbose stack Error: ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\array.prototype.findlast\node_modules\es-abstract'
+121 error code ENOTEMPTY
+122 error syscall rmdir
+123 error path C:\Users\DELL\Desktop\predictGPT\web\node_modules\array.prototype.findlast\node_modules\es-abstract
+124 error errno -4051
+125 error ENOTEMPTY: directory not empty, rmdir 'C:\Users\DELL\Desktop\predictGPT\web\node_modules\array.prototype.findlast\node_modules\es-abstract'
+126 silly unfinished npm timer reify 1789862817576
+127 silly unfinished npm timer reify:retireShallow 1789862830579
+128 verbose cwd C:\Users\DELL\Desktop\predictGPT\web
+129 verbose os Windows_NT 10.0.26200
+130 verbose node v24.11.0
+131 verbose npm  v11.19.1
+132 verbose exit -4051
+133 verbose code -4051
+134 error A complete log of this run can be found in: C:\Users\DELL\Desktop\predictGPT\web\.npm-cache\_logs\2026-09-20T00_06_41_316Z-debug-0.log
