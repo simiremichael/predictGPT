@@ -6,8 +6,9 @@ export function makeViewDescriptorsSet() {
   const viewTags = new Set();
   const data = {
     shareableViewDescriptors,
-    add: item => {
+    add: (item, updaterContainer) => {
       viewTags.add(item.tag);
+      const updater = updaterContainer?.current;
       shareableViewDescriptors.modify(descriptors => {
         'worklet';
 
@@ -17,6 +18,7 @@ export function makeViewDescriptorsSet() {
         } else {
           descriptors.push(item);
         }
+        updater?.(true);
         return descriptors;
       }, false);
     },

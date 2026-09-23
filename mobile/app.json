@@ -20,7 +20,10 @@
       "NSAppTransportSecurity": {
         "NSAllowsArbitraryLoads": true
       },
-      "UIBackgroundColors": ["UIStatusBarStyleDefault"]
+      "UIBackgroundColors": [
+        "UIStatusBarStyleDefault",
+        "UIStatusBarStyleDefault"
+      ]
     }
   },
   "android": {
@@ -30,6 +33,7 @@
       "backgroundColor": "#0d7450"
     },
     "permissions": [
+      "INTERNET",
       "INTERNET"
     ]
   },
@@ -63,5 +67,16 @@
   },
   "runtimePermission": [
     "NOTIFICATIONS"
-  ]
+  ],
+  "extra": {
+    "eas": {
+      "projectId": "b6213642-f0f6-448b-b45a-9fdfc30bb2ac"
+    }
+  },
+  "runtimeVersion": {
+    "policy": "appVersion"
+  },
+  "updates": {
+    "url": "https://u.expo.dev/b6213642-f0f6-448b-b45a-9fdfc30bb2ac"
+  }
 }

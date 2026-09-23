@@ -12,11 +12,11 @@
     "preview": {
       "distribution": "internal"
     },
-    "predictGPT": {
+    "predictgpt": {
       "android": {
         "buildType": "apk"
       },
-      "channel": "predictGPT"
+      "channel": "predictgpt"
     },
     "production": {
       "autoIncrement": true

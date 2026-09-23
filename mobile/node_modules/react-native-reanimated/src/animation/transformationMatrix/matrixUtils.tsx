@@ -1,7 +1,5 @@
 'use strict';
 
-import { ReanimatedError } from '../../errors';
-
 type FixedLengthArray<
   T,
   L extends number,
@@ -22,8 +20,7 @@ type TransformMatrixDecomposition = Record<
 
 type Axis = 'x' | 'y' | 'z';
 
-interface TansformMatrixDecompositionWithAngles
-  extends TransformMatrixDecomposition {
+interface TransformMatrixDecompositionWithAngles extends TransformMatrixDecomposition {
   rx: number;
   ry: number;
   rz: number;
@@ -38,7 +35,6 @@ export function isAffineMatrixFlat(x: unknown): x is AffineMatrixFlat {
   );
 }
 
-// ts-prune-ignore-next This function is exported to be tested
 export function isAffineMatrix(x: unknown): x is AffineMatrix {
   'worklet';
   return (
@@ -58,7 +54,6 @@ export function flatten(matrix: AffineMatrix): AffineMatrixFlat {
   return matrix.flat() as AffineMatrixFlat;
 }
 
-// ts-prune-ignore-next This function is exported to be tested
 export function unflatten(m: AffineMatrixFlat): AffineMatrix {
   'worklet';
   return [
@@ -258,8 +253,8 @@ function transposeMatrix(matrix: AffineMatrix): AffineMatrix {
 function assertVectorsHaveEqualLengths(a: number[], b: number[]) {
   'worklet';
   if (__DEV__ && a.length !== b.length) {
-    throw new ReanimatedError(
-      `Cannot calculate inner product of two vectors of different lengths. Length of ${a.toString()} is ${
+    throw new Error(
+      `[Reanimated] Cannot calculate inner product of two vectors of different lengths. Length of ${a.toString()} is ${
         a.length
       } and length of ${b.toString()} is ${b.length}.`
     );
@@ -342,7 +337,6 @@ function gramSchmidtAlgorithm(matrix: AffineMatrix): {
   };
 }
 
-// ts-prune-ignore-next This function is exported to be tested
 export function decomposeMatrix(
   unknownTypeMatrix: AffineMatrixFlat | AffineMatrix
 ): TransformMatrixDecomposition {
@@ -351,7 +345,7 @@ export function decomposeMatrix(
 
   // normalize matrix
   if (matrix[15] === 0) {
-    throw new ReanimatedError('Invalid transform matrix.');
+    throw new Error('[Reanimated] Invalid transform matrix.');
   }
   matrix.forEach((_, i) => (matrix[i] /= matrix[15]));
 
@@ -394,7 +388,7 @@ export function decomposeMatrix(
 
 export function decomposeMatrixIntoMatricesAndAngles(
   matrix: AffineMatrixFlat | AffineMatrix
-): TansformMatrixDecompositionWithAngles {
+): TransformMatrixDecompositionWithAngles {
   'worklet';
   // eslint-disable-next-line @typescript-eslint/no-shadow
   const { scaleMatrix, rotationMatrix, translationMatrix, skewMatrix } =
