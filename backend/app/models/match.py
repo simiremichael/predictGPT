@@ -15,7 +15,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
 from models.league import _uuid
@@ -51,6 +51,8 @@ class Match(Base):
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    league: Mapped["League"] = relationship("League", back_populates="matches")
 
 
 class MatchStatistics(Base):
@@ -105,6 +107,8 @@ class TeamStatistics(Base):
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
+    league: Mapped["League"] = relationship("League", back_populates="team_statistics")
+
 
 class TeamForm(Base):
     __tablename__ = "team_form"
@@ -147,6 +151,8 @@ class HeadToHead(Base):
     retrieved_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
+
+    league: Mapped["League"] = relationship("League", back_populates="head_to_heads")
 
 
 class Player(Base):

@@ -14,23 +14,49 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "module": "esnext",
-    "lib": ["esnext", "dom", "dom.iterable"],
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable"
+    ],
     "target": "esnext",
     "resolveJsonModule": true,
     "useDefineForClassFields": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@/components/*": ["components/*"],
-      "@/lib/*": ["lib/*"],
-      "@/types": ["types/index.ts"],
-      "@/types/*": ["types/*"],
-      "@/hooks/*": ["hooks/*"],
-      "@/services/*": ["services/*"],
-      "@/constants/*": ["constants/*"],
-      "@/utils/*": ["utils/*"],
-      "@/utils": ["utils/index.ts"],
-      "@/assets/*": ["assets/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@/components/*": [
+        "components/*"
+      ],
+      "@/lib/*": [
+        "lib/*"
+      ],
+      "@/types": [
+        "types/index.ts"
+      ],
+      "@/types/*": [
+        "types/*"
+      ],
+      "@/hooks/*": [
+        "hooks/*"
+      ],
+      "@/services/*": [
+        "services/*"
+      ],
+      "@/constants/*": [
+        "constants/*"
+      ],
+      "@/utils/*": [
+        "utils/*"
+      ],
+      "@/utils": [
+        "utils/index.ts"
+      ],
+      "@/assets/*": [
+        "assets/*"
+      ]
     },
     "jsxImportSource": "react"
   },
@@ -51,5 +77,6 @@
     "constants",
     "utils",
     "tests"
-  ]
+  ],
+  "extends": "expo/tsconfig.base"
 }

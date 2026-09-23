@@ -303,6 +303,22 @@ def create_app() -> FastAPI:
             "data": {"service": "Football AI", "version": "0.1.0", "docs": "/docs"},
         }
 
+    import http.client
+
+    @app.get("/provider_data")
+    async def get_provdata():
+
+        conn = http.client.HTTPSConnection("v3.football.api-sports.io")
+
+        headers = {"x-apisports-key": "4cbf22d7df1b3cd6fb51ece32827d166"}
+
+        conn.request("GET", "/leagues", headers=headers)
+
+        res = conn.getresponse()
+        data = res.read()
+
+        return data.decode("utf-8")
+
     return app
 
 

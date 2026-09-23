@@ -282,6 +282,7 @@ export interface PredictionDetail {
   ai_evidence: unknown;
   ai_adjustment: unknown;
   source_ids: string[];
+  context_hash?: string | null;
   top_scorelines: PredictionScoreline[];
   markets: Markets;
   result_probabilities: ResultProbabilities;
@@ -335,6 +336,7 @@ export interface PredictionHistoryItem {
   draw_probability: number | null;
   away_probability: number | null;
   ai_adjustment_applied: boolean;
+  context_hash?: string | null;
 }
 
 export interface ResearchEvidence {

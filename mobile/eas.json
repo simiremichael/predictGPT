@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 20.4.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+       "channel": "development",
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "predictGPT": {
+      "android": {
+        "buildType": "apk"
+      },
+      "channel": "predictGPT"
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
