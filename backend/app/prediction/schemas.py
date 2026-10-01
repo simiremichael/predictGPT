@@ -3,6 +3,7 @@
 These models define the JSON structure returned by the prediction API.
 They are completely independent of the internal model representation.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -160,6 +161,7 @@ class PredictionOutputSchema(BaseModel):
     This is the main API response model.
     """
 
+    prediction_id: str | None = None
     model: str
     model_version: str
     prediction_version: str = "v1.0.0"

@@ -15,6 +15,8 @@ import type {
   ProviderStatus,
   ResearchData,
   SearchResultItem,
+  Season,
+  Standing,
   Team,
 } from "@/types/models";
 
@@ -184,6 +186,13 @@ export const api = {
       is_active: boolean;
       created_at: string | null;
       current_season: Record<string, unknown> | null;
+      currentseason?: Record<string, unknown> | null;
+      country_details?: Record<string, unknown> | null;
+      sport?: Record<string, unknown> | null;
+      stages?: unknown[];
+      seasons?: Season[];
+      standings?: Standing[];
+      teams?: Team[];
     }>(`/api/v1/providers/leagues/${id}${qs}`);
   },
   getLeagueSeasons: (id: string, params?: { is_current?: boolean; page?: number; page_size?: number }) => {
@@ -230,6 +239,7 @@ export const api = {
     league_id?: string;
     is_active?: boolean;
     search?: string;
+    include?: string;
     page?: number;
     page_size?: number;
   }) => {
@@ -237,12 +247,16 @@ export const api = {
     if (params?.league_id) search.set("league_id", params.league_id);
     if (params?.is_active !== undefined) search.set("is_active", String(params.is_active));
     if (params?.search) search.set("search", params.search);
+    if (params?.include) search.set("include", params.include);
     if (params?.page) search.set("page", String(params.page));
     if (params?.page_size) search.set("page_size", String(params.page_size));
     const qs = search.toString();
     return requestPaginated<Team>(`/api/v1/providers/teams${qs ? `?${qs}` : ""}`);
   },
-  getTeam: (id: string) => requestOne<Team>(`/api/v1/providers/teams/${id}`),
+  getTeam: (id: string, params?: { include?: string }) => {
+    const qs = params?.include ? `?include=${encodeURIComponent(params.include)}` : "";
+    return requestOne<Team>(`/api/v1/providers/teams/${id}${qs}`);
+  },
   getTeamMatches: (id: string, params?: {
     league_id?: string;
     status?: string;
@@ -341,7 +355,7 @@ export const api = {
     const qs = search.toString();
     return requestPaginated<MatchBrief>(`/api/v1/providers/matches/upcoming${qs ? `?${qs}` : ""}`);
   },
-  getMatch: (id: string) => requestOne<MatchDetail>(`/api/v1/providers/matches/${id}`),
+  getMatch: (id: string) => requestOne<MatchDetail>(`/api/v1/matches/${id}`),
   getMatchSummary: (id: string) => requestOne<MatchSummary>(`/api/v1/providers/matches/${id}/summary`),
 
   // Predictions

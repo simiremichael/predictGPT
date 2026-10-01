@@ -8,6 +8,7 @@ GET  /api/v1/matches/{match_id}/summary   -- match summary for frontend
 
 All data is read from the synchronized database.  No direct provider calls.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -26,14 +27,16 @@ from core.cache import (
     set_cached,
 )
 from core.exceptions import ProviderNotFoundError
+from core.logging import get_logger
 from core.pagination import get_page, get_page_size
 from db.database import get_db
 from football_data.league_mappings import LeagueMapping
-from models.league import League, Team
+from models.league import League, ProviderLeague, ProviderTeam, Season, Team
 from models.match import Match, MatchStatistics, TeamStatistics
 from schemas.api import MatchBrief, MatchDetailResponse, MatchSummaryResponse
 
 router = APIRouter(prefix="/matches", tags=["matches"])
+logger = get_logger(__name__)
 
 _app_timezone = UTC
 
@@ -45,7 +48,9 @@ async def list_matches(
     date: str | None = Query(None, description="Filter by specific date (YYYY-MM-DD)"),
     date_from: str | None = Query(None, description="Start date range"),
     date_to: str | None = Query(None, description="End date range"),
-    league_id: str | None = Query(None, description="Filter by league internal ID (e.g. 'premier_league')"),
+    league_id: str | None = Query(
+        None, description="Filter by league internal ID (e.g. 'premier_league')"
+    ),
     season_id: str | None = Query(None),
     team_id: str | None = Query(None, description="Filter by team ID"),
     status: str | None = Query(None, description="Filter by status"),
@@ -62,10 +67,17 @@ async def list_matches(
     offset = (page_num - 1) * ps
 
     cache_key = cache_matches_list_key(
-        date=date, date_from=date_from, date_to=date_to,
-        league_id=league_id, season_id=season_id, team_id=team_id,
-        status=status, country=country, provider=provider,
-        upcoming=upcoming, today=today,
+        date=date,
+        date_from=date_from,
+        date_to=date_to,
+        league_id=league_id,
+        season_id=season_id,
+        team_id=team_id,
+        status=status,
+        country=country,
+        provider=provider,
+        upcoming=upcoming,
+        today=today,
     )
 
     try:
@@ -98,9 +110,7 @@ async def list_matches(
     if season_id:
         stmt = stmt.where(Match.season_id == season_id)
     if team_id:
-        stmt = stmt.where(
-            (Match.home_team_id == team_id) | (Match.away_team_id == team_id)
-        )
+        stmt = stmt.where((Match.home_team_id == team_id) | (Match.away_team_id == team_id))
     if status:
         stmt = stmt.where(Match.status == status)
     if country:
@@ -159,8 +169,12 @@ async def get_upcoming_matches(
     cutoff = now + timedelta(days=days) if days else None
 
     cache_key = cache_matches_list_key(
-        upcoming=True, days=days, league_id=league_id, team_id=team_id,
-        page=page_num, page_size=ps,
+        upcoming=True,
+        days=days,
+        league_id=league_id,
+        team_id=team_id,
+        page=page_num,
+        page_size=ps,
     )
 
     try:
@@ -180,9 +194,7 @@ async def get_upcoming_matches(
         stmt = stmt.where(Match.kickoff_at <= cutoff)
     stmt = _resolve_league_filter(league_id, stmt)
     if team_id:
-        stmt = stmt.where(
-            (Match.home_team_id == team_id) | (Match.away_team_id == team_id)
-        )
+        stmt = stmt.where((Match.home_team_id == team_id) | (Match.away_team_id == team_id))
 
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total_result = await db.execute(total_stmt)
@@ -291,8 +303,11 @@ async def get_live_matches(
     ps = get_page_size(page_size)
 
     cache_key = cache_matches_list_key(
-        live=True, league_id=league_id, team_id=team_id,
-        page=page_num, page_size=ps,
+        live=True,
+        league_id=league_id,
+        team_id=team_id,
+        page=page_num,
+        page_size=ps,
     )
 
     try:
@@ -324,9 +339,7 @@ async def get_live_matches(
         )
         stmt = _resolve_league_filter(league_id, stmt)
         if team_id:
-            stmt = stmt.where(
-                (Match.home_team_id == team_id) | (Match.away_team_id == team_id)
-            )
+            stmt = stmt.where((Match.home_team_id == team_id) | (Match.away_team_id == team_id))
         offset = (page_num - 1) * ps
         stmt = stmt.order_by(Match.kickoff_at).offset(offset).limit(ps)
         result = await db.execute(stmt)
@@ -350,6 +363,7 @@ async def get_live_matches(
 
     try:
         from core.config import get_settings
+
         await set_cached(cache_key, response, ttl=get_settings().cache_ttl_fixtures)
     except Exception:
         pass
@@ -363,12 +377,12 @@ async def get_match(
     match_id: str,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Get detailed match information."""
+    """Get match detail from the database, refreshing incomplete records."""
     cache_key = cache_match_key(match_id)
 
     try:
         cached = await get_cached(cache_key)
-        if cached:
+        if cached and _has_match_display_data(cached.get("data", {})):
             return cached
     except Exception:
         pass
@@ -383,7 +397,8 @@ async def get_match(
             detail=f"Match {match_id} not found",
         )
 
-    match_detail = _build_match_detail(match, db)
+    await _refresh_incomplete_match(match, db)
+    match_detail = await _build_match_detail(match, db)
 
     response = {"success": True, "data": match_detail}
 
@@ -395,6 +410,113 @@ async def get_match(
         pass
 
     return response
+
+
+def _has_match_display_data(detail: Any) -> bool:
+    if not isinstance(detail, dict):
+        return False
+    home_team = detail.get("home_team") or {}
+    away_team = detail.get("away_team") or {}
+    home_name = home_team.get("name") or detail.get("home_team_name")
+    away_name = away_team.get("name") or detail.get("away_team_name")
+    return bool(home_name and away_name and detail.get("kickoff_at"))
+
+
+async def _refresh_incomplete_match(match: Match, db: AsyncSession) -> None:
+    """Fetch and persist provider fields when a stored fixture is incomplete."""
+    if match.home_team_name and match.away_team_name and match.kickoff_at and match.league_id:
+        return
+
+    from football_data.factory import get_football_provider
+
+    try:
+        provider = get_football_provider()
+        await provider.connect()
+        try:
+            fixture = await provider.get_fixture(match.provider_fixture_id or match.id)
+        finally:
+            await provider.close()
+    except Exception as exc:
+        logger.warning("Could not refresh incomplete match %s: %s", match.id, exc)
+        return
+
+    if fixture is None:
+        return
+    if hasattr(fixture, "model_dump"):
+        fixture_data = fixture.model_dump(mode="python")
+    elif isinstance(fixture, dict):
+        fixture_data = fixture
+    else:
+        return
+
+    provider_name = fixture_data.get("provider") or match.provider_name
+    for field in (
+        "home_team_name",
+        "away_team_name",
+        "kickoff_at",
+        "venue",
+        "referee",
+        "home_score",
+        "away_score",
+    ):
+        value = fixture_data.get(field)
+        if value is not None:
+            setattr(match, field, value)
+
+    status_value = fixture_data.get("status")
+    if status_value is not None:
+        match.status = getattr(status_value, "value", status_value)
+    match.is_finished = fixture_data.get("is_finished", match.is_finished)
+
+    provider_league_id = fixture_data.get("provider_league_id") or fixture_data.get("league_id")
+    if not match.league_id and provider_league_id:
+        mapping_result = await db.execute(
+            select(ProviderLeague.internal_league_id)
+            .where(
+                ProviderLeague.provider_name == provider_name,
+                ProviderLeague.provider_league_id == str(provider_league_id),
+            )
+            .limit(1)
+        )
+        mapped_league_id = mapping_result.scalar_one_or_none()
+        if mapped_league_id:
+            match.league_id = mapped_league_id
+        elif await db.get(League, str(provider_league_id)):
+            match.league_id = str(provider_league_id)
+
+    if not match.season_id and fixture_data.get("season_id"):
+        season_id = str(fixture_data["season_id"])
+        if await db.get(Season, season_id):
+            match.season_id = season_id
+
+    for side in ("home", "away"):
+        provider_team_id = fixture_data.get(f"provider_{side}_team_id") or fixture_data.get(
+            f"{side}_team_id"
+        )
+        match_field = f"{side}_team_id"
+        if getattr(match, match_field) or not provider_team_id:
+            continue
+        mapping_result = await db.execute(
+            select(ProviderTeam.internal_team_id)
+            .where(
+                ProviderTeam.provider_name == provider_name,
+                ProviderTeam.provider_team_id == str(provider_team_id),
+            )
+            .limit(1)
+        )
+        mapped_team_id = mapping_result.scalar_one_or_none()
+        if mapped_team_id:
+            setattr(match, match_field, mapped_team_id)
+        elif await db.get(Team, str(provider_team_id)):
+            setattr(match, match_field, str(provider_team_id))
+
+    metadata = fixture_data.get("provider_metadata")
+    if isinstance(metadata, dict):
+        match.provider_metadata = {**(match.provider_metadata or {}), **metadata}
+
+    match.retrieved_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(match)
 
 
 @router.get("/{match_id}/summary", response_model=dict[str, Any])
@@ -521,18 +643,15 @@ async def _build_match_detail(match: Match, db: AsyncSession) -> dict[str, Any]:
     """Build full match detail including statistics, form, H2H, etc."""
     from sqlalchemy.orm import selectinload
 
-    stmt = (
-        select(Match)
-        .options(
-            selectinload(Match.home_team),
-            selectinload(Match.away_team),
-            selectinload(Match.league),
-            selectinload(Match.season),
-        )
-        .where(Match.id == match.id)
-    )
+    stmt = select(Match).options(selectinload(Match.league)).where(Match.id == match.id)
     result = await db.execute(stmt)
     match_with_rel = result.scalar_one()
+
+    team_ids = {team_id for team_id in (match.home_team_id, match.away_team_id) if team_id}
+    teams_result = await db.execute(select(Team).where(Team.id.in_(team_ids)))
+    teams_by_id = {team.id: team for team in teams_result.scalars().all()}
+    home_team = teams_by_id.get(match.home_team_id)
+    away_team = teams_by_id.get(match.away_team_id)
 
     detail: dict[str, Any] = {
         "id": match.id,
@@ -541,12 +660,20 @@ async def _build_match_detail(match: Match, db: AsyncSession) -> dict[str, Any]:
         "season_id": match.season_id,
         "home_team": {
             "id": match.home_team_id,
-            "name": match.home_team_name or (match_with_rel.home_team.name if match_with_rel.home_team else None),
-        } if match.home_team_id else None,
+            "name": match.home_team_name or (home_team.name if home_team else None),
+            "logo_url": home_team.logo_url if home_team else None,
+            "venue_city": home_team.venue_city if home_team else None,
+        }
+        if match.home_team_id
+        else None,
         "away_team": {
             "id": match.away_team_id,
-            "name": match.away_team_name or (match_with_rel.away_team.name if match_with_rel.away_team else None),
-        } if match.away_team_id else None,
+            "name": match.away_team_name or (away_team.name if away_team else None),
+            "logo_url": away_team.logo_url if away_team else None,
+            "venue_city": away_team.venue_city if away_team else None,
+        }
+        if match.away_team_id
+        else None,
         "kickoff_at": match.kickoff_at.isoformat() if match.kickoff_at else None,
         "status": match.status,
         "venue": match.venue,
@@ -577,17 +704,27 @@ async def _build_match_detail(match: Match, db: AsyncSession) -> dict[str, Any]:
         }
 
     # Load team statistics
-    home_stats_stmt = select(TeamStatistics).where(
-        TeamStatistics.internal_team_id == match.home_team_id,
-        TeamStatistics.is_home.is_(True),
-    ).order_by(TeamStatistics.retrieved_at.desc()).limit(1)
+    home_stats_stmt = (
+        select(TeamStatistics)
+        .where(
+            TeamStatistics.internal_team_id == match.home_team_id,
+            TeamStatistics.is_home.is_(True),
+        )
+        .order_by(TeamStatistics.retrieved_at.desc())
+        .limit(1)
+    )
     home_stats_result = await db.execute(home_stats_stmt)
     home_stats = home_stats_result.scalar_one_or_none()
 
-    away_stats_stmt = select(TeamStatistics).where(
-        TeamStatistics.internal_team_id == match.away_team_id,
-        TeamStatistics.is_home.is_(False),
-    ).order_by(TeamStatistics.retrieved_at.desc()).limit(1)
+    away_stats_stmt = (
+        select(TeamStatistics)
+        .where(
+            TeamStatistics.internal_team_id == match.away_team_id,
+            TeamStatistics.is_home.is_(False),
+        )
+        .order_by(TeamStatistics.retrieved_at.desc())
+        .limit(1)
+    )
     away_stats_result = await db.execute(away_stats_stmt)
     away_stats = away_stats_result.scalar_one_or_none()
 
@@ -600,10 +737,14 @@ async def _build_match_detail(match: Match, db: AsyncSession) -> dict[str, Any]:
     # Load injuries
     from models.match import ConfirmedLineup, Injury, Odds, Suspension
 
-    injuries_stmt = select(Injury).where(
-        (Injury.internal_team_id == match.home_team_id)
-        | (Injury.internal_team_id == match.away_team_id)
-    ).limit(50)
+    injuries_stmt = (
+        select(Injury)
+        .where(
+            (Injury.internal_team_id == match.home_team_id)
+            | (Injury.internal_team_id == match.away_team_id)
+        )
+        .limit(50)
+    )
     injuries_result = await db.execute(injuries_stmt)
     detail["injuries"] = [
         {
@@ -616,10 +757,14 @@ async def _build_match_detail(match: Match, db: AsyncSession) -> dict[str, Any]:
         for i in injuries_result.scalars().all()
     ]
 
-    susp_stmt = select(Suspension).where(
-        (Suspension.internal_team_id == match.home_team_id)
-        | (Suspension.internal_team_id == match.away_team_id)
-    ).limit(50)
+    susp_stmt = (
+        select(Suspension)
+        .where(
+            (Suspension.internal_team_id == match.home_team_id)
+            | (Suspension.internal_team_id == match.away_team_id)
+        )
+        .limit(50)
+    )
     susp_result = await db.execute(susp_stmt)
     detail["suspensions"] = [
         {
@@ -632,15 +777,16 @@ async def _build_match_detail(match: Match, db: AsyncSession) -> dict[str, Any]:
         for s in susp_result.scalars().all()
     ]
 
-    lineups_stmt = select(ConfirmedLineup).where(
-        ConfirmedLineup.internal_fixture_id == match.id
-    )
+    lineups_stmt = select(ConfirmedLineup).where(ConfirmedLineup.internal_fixture_id == match.id)
     lineups_result = await db.execute(lineups_stmt)
     detail["lineups"] = [ln.model_dump() for ln in lineups_result.scalars().all()]
 
-    odds_stmt = select(Odds).where(
-        Odds.internal_fixture_id == match.id
-    ).order_by(Odds.retrieved_at.desc()).limit(1)
+    odds_stmt = (
+        select(Odds)
+        .where(Odds.internal_fixture_id == match.id)
+        .order_by(Odds.retrieved_at.desc())
+        .limit(1)
+    )
     odds_result = await db.execute(odds_stmt)
     odds = odds_result.scalar_one_or_none()
     if odds:

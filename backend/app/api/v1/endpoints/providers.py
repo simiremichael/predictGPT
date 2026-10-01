@@ -30,6 +30,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import get_settings
 from core.logging import get_logger
@@ -144,9 +145,17 @@ def _resolve_fixture_window(kwargs: dict[str, Any]) -> tuple[date | None, date |
     return start, end
 
 
-def _map_filters_for_provider(
-    provider_method: str, kwargs: dict[str, Any]
-) -> dict[str, Any]:
+def _current_season_ids() -> Any:
+    """Select of every season id flagged as current, across all leagues.
+
+    Each league carries its own current season, so a league-agnostic query
+    (the fixtures list, the teams list) scopes to the set of current seasons
+    rather than a single one.
+    """
+    return select(Season.id).where(Season.is_current.is_(True))
+
+
+def _map_filters_for_provider(provider_method: str, kwargs: dict[str, Any]) -> dict[str, Any]:
     """Translate the public query filters into provider-native kwargs.
 
     Only fixture lookups are remapped: providers expect ``from_date`` /
@@ -384,12 +393,11 @@ async def _read_db_resource_payload(provider_method: str, **kwargs: Any) -> list
             }
 
         if provider_method == "get_teams":
+            from core.config import get_settings as _get_settings
+
+            _provider = kwargs.get("provider") or _get_settings().football_data_provider
             stmt = select(Team)
             if kwargs.get("league_id"):
-                from core.config import get_settings as _get_settings
-
-                _settings = _get_settings()
-                _provider = kwargs.get("provider") or _settings.football_data_provider
                 stmt = (
                     select(Team)
                     .join(ProviderTeam, ProviderTeam.internal_team_id == Team.id)
@@ -397,8 +405,27 @@ async def _read_db_resource_payload(provider_method: str, **kwargs: Any) -> list
                     .where(ProviderTeam.provider_name == _provider)
                     .distinct(Team.id)
                 )
-                if kwargs.get("season_id"):
-                    stmt = stmt.where(ProviderTeam.season_id == kwargs["season_id"])
+            if kwargs.get("season_id"):
+                # Applies with or without a league filter.
+                if not kwargs.get("league_id"):
+                    stmt = stmt.join(
+                        ProviderTeam, ProviderTeam.internal_team_id == Team.id
+                    )
+                stmt = stmt.where(ProviderTeam.season_id == kwargs["season_id"])
+                if not kwargs.get("league_id"):
+                    stmt = stmt.distinct(Team.id)
+            elif not kwargs.get("all_seasons"):
+                # EXISTS avoids multiplying rows for teams mapped to several
+                # seasons, so no DISTINCT is needed on this path.
+                stmt = stmt.where(
+                    select(ProviderTeam.internal_team_id)
+                    .where(
+                        ProviderTeam.internal_team_id == Team.id,
+                        ProviderTeam.provider_name == _provider,
+                        ProviderTeam.season_id.in_(_current_season_ids()),
+                    )
+                    .exists()
+                )
             if kwargs.get("is_active") is not None:
                 stmt = stmt.where(Team.is_active.is_(kwargs["is_active"]))
             if kwargs.get("search"):
@@ -439,32 +466,56 @@ async def _read_db_resource_payload(provider_method: str, **kwargs: Any) -> list
                 },
             }
 
-        if provider_method == "get_standings":
-            stmt = select(TeamStatistics)
+        if provider_method in ("get_standings", "get_team_statistics"):
+            stmt = select(TeamStatistics, Team.name).outerjoin(
+                Team, Team.id == TeamStatistics.internal_team_id
+            )
+            if kwargs.get("team_id"):
+                stmt = stmt.where(
+                    or_(
+                        TeamStatistics.internal_team_id == kwargs["team_id"],
+                        TeamStatistics.provider_team_id == kwargs["team_id"],
+                    )
+                )
             if kwargs.get("league_id"):
                 stmt = stmt.where(TeamStatistics.league_id == kwargs["league_id"])
             if kwargs.get("season_id"):
                 stmt = stmt.where(TeamStatistics.season_id == kwargs["season_id"])
-            stmt = stmt.order_by(TeamStatistics.position)
             count_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
             total = count_result.scalar() or 0
+            stmt = stmt.order_by(TeamStatistics.position)
             stmt = stmt.offset(offset).limit(page_size)
-            rows = (await db.execute(stmt)).scalars().all()
+            rows = (await db.execute(stmt)).all()
             return {
                 "data": [
                     {
-                        "provider_team_id": row.provider_team_id,
-                        "league_id": row.league_id,
-                        "season_id": row.season_id,
-                        "position": row.position,
-                        "points": row.points,
-                        "wins": row.wins,
-                        "draws": row.draws,
-                        "losses": row.losses,
-                        "goals_for": row.goals_for,
-                        "goals_against": row.goals_against,
+                        "team_id": stats.internal_team_id or stats.provider_team_id,
+                        "team_name": team_name or f"Team {stats.provider_team_id}",
+                        "provider_team_id": stats.provider_team_id,
+                        "league_id": stats.league_id,
+                        "season_id": stats.season_id,
+                        "position": stats.position,
+                        "points": stats.points,
+                        "played": stats.games_played,
+                        "games_played": stats.games_played,
+                        "wins": stats.wins,
+                        "draws": stats.draws,
+                        "losses": stats.losses,
+                        "goals_for": stats.goals_for,
+                        "goals_against": stats.goals_against,
+                        "goal_difference": (stats.goals_for or 0) - (stats.goals_against or 0),
+                        "clean_sheets": stats.clean_sheets,
+                        "is_home": stats.is_home,
+                        "form": stats.form_rating,
+                        "form_rating": stats.form_rating,
+                        "average_possession": stats.average_possession,
+                        "average_shots": stats.average_shots,
+                        "average_xg": stats.average_xg,
+                        "average_xga": stats.average_xga,
+                        "goals_per_game": stats.goals_per_game,
+                        "goals_conceded_per_game": stats.goals_conceded_per_game,
                     }
-                    for row in rows
+                    for stats, team_name in rows
                 ],
                 "meta": {
                     "page": page,
@@ -480,6 +531,10 @@ async def _read_db_resource_payload(provider_method: str, **kwargs: Any) -> list
                 stmt = stmt.where(Match.league_id == kwargs["league_id"])
             if kwargs.get("season_id"):
                 stmt = stmt.where(Match.season_id == kwargs["season_id"])
+            elif not kwargs.get("all_seasons"):
+                # Default to the current season of whichever league the fixture
+                # belongs to, so finished campaigns drop off the matches page.
+                stmt = stmt.where(Match.season_id.in_(_current_season_ids()))
             if kwargs.get("team_id"):
                 stmt = stmt.where(
                     (Match.home_team_id == kwargs["team_id"])
@@ -692,6 +747,8 @@ async def _save_provider_data_to_db(provider_method: str, provider_payload: list
                 await _save_fixtures(db, provider_payload)
             elif provider_method == "get_standings":
                 await _save_standings(db, provider_payload)
+            elif provider_method == "get_team_statistics":
+                await _save_standings(db, provider_payload)
             elif provider_method == "get_fixtures":
                 await _save_fixtures(db, provider_payload)
             elif provider_method == "get_players":
@@ -849,8 +906,13 @@ async def _save_teams(db: AsyncSession, payload: list[Any]) -> None:
             )
         else:
             for field in (
-                "name", "short_name", "slug", "logo_url",
-                "venue_name", "venue_city", "country",
+                "name",
+                "short_name",
+                "slug",
+                "logo_url",
+                "venue_name",
+                "venue_city",
+                "country",
             ):
                 value = item.get(field)
                 if value:
@@ -922,6 +984,18 @@ async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
         if not provider_team_id or not league_id or not season_id:
             continue
 
+        internal_team_id = item.get("internal_team_id") or item.get("team_id")
+        if not internal_team_id:
+            mapping_stmt = select(ProviderTeam.internal_team_id).where(
+                ProviderTeam.provider_name == provider_name,
+                ProviderTeam.provider_team_id == provider_team_id,
+            )
+            if league_id:
+                mapping_stmt = mapping_stmt.where(ProviderTeam.provider_league_id == league_id)
+            if season_id:
+                mapping_stmt = mapping_stmt.where(ProviderTeam.season_id == season_id)
+            internal_team_id = (await db.execute(mapping_stmt.limit(1))).scalar_one_or_none()
+
         existing_stmt = select(TeamStatistics).where(
             TeamStatistics.provider_name == provider_name,
             TeamStatistics.provider_team_id == provider_team_id,
@@ -932,15 +1006,16 @@ async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
         existing = existing_result.scalar_one_or_none()
 
         if existing is None:
-            db.execute(
+            await db.execute(
                 insert(TeamStatistics.__table__).values(
                     provider_name=provider_name,
                     provider_team_id=provider_team_id,
-                    internal_team_id=item.get("team_id"),
+                    internal_team_id=internal_team_id,
                     league_id=league_id,
                     season_id=season_id,
                     is_home=False,
-                    games_played=item.get("played"),
+                    games_played=item.get("games_played", item.get("played")),
+                    clean_sheets=item.get("clean_sheets"),
                     wins=item.get("wins"),
                     draws=item.get("draws"),
                     losses=item.get("losses"),
@@ -949,11 +1024,23 @@ async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
                     points=item.get("points"),
                     position=item.get("position"),
                     form_rating=item.get("form_rating") or item.get("form"),
+                    average_possession=item.get("average_possession"),
+                    average_shots=item.get("average_shots"),
+                    average_xg=item.get("average_xg"),
+                    average_xga=item.get("average_xga"),
+                    goals_per_game=item.get("goals_per_game"),
+                    goals_conceded_per_game=item.get("goals_conceded_per_game"),
                     retrieved_at=datetime.utcnow(),
                     provider_metadata=item.get("provider_metadata", {}),
                 )
             )
         else:
+            if internal_team_id:
+                existing.internal_team_id = internal_team_id
+            existing.games_played = item.get(
+                "games_played", item.get("played", existing.games_played)
+            )
+            existing.clean_sheets = item.get("clean_sheets", existing.clean_sheets)
             existing.points = item.get("points", existing.points)
             existing.position = item.get("position", existing.position)
             existing.wins = item.get("wins", existing.wins)
@@ -961,6 +1048,17 @@ async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
             existing.losses = item.get("losses", existing.losses)
             existing.goals_for = item.get("goals_for", existing.goals_for)
             existing.goals_against = item.get("goals_against", existing.goals_against)
+            existing.form_rating = item.get("form_rating", item.get("form", existing.form_rating))
+            existing.average_possession = item.get(
+                "average_possession", existing.average_possession
+            )
+            existing.average_shots = item.get("average_shots", existing.average_shots)
+            existing.average_xg = item.get("average_xg", existing.average_xg)
+            existing.average_xga = item.get("average_xga", existing.average_xga)
+            existing.goals_per_game = item.get("goals_per_game", existing.goals_per_game)
+            existing.goals_conceded_per_game = item.get(
+                "goals_conceded_per_game", existing.goals_conceded_per_game
+            )
             existing.retrieved_at = datetime.utcnow()
             existing.provider_metadata = item.get("provider_metadata", {})
 
@@ -1007,12 +1105,32 @@ async def _save_fixtures(db: AsyncSession, payload: list[Any]) -> None:
                 )
             )
         else:
-            existing.home_score = item.get("home_score", existing.home_score)
-            existing.away_score = item.get("away_score", existing.away_score)
+            for field in (
+                "league_id",
+                "season_id",
+                "home_team_id",
+                "away_team_id",
+                "home_team_name",
+                "away_team_name",
+                "kickoff_at",
+                "venue",
+                "referee",
+                "home_score",
+                "away_score",
+            ):
+                value = item.get(field)
+                if value is not None:
+                    setattr(existing, field, value)
             existing.status = status_val or existing.status
-            existing.is_finished = item.get("is_finished", existing.is_finished)
+            if item.get("is_finished") is not None:
+                existing.is_finished = item["is_finished"]
             existing.retrieved_at = datetime.utcnow()
-            existing.kickoff_at = item.get("kickoff_at", existing.kickoff_at)
+            provider_metadata = item.get("provider_metadata") or {}
+            if provider_metadata:
+                existing.provider_metadata = {
+                    **(existing.provider_metadata or {}),
+                    **provider_metadata,
+                }
 
 
 async def _save_players(db: AsyncSession, payload: list[Any]) -> None:
@@ -1121,6 +1239,7 @@ _ALL_RESOURCE_METHODS = {
     "get_league",
     "get_teams",
     "get_team",
+    "get_team_statistics",
     "get_standings",
     "get_fixtures",
     "get_fixture",
@@ -1150,7 +1269,12 @@ async def _attach_league_includes(
     provider = get_football_provider()
     await provider.connect()
     try:
-        raw = await provider.get_league(league_id, includes=include_names)
+        if getattr(provider, "provider_name", None) == "sportmonks":
+            raw = await provider.http.get_league(league_id, includes=include_names)
+        else:
+            raw = await provider.get_league(league_id, includes=include_names)
+            if hasattr(raw, "model_dump"):
+                raw = raw.model_dump(mode="json")
     except Exception as exc:
         logger.warning(f"Include side-load failed for league {league_id}: {exc}")
         return rows
@@ -1164,7 +1288,57 @@ async def _attach_league_includes(
         for name in include_names:
             key = "currentseason" if name == "currentSeason" else name
             if key in raw:
-                row[key] = raw[key]
+                row["country_details" if name == "country" else key] = raw[key]
+                if name == "currentSeason":
+                    row["current_season"] = raw[key]
+    return rows
+
+
+async def _attach_team_includes(
+    team_id: str, includes: Any, rows: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Side-load Sportmonks relations onto DB-sourced team rows.
+
+    The DB-first path only stores the team record itself, so the requested
+    ``include`` relations have to be fetched from the provider and merged in.
+
+    This subscription populates a single include per request, so sending all
+    sixteen together returns only the first one.  The relations are therefore
+    fetched one request at a time, which is affordable for a single team but
+    would be far too costly on the paginated list endpoint (that one sends them
+    all together and returns whatever the plan allows).
+
+    Failures are non-fatal: the DB rows are returned unchanged.
+    """
+    from football_data.sportmonks_client import SportmonksClient
+
+    include_names = SportmonksClient._normalize_includes(includes)
+    if not include_names or not rows:
+        return rows
+
+    provider = get_football_provider()
+    await provider.connect()
+    merged: dict[str, Any] = {}
+    try:
+        for name in include_names:
+            try:
+                raw = await provider.http.get_team(team_id, includes=[name])
+            except Exception as exc:
+                logger.warning(f"Include '{name}' failed for team {team_id}: {exc}")
+                continue
+            if not isinstance(raw, dict):
+                continue
+            # ``players.player`` is nested: Sportmonks returns the squad under
+            # ``players`` with the player object embedded in each entry.
+            key = name.split(".")[0].lower()
+            if key in raw:
+                merged[key] = raw[key]
+    finally:
+        await provider.close()
+
+    for row in rows:
+        for key, value in merged.items():
+            row[key] = value
     return rows
 
 
@@ -1194,10 +1368,15 @@ async def _provider_data_response(
             db_payload = None
         if db_payload and db_payload.get("data"):
             rows = db_payload["data"]
-            if provider_method == "get_league" and requested_includes is not None:
-                rows = await _attach_league_includes(
-                    kwargs.get("league_id", ""), requested_includes, rows
-                )
+            if requested_includes is not None:
+                if provider_method == "get_league":
+                    rows = await _attach_league_includes(
+                        kwargs.get("league_id", ""), requested_includes, rows
+                    )
+                elif provider_method == "get_team":
+                    rows = await _attach_team_includes(
+                        kwargs.get("team_id", ""), requested_includes, rows
+                    )
             return {
                 "success": True,
                 "data": rows,
@@ -1208,12 +1387,38 @@ async def _provider_data_response(
                 },
             }
 
+        provider_kwargs = _map_filters_for_provider(provider_method, kwargs)
+        if provider_method == "get_team_statistics" and kwargs.get("team_id"):
+            async with AsyncSessionLocal() as db:
+                mapping_stmt = (
+                    select(ProviderTeam)
+                    .outerjoin(Season, Season.id == ProviderTeam.season_id)
+                    .where(
+                        ProviderTeam.internal_team_id == kwargs["team_id"],
+                        ProviderTeam.provider_name == get_settings().football_data_provider,
+                    )
+                )
+                if kwargs.get("league_id"):
+                    mapping_stmt = mapping_stmt.where(
+                        ProviderTeam.provider_league_id == kwargs["league_id"]
+                    )
+                if kwargs.get("season_id"):
+                    mapping_stmt = mapping_stmt.where(ProviderTeam.season_id == kwargs["season_id"])
+                mapping_stmt = mapping_stmt.order_by(
+                    Season.is_current.desc(), Season.year.desc().nullslast()
+                ).limit(1)
+                team_mapping = (await db.execute(mapping_stmt)).scalar_one_or_none()
+            if team_mapping:
+                provider_kwargs["team_id"] = team_mapping.provider_team_id
+                if not provider_kwargs.get("league_id"):
+                    provider_kwargs["league_id"] = team_mapping.provider_league_id
+                if not provider_kwargs.get("season_id"):
+                    provider_kwargs["season_id"] = team_mapping.season_id
+
         provider = get_football_provider()
         await provider.connect()
         try:
-            provider_data = await getattr(provider, provider_method)(
-                **_map_filters_for_provider(provider_method, kwargs)
-            )
+            provider_data = await getattr(provider, provider_method)(**provider_kwargs)
         except Exception as exc:
             logger.error(f"Provider fetch error for {provider_method}: {exc}")
             provider_data = None
@@ -1234,10 +1439,19 @@ async def _provider_data_response(
             logger.error(f"DB re-read error for {provider_method}: {exc}")
             db_payload = None
         if db_payload and db_payload.get("data"):
+            rows = db_payload["data"]
+            if provider_method == "get_league" and requested_includes is not None:
+                rows = await _attach_league_includes(
+                    kwargs.get("league_id", ""), requested_includes, rows
+                )
             return {
                 "success": True,
-                "data": db_payload["data"],
-                "meta": {**db_payload.get("meta", {}), "source": "database"},
+                "data": rows,
+                "meta": {
+                    **db_payload.get("meta", {}),
+                    "source": "database",
+                    **({"include": requested_includes} if requested_includes is not None else {}),
+                },
             }
 
         return {
@@ -1709,6 +1923,19 @@ async def provider_teams(
     season_id: str | None = Query(None),
     search: str | None = Query(None, description="Case-insensitive name/short-name filter"),
     is_active: bool | None = Query(None),
+    all_seasons: bool = Query(
+        False,
+        description="Include teams from past seasons. Defaults to current season only.",
+    ),
+    include: str | None = Query(
+        None,
+        description=(
+            "Comma-separated Sportmonks side-loads. Defaults to "
+            "sport,country,venue,coaches,rivals,players.player,latest,upcoming,"
+            "seasons,activeSeasons,sidelined,sidelinedHistory,statistics,"
+            "trophies,socials,rankings"
+        ),
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> dict[str, Any]:
@@ -1721,6 +1948,10 @@ async def provider_teams(
         params["search"] = search
     if is_active is not None:
         params["is_active"] = is_active
+    if all_seasons:
+        params["all_seasons"] = True
+    if include is not None:
+        params["include"] = include
     return await _provider_data_response("get_teams", **params)
 
 
@@ -1814,8 +2045,21 @@ async def provider_league_by_id(
 @router.get("/providers/teams/{team_id}", tags=["providers"])
 async def provider_team(
     team_id: str,
+    include: str | None = Query(
+        None,
+        description=(
+            "Comma-separated Sportmonks side-loads. Defaults to "
+            "sport,country,venue,coaches,rivals,players.player,latest,upcoming,"
+            "seasons,activeSeasons,sidelined,sidelinedHistory,statistics,"
+            "trophies,socials,rankings. Fetched one request per relation so all "
+            "of them are actually populated."
+        ),
+    ),
 ) -> dict[str, Any]:
-    response = await _provider_data_response("get_team", team_id=team_id)
+    params: dict[str, Any] = {"team_id": team_id}
+    if include is not None:
+        params["include"] = include
+    response = await _provider_data_response("get_team", **params)
     if not response.get("data"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1852,6 +2096,8 @@ async def provider_team_matches(
     league_id: str | None = Query(None),
     season_id: str | None = Query(None),
     status: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> dict[str, Any]:
@@ -1861,6 +2107,8 @@ async def provider_team_matches(
         league_id=league_id,
         season_id=season_id,
         status=status,
+        date_from=date_from,
+        date_to=date_to,
         page=page,
         page_size=page_size,
     )
@@ -1874,8 +2122,14 @@ async def provider_matches(
     fixture_id: str | None = Query(None),
     status: str | None = Query(None),
     date: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     upcoming: bool | None = Query(None),
     today: bool | None = Query(None),
+    all_seasons: bool = Query(
+        False,
+        description="Include fixtures from past seasons. Defaults to current season only.",
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> dict[str, Any]:
@@ -1884,6 +2138,8 @@ async def provider_matches(
         "season_id": season_id,
         "team_id": team_id,
         "status": status,
+        "date_from": date_from,
+        "date_to": date_to,
         "page": page,
         "page_size": page_size,
     }
@@ -1893,6 +2149,8 @@ async def provider_matches(
         params["upcoming"] = True
     if today is not None and today:
         params["today"] = True
+    if all_seasons:
+        params["all_seasons"] = True
     if date:
         params["date"] = date
     return await _provider_data_response(

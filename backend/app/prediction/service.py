@@ -89,7 +89,9 @@ class PredictionService:
         if self._research_service is None:
             from web_research.service import MatchResearchService
 
-            self._research_service = MatchResearchService()
+            from ai.service import AIService
+
+            self._research_service = MatchResearchService(ai_service=AIService())
 
         if self._ai_adjustment_layer is None:
             self._ai_adjustment_layer = AIAdjustmentLayer()
@@ -264,7 +266,9 @@ class PredictionService:
                 output,
                 db_session,
                 context_hash,
+                research_result,
             )
+            output.prediction_id = prediction_id
 
             logger.info(
                 "Prediction generated",
@@ -691,7 +695,7 @@ class PredictionService:
             ai_explanation=ai_explanation,
             confidence=confidence,
             uncertainty=1.0 - confidence,
-            source_ids=[],
+            source_ids=ai_adjustment.source_ids if ai_adjustment else [],
             context_hash=context_hash,
         )
 
@@ -772,6 +776,7 @@ class PredictionService:
         output: PredictionOutputSchema,
         db_session: Any,
         context_hash: str | None = None,
+        research_result: Any | None = None,
     ) -> str:
         """Save prediction to database. Creates a new immutable record."""
         if db_session is None:
@@ -796,7 +801,59 @@ class PredictionService:
                 confidence=output.model_confidence,
                 prediction_status="published",
                 feature_snapshot=output.feature_snapshot,
+                news_snapshot={
+                    "research": output.research.model_dump(mode="json"),
+                    "sources": [
+                        {
+                            "url": source.url,
+                            "title": source.title,
+                            "publisher": source.publisher,
+                            "snippet": source.snippet,
+                            "published_at": source.published_at.isoformat()
+                            if source.published_at
+                            else None,
+                            "credibility_score": source.credibility_score,
+                            "freshness_score": source.freshness_score,
+                        }
+                        for source in (research_result.sources if research_result else [])
+                    ],
+                },
                 odds_snapshot={},
+                ai_explanation=output.ai_explanation,
+                ai_evidence_json=[
+                    {
+                        "kind": "injury",
+                        **item.model_dump(mode="json"),
+                    }
+                    for item in (research_result.injuries if research_result else [])
+                ]
+                + [
+                    {
+                        "kind": "suspension",
+                        **item.model_dump(mode="json"),
+                    }
+                    for item in (research_result.suspensions if research_result else [])
+                ]
+                + [
+                    {
+                        "kind": "lineup",
+                        **item.model_dump(mode="json"),
+                    }
+                    for item in (research_result.lineups if research_result else [])
+                ]
+                + [
+                    {
+                        "kind": "team_news",
+                        **item.model_dump(mode="json"),
+                    }
+                    for item in (research_result.team_news if research_result else [])
+                ],
+                ai_adjustment_json=(
+                    output.ai_adjustment.model_dump(mode="json")
+                    if output.ai_adjustment.applied
+                    else None
+                ),
+                source_ids=output.source_ids,
                 context_hash=context_hash,
             )
 
@@ -820,7 +877,7 @@ class PredictionService:
         except Exception:
             if db_session:
                 await db_session.rollback()
-            return str(uuid.uuid4())
+            raise
 
     def _build_research_summary(self, research_result: Any) -> ResearchSummarySchema:
         """Build a research summary schema from a research result."""
@@ -858,6 +915,7 @@ class PredictionService:
         top_scoreline = top_4[0] if top_4 else None
 
         return PredictionOutputSchema(
+            prediction_id=prediction.id,
             model="poisson",
             model_version=prediction.model_version,
             lambda_home=prediction.lambda_home or 0.0,
@@ -915,7 +973,21 @@ class PredictionService:
             match_id=prediction.match_id,
             match_home_team="",
             match_away_team="",
-            research=ResearchSummarySchema(available=False),
-            ai_adjustment=AIAdjustmentSchema(applied=False),
+            research=ResearchSummarySchema(
+                **(
+                    prediction.news_snapshot.get("research", {})
+                    if isinstance(prediction.news_snapshot, dict)
+                    else {}
+                )
+            ),
+            ai_adjustment=AIAdjustmentSchema(
+                **(
+                    prediction.ai_adjustment_json
+                    if isinstance(prediction.ai_adjustment_json, dict)
+                    else {"applied": False}
+                )
+            ),
+            ai_explanation=prediction.ai_explanation,
+            source_ids=prediction.source_ids or [],
             context_hash=prediction.context_hash,
         )

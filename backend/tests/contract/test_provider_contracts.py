@@ -102,10 +102,16 @@ class _AsyncGetMock:
     async def get_league(self, league_id: str, includes: Any = None) -> list:
         return self._unwrap_list()
 
-    async def get_teams(self, league_id: str | None = None, season_id: str | None = None) -> list:
+    async def get_teams(
+        self,
+        league_id: str | None = None,
+        season_id: str | None = None,
+        params: dict | None = None,
+        includes: Any = None,
+    ) -> list:
         return self._unwrap_list()
 
-    async def get_team(self, team_id: str) -> list:
+    async def get_team(self, team_id: str, includes: Any = None) -> list:
         return self._unwrap_list()
 
     async def get_fixtures(self, params: dict | None = None) -> list:

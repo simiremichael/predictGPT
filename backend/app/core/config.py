@@ -178,7 +178,7 @@ class Settings(BaseSettings):
     # Web Search / Research
     # ------------------------------------------------------------------ #
     web_search_provider: str = Field(
-        default="brave",
+        default="duckduckgo",
         validation_alias=AliasChoices("WEB_SEARCH_PROVIDER", "web_search_provider"),
     )
     web_search_api_key: str | None = Field(

@@ -3,13 +3,20 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { PredictionSummary } from "@/components/prediction-summary";
 import { ProbabilityBars } from "@/components/probability-bars";
 import { TopScorelines } from "@/components/top-scorelines";
 import { ExpectedGoalsDisplay } from "@/components/expected-goals";
 import { MarketsDisplay, OverUnderChart } from "@/components/markets-display";
-import { LoadingState, ErrorBoundary } from "@/components/loading-states";
+import { LoadingState } from "@/components/loading-states";
+import { RetryableError } from "@/components/retryable-error";
 import type { PredictionDetail } from "@/types/models";
 
 interface PredictionDetailPageProps {
@@ -38,13 +45,18 @@ export async function generateMetadata({ params }: PredictionDetailPageProps) {
 
 export const revalidate = 60;
 
-export default async function PredictionDetailPage({ params }: PredictionDetailPageProps) {
+export default async function PredictionDetailPage({
+  params,
+}: PredictionDetailPageProps) {
   const { id } = await params;
 
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/predictions" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+        <Link
+          href="/predictions"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to predictions
         </Link>
@@ -57,7 +69,11 @@ export default async function PredictionDetailPage({ params }: PredictionDetailP
   );
 }
 
-async function PredictionDetailContent({ predictionId }: { predictionId: string }) {
+async function PredictionDetailContent({
+  predictionId,
+}: {
+  predictionId: string;
+}) {
   let prediction: PredictionDetail | null = null;
   let error: Error | null = null;
 
@@ -65,8 +81,10 @@ async function PredictionDetailContent({ predictionId }: { predictionId: string 
     const res = await api.getPredictionById(predictionId);
     const match = await api.getMatch(res.match_id);
 
-    const homeName = match.home_team_name || match.home_team?.name || "Home Team";
-    const awayName = match.away_team_name || match.away_team?.name || "Away Team";
+    const homeName =
+      match.home_team_name || match.home_team?.name || "Home Team";
+    const awayName =
+      match.away_team_name || match.away_team?.name || "Away Team";
 
     prediction = {
       prediction_id: res.prediction_id,
@@ -105,10 +123,16 @@ async function PredictionDetailContent({ predictionId }: { predictionId: string 
       goal_distributions: null,
       markets: {
         over_under: {
-          over_0_5: 0, over_1_5: 0, over_2_5: res.over_2_5_probability || 0,
-          over_3_5: 0, over_4_5: 0,
-          under_0_5: 0, under_1_5: 0, under_2_5: res.under_2_5_probability || 0,
-          under_3_5: 0, under_4_5: 0,
+          over_0_5: 0,
+          over_1_5: 0,
+          over_2_5: res.over_2_5_probability || 0,
+          over_3_5: 0,
+          over_4_5: 0,
+          under_0_5: 0,
+          under_1_5: 0,
+          under_2_5: res.under_2_5_probability || 0,
+          under_3_5: 0,
+          under_4_5: 0,
         },
         btts: {
           yes: res.btts_probability || 0,
@@ -156,51 +180,47 @@ async function PredictionDetailContent({ predictionId }: { predictionId: string 
   }
 
   if (error) {
-    return (
-      <ErrorBoundary
-        error={error}
-        reset={() => window.location.reload()}
-      />
-    );
+    return <RetryableError message={error.message} />;
   }
 
   if (!prediction) return null;
 
   return (
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Prediction Details</span>
-              <Badge variant="secondary" className="text-xs">
-                {prediction.model_version}
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              Generated: {new Date(prediction.generated_at).toLocaleString()}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PredictionSummary prediction={prediction} showMatchInfo={false} />
-          </CardContent>
-        </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Prediction Details</span>
+            <Badge variant="secondary" className="text-xs">
+              {prediction.model_version}
+            </Badge>
+          </CardTitle>
+          <CardDescription>
+            Generated: {new Date(prediction.generated_at).toLocaleString()}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PredictionSummary prediction={prediction} showMatchInfo={false} />
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Result Probabilities</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProbabilityBars
-              home={prediction.result_probabilities.home}
-              draw={prediction.result_probabilities.draw}
-              away={prediction.result_probabilities.away}
-              homeTeam={prediction.match_home_team}
-              awayTeam={prediction.match_away_team}
-            />
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Result Probabilities</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProbabilityBars
+            home={prediction.result_probabilities.home}
+            draw={prediction.result_probabilities.draw}
+            away={prediction.result_probabilities.away}
+            homeTeam={prediction.match_home_team}
+            awayTeam={prediction.match_away_team}
+          />
+        </CardContent>
+      </Card>
 
-        {prediction.top_4_scorelines && prediction.top_4_scorelines.length > 0 && (
+      {prediction.top_4_scorelines &&
+        prediction.top_4_scorelines.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Top Scoreline Predictions</CardTitle>
@@ -211,58 +231,58 @@ async function PredictionDetailContent({ predictionId }: { predictionId: string 
           </Card>
         )}
 
-        {prediction.expected_goals && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Expected Goals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ExpectedGoalsDisplay
-                xg={prediction.expected_goals}
-                lambdaHome={prediction.lambda_home}
-                lambdaAway={prediction.lambda_away}
-                homeTeam={prediction.match_home_team}
-                awayTeam={prediction.match_away_team}
-              />
-            </CardContent>
-          </Card>
-        )}
-
+      {prediction.expected_goals && (
         <Card>
           <CardHeader>
-            <CardTitle>Market Probabilities</CardTitle>
+            <CardTitle>Expected Goals</CardTitle>
           </CardHeader>
           <CardContent>
-            <OverUnderChart markets={prediction.markets} />
-            <div className="mt-4">
-              <MarketsDisplay markets={prediction.markets} />
-            </div>
+            <ExpectedGoalsDisplay
+              xg={prediction.expected_goals}
+              lambdaHome={prediction.lambda_home}
+              lambdaAway={prediction.lambda_away}
+              homeTeam={prediction.match_home_team}
+              awayTeam={prediction.match_away_team}
+            />
           </CardContent>
         </Card>
+      )}
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Market Probabilities</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OverUnderChart markets={prediction.markets} />
+          <div className="mt-4">
+            <MarketsDisplay markets={prediction.markets} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Feature Snapshot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="text-xs overflow-x-auto">
+            {JSON.stringify(prediction.feature_snapshot, null, 2)}
+          </pre>
+        </CardContent>
+      </Card>
+
+      {prediction.ai_explanation && (
         <Card>
           <CardHeader>
-            <CardTitle>Feature Snapshot</CardTitle>
+            <CardTitle>AI Explanation</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="text-xs overflow-x-auto">
-              {JSON.stringify(prediction.feature_snapshot, null, 2)}
-            </pre>
+            <p className="text-sm italic leading-relaxed">
+              &ldquo;{prediction.ai_explanation}&rdquo;
+            </p>
           </CardContent>
         </Card>
-
-        {prediction.ai_explanation && (
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Explanation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm italic leading-relaxed">
-                &ldquo;{prediction.ai_explanation}&rdquo;
-              </p>
-            </CardContent>
-          </Card>
-        )}
+      )}
     </div>
   );
 }

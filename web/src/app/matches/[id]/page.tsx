@@ -1,9 +1,23 @@
 import { Suspense } from "react";
 import Image from "next/image";
-import { Calendar, Clock, MapPin, Shield, Trophy, AlertCircle, ExternalLink } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Shield,
+  Trophy,
+  AlertCircle,
+  ExternalLink,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { ProbabilityBars } from "@/components/probability-bars";
 import { TopScorelines } from "@/components/top-scorelines";
 import { GoalDistributionsView } from "@/components/goal-distributions";
@@ -11,10 +25,20 @@ import { ScoreMatrixGrid } from "@/components/score-matrix";
 import { ExpectedGoalsDisplay } from "@/components/expected-goals";
 import { MarketsDisplay, OverUnderChart } from "@/components/markets-display";
 import { PredictionSummary } from "@/components/prediction-summary";
-import { LoadingState, ErrorBoundary } from "@/components/loading-states";
-import { getMatchStatusColor, getMatchStatusLabel, formatTime, formatDateTime } from "@/lib/formatters";
+import { LoadingState } from "@/components/loading-states";
+import { RetryableError } from "@/components/retryable-error";
+import {
+  getMatchStatusColor,
+  getMatchStatusLabel,
+  formatTime,
+  formatDateTime,
+} from "@/lib/formatters";
 import { getTeamDisplayName } from "@/lib/predictions";
-import type { MatchDetail, PredictionDetail, ResearchData } from "@/types/models";
+import type {
+  MatchDetail,
+  PredictionDetail,
+  ResearchData,
+} from "@/types/models";
 
 interface MatchDetailPageProps {
   params: Promise<{ id: string }>;
@@ -37,14 +61,14 @@ export async function generateMetadata({ params }: MatchDetailPageProps) {
 
 export const revalidate = 60;
 
-export default async function MatchDetailPage({ params }: MatchDetailPageProps) {
+export default async function MatchDetailPage({
+  params,
+}: MatchDetailPageProps) {
   const { id } = await params;
 
   return (
     <div className="space-y-6">
-      <Suspense
-        fallback={<LoadingState message="Loading match details..." />}
-      >
+      <Suspense fallback={<LoadingState message="Loading match details..." />}>
         <MatchDetailContent matchId={id} />
       </Suspense>
     </div>
@@ -62,12 +86,7 @@ async function MatchDetailContent({ matchId }: { matchId: string }) {
   }
 
   if (error) {
-    return (
-      <ErrorBoundary
-        error={error}
-        reset={() => window.location.reload()}
-      />
-    );
+    return <RetryableError message={error.message} />;
   }
 
   if (!matchDetail) return <LoadingState message="Loading match..." />;
@@ -81,34 +100,22 @@ async function MatchDetailContent({ matchId }: { matchId: string }) {
       >
         <MatchStatsSection stats={matchDetail.statistics} />
       </Suspense>
-      <Suspense
-        fallback={<LoadingState message="Loading team form..." />}
-      >
+      <Suspense fallback={<LoadingState message="Loading team form..." />}>
         <TeamFormSection match={matchDetail} />
       </Suspense>
-      <Suspense
-        fallback={<LoadingState message="Loading head-to-head..." />}
-      >
+      <Suspense fallback={<LoadingState message="Loading head-to-head..." />}>
         <HeadToHeadSection h2h={matchDetail.h2h} />
       </Suspense>
-      <Suspense
-        fallback={<LoadingState message="Loading injuries..." />}
-      >
+      <Suspense fallback={<LoadingState message="Loading injuries..." />}>
         <InjuriesSection injuries={matchDetail.injuries} />
       </Suspense>
-      <Suspense
-        fallback={<LoadingState message="Loading suspensions..." />}
-      >
+      <Suspense fallback={<LoadingState message="Loading suspensions..." />}>
         <SuspensionsSection suspensions={matchDetail.suspensions} />
       </Suspense>
-      <Suspense
-        fallback={<LoadingState message="Loading lineups..." />}
-      >
+      <Suspense fallback={<LoadingState message="Loading lineups..." />}>
         <LineupsSection lineups={matchDetail.lineups} />
       </Suspense>
-      <Suspense
-        fallback={<LoadingState message="Loading odds..." />}
-      >
+      <Suspense fallback={<LoadingState message="Loading odds..." />}>
         <OddsSection odds={matchDetail.odds} />
       </Suspense>
     </div>
@@ -175,9 +182,7 @@ function MatchHeader({ match }: { match: MatchDetail }) {
                 {match.home_score} - {match.away_score}
               </div>
             ) : (
-              <div className="text-sm font-bold text-muted-foreground">
-                VS
-              </div>
+              <div className="text-sm font-bold text-muted-foreground">VS</div>
             )}
           </div>
 
@@ -227,45 +232,43 @@ async function PredictionSection({ matchId }: { matchId: string }) {
   }
 
   if (error) {
-    return (
-      <ErrorBoundary
-        error={error}
-        reset={() => window.location.reload()}
-      />
-    );
+    return <RetryableError message={error.message} />;
   }
 
   if (!prediction) {
     return (
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Prediction</CardTitle>
-            <CardDescription>No prediction available for this match.</CardDescription>
-          </CardHeader>
-        </Card>
-      );
-    }
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Prediction</CardTitle>
+          <CardDescription>
+            No prediction available for this match.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
-    return (
-      <div className="space-y-4">
-        <PredictionSummary prediction={prediction} />
+  return (
+    <div className="space-y-4">
+      <PredictionSummary prediction={prediction} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Result Probabilities</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProbabilityBars
-              home={prediction.result_probabilities.home}
-              draw={prediction.result_probabilities.draw}
-              away={prediction.result_probabilities.away}
-              homeTeam={prediction.match_home_team}
-              awayTeam={prediction.match_away_team}
-            />
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Result Probabilities</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProbabilityBars
+            home={prediction.result_probabilities.home}
+            draw={prediction.result_probabilities.draw}
+            away={prediction.result_probabilities.away}
+            homeTeam={prediction.match_home_team}
+            awayTeam={prediction.match_away_team}
+          />
+        </CardContent>
+      </Card>
 
-        {prediction.top_4_scorelines && prediction.top_4_scorelines.length > 0 && (
+      {prediction.top_4_scorelines &&
+        prediction.top_4_scorelines.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle>Top 4 Scoreline Predictions</CardTitle>
@@ -276,117 +279,117 @@ async function PredictionSection({ matchId }: { matchId: string }) {
           </Card>
         )}
 
-        {prediction.score_matrix && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Score Probability Matrix</CardTitle>
-              <CardDescription>
-                Probability of each exact scoreline
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScoreMatrixGrid
-                matrix={prediction.score_matrix}
-                homeTeam={prediction.match_home_team}
-                awayTeam={prediction.match_away_team}
-                highlightTop4={prediction.top_4_scorelines}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {prediction.expected_goals && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Expected Goals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ExpectedGoalsDisplay
-                xg={prediction.expected_goals}
-                lambdaHome={prediction.lambda_home}
-                lambdaAway={prediction.lambda_away}
-                homeTeam={prediction.match_home_team}
-                awayTeam={prediction.match_away_team}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {prediction.goal_distributions && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Goal Distributions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <GoalDistributionsView
-                distributions={prediction.goal_distributions}
-                homeTeam={prediction.match_home_team}
-                awayTeam={prediction.match_away_team}
-              />
-            </CardContent>
-          </Card>
-        )}
-
+      {prediction.score_matrix && (
         <Card>
           <CardHeader>
-            <CardTitle>Market Probabilities</CardTitle>
+            <CardTitle>Score Probability Matrix</CardTitle>
+            <CardDescription>
+              Probability of each exact scoreline
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <OverUnderChart markets={prediction.markets} />
-            <div className="mt-4">
-              <MarketsDisplay markets={prediction.markets} />
+            <ScoreMatrixGrid
+              matrix={prediction.score_matrix}
+              homeTeam={prediction.match_home_team}
+              awayTeam={prediction.match_away_team}
+              highlightTop4={prediction.top_4_scorelines}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {prediction.expected_goals && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Expected Goals</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ExpectedGoalsDisplay
+              xg={prediction.expected_goals}
+              lambdaHome={prediction.lambda_home}
+              lambdaAway={prediction.lambda_away}
+              homeTeam={prediction.match_home_team}
+              awayTeam={prediction.match_away_team}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {prediction.goal_distributions && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Goal Distributions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GoalDistributionsView
+              distributions={prediction.goal_distributions}
+              homeTeam={prediction.match_home_team}
+              awayTeam={prediction.match_away_team}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Market Probabilities</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OverUnderChart markets={prediction.markets} />
+          <div className="mt-4">
+            <MarketsDisplay markets={prediction.markets} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {prediction.ai_explanation && (
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Explanation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm italic">{prediction.ai_explanation}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {prediction.ai_adjustment && prediction.ai_adjustment.applied && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Research Adjustment Applied</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p>
+                Home attack:{" "}
+                {prediction.ai_adjustment.home_attack_adjustment > 0 ? "+" : ""}
+                {prediction.ai_adjustment.home_attack_adjustment.toFixed(3)}
+              </p>
+              <p>
+                Away attack:{" "}
+                {prediction.ai_adjustment.away_attack_adjustment > 0 ? "+" : ""}
+                {prediction.ai_adjustment.away_attack_adjustment.toFixed(3)}
+              </p>
+              {prediction.ai_adjustment.reason_codes.length > 0 && (
+                <div className="mt-2">
+                  <span className="font-medium">Reasons: </span>
+                  {prediction.ai_adjustment.reason_codes.map((code, i) => (
+                    <Badge key={i} variant="outline" className="ml-1 text-xs">
+                      {code}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
+      )}
 
-        {prediction.ai_explanation && (
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Explanation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm italic">{prediction.ai_explanation}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {prediction.ai_adjustment && prediction.ai_adjustment.applied && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Research Adjustment Applied</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 text-sm">
-                <p>
-                  Home attack:{" "}
-                  {prediction.ai_adjustment.home_attack_adjustment > 0 ? "+" : ""}
-                  {prediction.ai_adjustment.home_attack_adjustment.toFixed(3)}
-                </p>
-                <p>
-                  Away attack:{" "}
-                  {prediction.ai_adjustment.away_attack_adjustment > 0 ? "+" : ""}
-                  {prediction.ai_adjustment.away_attack_adjustment.toFixed(3)}
-                </p>
-                {prediction.ai_adjustment.reason_codes.length > 0 && (
-                  <div className="mt-2">
-                    <span className="font-medium">Reasons: </span>
-                    {prediction.ai_adjustment.reason_codes.map((code, i) => (
-                      <Badge key={i} variant="outline" className="ml-1 text-xs">
-                        {code}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {prediction.research && prediction.research.available && (
-          <ResearchSection matchId={matchId} />
-        )}
-      </div>
-    );
+      {prediction.research && prediction.research.available && (
+        <ResearchSection matchId={matchId} />
+      )}
+    </div>
+  );
 }
 
 async function ResearchSection({ matchId }: { matchId: string }) {
@@ -401,76 +404,76 @@ async function ResearchSection({ matchId }: { matchId: string }) {
   if (!research) return null;
 
   return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Research & Analysis</CardTitle>
-          <CardDescription>
-            Web-sourced data: {research.sources.length} sources,{" "}
-            {research.injuries.length} injuries,{" "}
-            {research.suspensions.length} suspensions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {research.sources.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold mb-2">Sources</h4>
-                <div className="space-y-2">
-                  {research.sources.slice(0, 5).map((source, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div className="flex-1">
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium hover:underline flex items-center gap-1"
-                        >
-                          {source.title || source.url}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                        {source.publisher && (
-                          <p className="text-xs text-muted-foreground">
-                            {source.publisher}
-                          </p>
-                        )}
-                      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Research & Analysis</CardTitle>
+        <CardDescription>
+          Web-sourced data: {research.sources.length} sources,{" "}
+          {research.injuries.length} injuries, {research.suspensions.length}{" "}
+          suspensions
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {research.sources.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Sources</h4>
+              <div className="space-y-2">
+                {research.sources.slice(0, 5).map((source, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                    <div className="flex-1">
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium hover:underline flex items-center gap-1"
+                      >
+                        {source.title || source.url}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                      {source.publisher && (
+                        <p className="text-xs text-muted-foreground">
+                          {source.publisher}
+                        </p>
+                      )}
                     </div>
-                  ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {research.injuries.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Injuries</h4>
+              {research.injuries.map((injury, i) => (
+                <div key={i} className="text-sm border-l-2 border-warning pl-2">
+                  <span className="font-medium">{injury.subject}</span> -{" "}
+                  {injury.claim}
                 </div>
-              </div>
-            )}
-            {research.injuries.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold mb-2">Injuries</h4>
-                {research.injuries.map((injury, i) => (
-                  <div key={i} className="text-sm border-l-2 border-warning pl-2">
-                    <span className="font-medium">{injury.subject}</span> -{" "}
-                    {injury.claim}
-                  </div>
-                ))}
-              </div>
-            )}
-            {research.team_news.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold mb-2">Team News</h4>
-                {research.team_news.map((news, i) => (
-                  <div key={i} className="text-sm border-l-2 border-primary pl-2">
-                    <span className="font-medium">{news.subject}</span> -{" "}
-                    {news.claim}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="mt-4 border-t border-border pt-3 text-center">
-            <Badge variant="outline" className="text-xs">
-              Data Quality: {(research.data_quality * 100).toFixed(1)}%
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-    );
+              ))}
+            </div>
+          )}
+          {research.team_news.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold mb-2">Team News</h4>
+              {research.team_news.map((news, i) => (
+                <div key={i} className="text-sm border-l-2 border-primary pl-2">
+                  <span className="font-medium">{news.subject}</span> -{" "}
+                  {news.claim}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="mt-4 border-t border-border pt-3 text-center">
+          <Badge variant="outline" className="text-xs">
+            Data Quality: {(research.data_quality * 100).toFixed(1)}%
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function MatchStatsSection({
@@ -548,9 +551,12 @@ function InjuriesSection({
         <div className="space-y-2">
           {injuries.map((injury, i) => (
             <div key={i} className="border-b border-border py-2 last:border-0">
-              <span className="font-medium">{String(injury.player_name || "Unknown")}</span>
+              <span className="font-medium">
+                {String(injury.player_name || "Unknown")}
+              </span>
               <span className="text-xs text-muted-foreground ml-2">
-                {String(injury.position || "")} - {String(injury.injury_type || "")}
+                {String(injury.position || "")} -{" "}
+                {String(injury.injury_type || "")}
               </span>
             </div>
           ))}
@@ -579,9 +585,12 @@ function SuspensionsSection({
         <div className="space-y-2">
           {suspensions.map((susp, i) => (
             <div key={i} className="border-b border-border py-2 last:border-0">
-              <span className="font-medium">{String(susp.player_name || "Unknown")}</span>
+              <span className="font-medium">
+                {String(susp.player_name || "Unknown")}
+              </span>
               <span className="text-xs text-muted-foreground ml-2">
-                {String(susp.reason || "")} - {String(susp.suspension_type || "")}
+                {String(susp.reason || "")} -{" "}
+                {String(susp.suspension_type || "")}
               </span>
             </div>
           ))}
@@ -612,11 +621,7 @@ function LineupsSection({
   );
 }
 
-function OddsSection({
-  odds,
-}: {
-  odds?: Record<string, unknown> | null;
-}) {
+function OddsSection({ odds }: { odds?: Record<string, unknown> | null }) {
   if (!odds) return null;
 
   const markets = odds.markets as Array<Record<string, unknown>> | undefined;
@@ -631,14 +636,18 @@ function OddsSection({
         <div className="space-y-3">
           {markets.slice(0, 4).map((market, i) => (
             <div key={i} className="border-b border-border py-2 last:border-0">
-              <span className="font-medium">{String(market.name || market.key || "Market")}</span>
+              <span className="font-medium">
+                {String(market.name || market.key || "Market")}
+              </span>
               <div className="mt-1 flex gap-3 text-sm">
                 {Array.isArray(market.bookmakers) &&
-                  market.bookmakers.slice(0, 3).map((bm: Record<string, unknown>, j) => (
-                    <span key={j} className="text-muted-foreground">
-                      {String(bm.name || bm.key || "Bookmaker")}
-                    </span>
-                  ))}
+                  market.bookmakers
+                    .slice(0, 3)
+                    .map((bm: Record<string, unknown>, j) => (
+                      <span key={j} className="text-muted-foreground">
+                        {String(bm.name || bm.key || "Bookmaker")}
+                      </span>
+                    ))}
               </div>
             </div>
           ))}

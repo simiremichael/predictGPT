@@ -67,6 +67,29 @@ class SportmonksClient:
     # "stages"
     # "inplay",
     # "today",
+
+    # Side-loaded relations requested on team lookups.  ``players.player`` is a
+    # nested include and must be requested on its own: sending bare ``players``
+    # alongside it returns the squad without the nested player objects.
+    DEFAULT_TEAM_INCLUDES: tuple[str, ...] = (
+        "sport",
+        "country",
+        "venue",
+        "coaches",
+        "rivals",
+        "players.player",
+        "latest",
+        "upcoming",
+        "seasons",
+        "activeSeasons",
+        "sidelined",
+        "sidelinedHistory",
+        "statistics",
+        "trophies",
+        "socials",
+        "rankings",
+    )
+
     @classmethod
     def _normalize_includes(cls, includes: Any) -> list[str]:
         """Normalize an include selection into a list of include names.
@@ -387,16 +410,25 @@ class SportmonksClient:
         league_id: str | None = None,
         season_id: str | None = None,
         params: dict[str, Any] | None = None,
+        includes: Any = None,
     ) -> list[dict[str, Any]]:
         merged: dict[str, Any] = params or {}
         if league_id:
             merged["league_id"] = league_id
         if season_id:
             merged["season_id"] = season_id
-        return await self.request_all_pages("/teams", params=merged)
+        return await self.request_all_pages(
+            "/teams",
+            params=merged,
+            includes=self.DEFAULT_TEAM_INCLUDES if includes is None else includes,
+        )
 
-    async def get_team(self, team_id: str) -> Any:
-        return await self.request("GET", f"/teams/{team_id}")
+    async def get_team(self, team_id: str, includes: Any = None) -> Any:
+        return await self.request(
+            "GET",
+            f"/teams/{team_id}",
+            includes=self.DEFAULT_TEAM_INCLUDES if includes is None else includes,
+        )
 
     # ── Team squads ───────────────────────────────────────────────────── #
     async def get_team_squad(self, team_id: str) -> list[dict[str, Any]]:
@@ -412,11 +444,19 @@ class SportmonksClient:
             f"/teams/{team_id}/squad", params={"season_id": season_id}
         )
 
-    async def get_fixtures(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        return await self.request_all_pages("/fixtures", params=params or {})
+    async def get_fixtures(
+        self,
+        params: dict[str, Any] | None = None,
+        includes: Any = None,
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/fixtures", params=params or {}, includes=includes)
 
-    async def get_fixture(self, fixture_id: str) -> Any:
-        return await self.request("GET", f"/fixtures/{fixture_id}")
+    async def get_fixture(self, fixture_id: str, includes: Any = None) -> Any:
+        return await self.request(
+            "GET",
+            f"/fixtures/{fixture_id}",
+            includes=includes,
+        )
 
     async def get_standings(
         self,

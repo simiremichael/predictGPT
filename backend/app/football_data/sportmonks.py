@@ -200,7 +200,10 @@ class SportmonksProvider(FootballDataProvider):
         season_id: str | None = None,
         **kwargs: Any,
     ) -> list[NormalizedTeam]:
-        response = await self.http.get_teams(league_id=league_id, season_id=season_id)
+        includes = kwargs.get("includes", kwargs.get("include"))
+        response = await self.http.get_teams(
+            league_id=league_id, season_id=season_id, includes=includes
+        )
         if not isinstance(response, list):
             response = []
         return [
@@ -209,7 +212,8 @@ class SportmonksProvider(FootballDataProvider):
         ]
 
     async def get_team(self, team_id: str, **kwargs: Any) -> NormalizedTeam | None:
-        response = await self.http.get_team(team_id)
+        includes = kwargs.get("includes", kwargs.get("include"))
+        response = await self.http.get_team(team_id, includes=includes)
         if not response:
             return None
         if isinstance(response, list):
@@ -276,13 +280,19 @@ class SportmonksProvider(FootballDataProvider):
             days = kwargs.get("days", 7)
             params["to"] = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
 
-        response = await self.http.get_fixtures(params=params)
+        response = await self.http.get_fixtures(
+            params=params,
+            includes=["participants"],
+        )
         if not isinstance(response, list):
             response = []
         return [self._normalize_fixture(entry) for entry in response]
 
     async def get_fixture(self, fixture_id: str, **kwargs: Any) -> NormalizedFixture | None:
-        response = await self.http.get_fixture(fixture_id)
+        response = await self.http.get_fixture(
+            fixture_id,
+            includes=["participants"],
+        )
         if not response:
             return None
         if isinstance(response, list):
@@ -917,35 +927,76 @@ class SportmonksProvider(FootballDataProvider):
         home = raw.get("home", {}) or {}
         away = raw.get("away", {}) or {}
         league = raw.get("league", {}) or {}
+        participants = raw.get("participants") or []
+        if isinstance(participants, dict):
+            if isinstance(participants.get("data"), list):
+                participants = participants["data"]
+            elif "id" in participants:
+                participants = [participants]
+            else:
+                participants = list(participants.values())
+        unlocated_participants: list[dict[str, Any]] = []
+        for participant in participants:
+            if not isinstance(participant, dict):
+                continue
+            meta = participant.get("meta") or {}
+            if isinstance(meta, list):
+                meta = next((item for item in meta if isinstance(item, dict)), {})
+            if not isinstance(meta, dict):
+                meta = {}
+            location = meta.get("location") or participant.get("location")
+            if isinstance(location, dict):
+                location = location.get("name") or location.get("code")
+            location = str(location).lower() if location is not None else None
+            normalized_participant = {
+                "team_id": participant.get("id"),
+                "name": participant.get("name"),
+                "score": participant.get("score"),
+            }
+            if location == "home":
+                home = normalized_participant
+            elif location == "away":
+                away = normalized_participant
+            else:
+                unlocated_participants.append(normalized_participant)
+
+        for participant in unlocated_participants:
+            if not home:
+                home = participant
+            elif not away:
+                away = participant
+
+        starting_at = raw.get("starting_at")
+        if isinstance(starting_at, dict):
+            kickoff_at = starting_at.get("date")
+        else:
+            kickoff_at = starting_at or raw.get("starts_at")
+
+        raw_state = raw.get("state")
+        if isinstance(raw_state, dict):
+            raw_state = raw_state.get("state") or raw_state.get("name")
+
         return NormalizedFixture(
             provider="sportmonks",
             provider_fixture_id=str(raw.get("id", "")),
-            league_id=str(league.get("id", "")) if league else None,
-            season_id=str(league.get("season_id", "")) if league else None,
+            league_id=str(league.get("id") or raw.get("league_id") or "") or None,
+            provider_league_id=str(league.get("id") or raw.get("league_id") or "") or None,
+            season_id=str(league.get("season_id") or raw.get("season_id") or "") or None,
             home_team_id=str(home.get("team_id", "")) if home else None,
+            provider_home_team_id=str(home.get("team_id", "")) if home else None,
             away_team_id=str(away.get("team_id", "")) if away else None,
+            provider_away_team_id=str(away.get("team_id", "")) if away else None,
             home_team_name=home.get("name"),
             away_team_name=away.get("name"),
-            kickoff_at=raw.get("starting_at", {}).get("date")
-            if isinstance(raw.get("starting_at"), dict)
-            else raw.get("starts_at"),
-            status=SportmonksProvider._normalize_status(
-                raw.get("state", {}).get("state")
-                if isinstance(raw.get("state"), dict)
-                else raw.get("state")
-            ),
+            kickoff_at=kickoff_at,
+            status=SportmonksProvider._normalize_status(raw_state),
             venue=raw.get("venue", {}).get("name") if isinstance(raw.get("venue"), dict) else None,
             referee=raw.get("referee", {}).get("name")
             if isinstance(raw.get("referee"), dict)
             else None,
             home_score=raw.get("home_score") if "home_score" in raw else home.get("score"),
             away_score=raw.get("away_score") if "away_score" in raw else away.get("score"),
-            is_finished=SportmonksProvider._normalize_status(
-                raw.get("state", {}).get("state")
-                if isinstance(raw.get("state"), dict)
-                else raw.get("state")
-            )
-            == FixtureStatus.FINISHED,
+            is_finished=SportmonksProvider._normalize_status(raw_state) == FixtureStatus.FINISHED,
             provider_metadata={
                 "league_name": league.get("name") if league else None,
                 "season_name": league.get("season_name") if league else None,

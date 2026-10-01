@@ -14,15 +14,18 @@ import { MatchCard } from "@/components/match-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Standing, Season, Team } from "@/types/models";
 
+const LEAGUE_DETAIL_INCLUDES =
+  "sport,country,stages,latest,upcoming,inplay,today,currentSeason,seasons,standings,teams";
+
 interface LeagueDetailPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string; page_size?: string; tab?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
 export async function generateMetadata({ params }: LeagueDetailPageProps) {
   const { id } = await params;
   try {
-    const league = await api.getLeague(id);
+    const league = await api.getLeague(id, { include: LEAGUE_DETAIL_INCLUDES });
     if (!league) throw new Error("League not found");
     return {
       title: `${league.name} | Football AI`,
@@ -41,23 +44,12 @@ export default async function LeaguePage({
 }: LeagueDetailPageProps) {
   const { id } = await params;
   const sp = await searchParams;
-  const standingsPage = parseInt(sp.page || "1", 10);
-  const standingsPageSize = parseInt(sp.page_size || "50", 10);
   const activeTab = sp.tab || "standings";
 
   let league;
-  let seasons = { data: [] as Season[], meta: { total: 0 } };
-  let standings = { data: [] as Standing[], meta: { total: 0 } };
-  let teams = { data: [] as Team[], meta: { total: 0 } };
 
   try {
-    league = await api.getLeague(id);
-    seasons = await api.getLeagueSeasons(id, { page_size: 20 });
-    standings = await api.getLeagueStandings(id, {
-      page: standingsPage,
-      page_size: standingsPageSize,
-    });
-    teams = await api.getLeagueTeams(id, { page: 1, page_size: 50 });
+    league = await api.getLeague(id, { include: LEAGUE_DETAIL_INCLUDES });
   } catch (error) {
     return (
       <EmptyState
@@ -81,6 +73,10 @@ export default async function LeaguePage({
       />
     );
   }
+
+  const seasons = league.seasons ?? [];
+  const standings = league.standings ?? [];
+  const teams = league.teams ?? [];
 
   return (
     <div className="space-y-6">
@@ -135,18 +131,18 @@ export default async function LeaguePage({
       <Tabs defaultValue={activeTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="standings">Standings</TabsTrigger>
-          <TabsTrigger value="teams">Teams ({teams.meta.total})</TabsTrigger>
+          <TabsTrigger value="teams">Teams ({teams.length})</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>
           <TabsTrigger value="seasons">Seasons</TabsTrigger>
         </TabsList>
 
         <TabsContent value="standings">
-          {standings.data.length > 0 ? (
+          {standings.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle>Standings</CardTitle>
                 <CardDescription>
-                  {standings.meta.total} teams in the table
+                  {standings.length} teams in the table
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -167,7 +163,7 @@ export default async function LeaguePage({
                       </tr>
                     </thead>
                     <tbody>
-                      {standings.data.map((standing: Standing, idx: number) => (
+                      {standings.map((standing: Standing, idx: number) => (
                         <tr
                           key={standing.team_id || idx}
                           className="border-b border-border/50"
@@ -212,17 +208,17 @@ export default async function LeaguePage({
         </TabsContent>
 
         <TabsContent value="teams">
-          {teams.data.length > 0 ? (
+          {teams.length > 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle>Teams</CardTitle>
                 <CardDescription>
-                  {teams.meta.total} teams in this league
+                  {teams.length} teams in this league
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {teams.data.map((team: Team) => (
+                  {teams.map((team: Team) => (
                     <Link
                       key={team.id}
                       href={`/teams/${team.id}`}
@@ -292,14 +288,14 @@ export default async function LeaguePage({
         </TabsContent>
 
         <TabsContent value="seasons">
-          {seasons.data.length > 0 && (
+          {seasons.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle>Seasons</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {seasons.data.map((season: Season) => (
+                  {seasons.map((season: Season) => (
                     <Badge
                       key={season.id}
                       variant={season.is_current ? "default" : "outline"}

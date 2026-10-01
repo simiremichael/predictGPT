@@ -143,6 +143,21 @@ async function TeamsList({
     );
   }
 
+  const teamsByCountry = new Map<string, Team[]>();
+  for (const team of result.data) {
+    const country = team.country?.trim() || "Unknown country";
+    const countryTeams = teamsByCountry.get(country) ?? [];
+    countryTeams.push(team);
+    teamsByCountry.set(country, countryTeams);
+  }
+  const countryGroups = [...teamsByCountry.entries()].sort(
+    ([first], [second]) => {
+      if (first === "Unknown country") return 1;
+      if (second === "Unknown country") return -1;
+      return first.localeCompare(second);
+    },
+  );
+
   return (
     <Card className="surface-card rounded-[1.5rem]">
       <CardHeader>
@@ -151,65 +166,71 @@ async function TeamsList({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Team
-                </th>
-                <th className="py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Short
-                </th>
-                <th className="py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Country
-                </th>
-                <th className="py-3 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                  Active
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.data.map((team: Team) => (
-                <tr
-                  key={team.id}
-                  className="border-b border-border/50 hover:bg-accent/40"
-                >
-                  <td className="py-3">
-                    <Link
-                      href={`/teams/${team.id}`}
-                      className="font-semibold text-foreground hover:text-primary"
-                    >
-                      {team.name}
-                    </Link>
-                  </td>
-                  <td className="py-3 text-muted-foreground">
-                    {team.short_name || "-"}
-                  </td>
-                  <td className="py-3 text-muted-foreground">
-                    {team.country || "-"}
-                  </td>
-                  <td className="py-3 text-center">
-                    {team.is_active ? (
-                      <Badge
-                        variant="default"
-                        className="text-xs font-semibold"
+        <div className="space-y-6">
+          {countryGroups.map(([country, teams]) => (
+            <section key={country}>
+              <h2 className="mb-2 border-b border-border pb-2 text-sm font-bold text-foreground">
+                {country}
+                <span className="ml-2 font-normal text-muted-foreground">
+                  {teams.length}
+                </span>
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                        Team
+                      </th>
+                      <th className="py-3 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                        Short
+                      </th>
+                      <th className="py-3 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                        Active
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teams.map((team) => (
+                      <tr
+                        key={team.id}
+                        className="border-b border-border/50 hover:bg-accent/40"
                       >
-                        Yes
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs font-semibold"
-                      >
-                        No
-                      </Badge>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        <td className="py-3">
+                          <Link
+                            href={`/teams/${team.id}`}
+                            className="font-semibold text-foreground hover:text-primary"
+                          >
+                            {team.name}
+                          </Link>
+                        </td>
+                        <td className="py-3 text-muted-foreground">
+                          {team.short_name || "-"}
+                        </td>
+                        <td className="py-3 text-center">
+                          {team.is_active ? (
+                            <Badge
+                              variant="default"
+                              className="text-xs font-semibold"
+                            >
+                              Yes
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs font-semibold"
+                            >
+                              No
+                            </Badge>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ))}
         </div>
       </CardContent>
     </Card>

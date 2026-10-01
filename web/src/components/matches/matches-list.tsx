@@ -6,11 +6,25 @@ import { api } from "@/lib/api";
 import { MatchCard } from "@/components/match-card";
 import { LoadingState, EmptyState } from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { MatchBrief } from "@/types/models";
+
+const TOP_LEAGUES = [
+  { id: "39", name: "Premier League" },
+  { id: "140", name: "La Liga" },
+  { id: "135", name: "Serie A" },
+  { id: "78", name: "Bundesliga" },
+  { id: "61", name: "Ligue 1" },
+];
 
 interface MatchesListProps {
   initialPage: number;
@@ -41,34 +55,57 @@ export function MatchesList({
   const [date, setDate] = useState(initialDate);
   const [result, setResult] = useState<{
     data: MatchBrief[];
-    meta: { page: number; page_size: number; total: number; total_pages: number };
+    meta: {
+      page: number;
+      page_size: number;
+      total: number;
+      total_pages: number;
+    };
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function fetchMatches() {
+  async function fetchMatches(
+    requestedPage = page,
+    requestedPageSize = pageSize,
+    filterOverrides: Partial<{
+      leagueId: string;
+      teamId: string;
+      status: string;
+      date: string;
+    }> = {},
+  ) {
+    const requestedLeagueId = filterOverrides.leagueId ?? leagueId;
+    const requestedTeamId = filterOverrides.teamId ?? teamId;
+    const requestedStatus = filterOverrides.status ?? status;
+    const requestedDate = filterOverrides.date ?? date;
+
     setLoading(true);
     setError(null);
     try {
       let data;
       if (today) {
-        data = await api.getTodayMatches({ league_id: leagueId || undefined, page, page_size: pageSize });
+        data = await api.getTodayMatches({
+          league_id: requestedLeagueId || undefined,
+          page: requestedPage,
+          page_size: requestedPageSize,
+        });
       } else if (upcoming) {
         data = await api.getUpcomingMatches({
           days: 7,
-          league_id: leagueId || undefined,
-          team_id: teamId || undefined,
-          page,
-          page_size: pageSize,
+          league_id: requestedLeagueId || undefined,
+          team_id: requestedTeamId || undefined,
+          page: requestedPage,
+          page_size: requestedPageSize,
         });
       } else {
         data = await api.listMatches({
-          league_id: leagueId || undefined,
-          team_id: teamId || undefined,
-          status: status || undefined,
-          date: date || undefined,
-          page,
-          page_size: pageSize,
+          league_id: requestedLeagueId || undefined,
+          team_id: requestedTeamId || undefined,
+          status: requestedStatus || undefined,
+          date: requestedDate || undefined,
+          page: requestedPage,
+          page_size: requestedPageSize,
         });
       }
       setResult(data);
@@ -86,12 +123,20 @@ export function MatchesList({
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
-    fetchMatches();
+    void fetchMatches(newPage);
   };
 
-  const handleFilterChange = (newPage: number = 1) => {
+  const handleFilterChange = (
+    newPage: number = 1,
+    filterOverrides: Partial<{
+      leagueId: string;
+      teamId: string;
+      status: string;
+      date: string;
+    }> = {},
+  ) => {
     setPage(newPage);
-    fetchMatches();
+    void fetchMatches(newPage, pageSize, filterOverrides);
   };
 
   const clearFilters = () => {
@@ -99,7 +144,12 @@ export function MatchesList({
     setTeamId("");
     setStatus("");
     setDate("");
-    handleFilterChange(1);
+    handleFilterChange(1, {
+      leagueId: "",
+      teamId: "",
+      status: "",
+      date: "",
+    });
   };
 
   if (error) {
@@ -120,6 +170,45 @@ export function MatchesList({
   }
 
   const hasFilters = leagueId || teamId || status || date;
+  const topLeagueOrder = new Map(
+    TOP_LEAGUES.flatMap((league, index) => [
+      [league.id, index] as const,
+      [league.name.toLocaleLowerCase(), index] as const,
+    ]),
+  );
+  const groupedMatches = new Map<string, MatchBrief[]>();
+
+  for (const match of result.data) {
+    const key =
+      match.league_id || match.league_name?.toLocaleLowerCase() || "other";
+    groupedMatches.set(key, [...(groupedMatches.get(key) ?? []), match]);
+  }
+
+  const matchGroups = [...groupedMatches.entries()]
+    .map(([key, matches]) => {
+      const firstMatch = matches[0];
+      const league = TOP_LEAGUES.find(
+        (candidate) =>
+          candidate.id === firstMatch.league_id ||
+          candidate.name.toLocaleLowerCase() ===
+            firstMatch.league_name?.toLocaleLowerCase(),
+      );
+      const label =
+        firstMatch.league_name ||
+        league?.name ||
+        (key === "other" ? "Other matches" : `League ${key}`);
+      const priority =
+        topLeagueOrder.get(firstMatch.league_id || "") ??
+        topLeagueOrder.get(firstMatch.league_name?.toLocaleLowerCase() || "") ??
+        TOP_LEAGUES.length;
+
+      return { key, label, matches, priority };
+    })
+    .sort(
+      (first, second) =>
+        first.priority - second.priority ||
+        first.label.localeCompare(second.label),
+    );
 
   return (
     <div className="space-y-4">
@@ -127,7 +216,15 @@ export function MatchesList({
       <div className="surface-card rounded-[1.5rem] p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-3">
-            <Select value={pageSize.toString()} onValueChange={(value) => handleFilterChange(1)}>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(value) => {
+                const nextPageSize = Number(value);
+                setPageSize(nextPageSize);
+                setPage(1);
+                void fetchMatches(1, nextPageSize);
+              }}
+            >
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Per page" />
               </SelectTrigger>
@@ -172,7 +269,12 @@ export function MatchesList({
           </div>
 
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="flex items-center gap-1"
+            >
               <X className="h-3 w-3" />
               Clear filters
             </Button>
@@ -181,9 +283,24 @@ export function MatchesList({
       </div>
 
       {/* Matches List */}
-      <div className="space-y-3">
-        {result.data.map((match: MatchBrief) => (
-          <MatchCard key={match.id} match={match} showPrediction={false} variant="compact" />
+      <div className="space-y-6">
+        {matchGroups.map((group) => (
+          <section key={group.key} className="space-y-3">
+            <h2 className="border-b border-border pb-2 text-sm font-bold text-foreground">
+              {group.label}
+              <span className="ml-2 font-normal text-muted-foreground">
+                {group.matches.length}
+              </span>
+            </h2>
+            {group.matches.map((match) => (
+              <MatchCard
+                key={match.id}
+                match={match}
+                showPrediction={false}
+                variant="compact"
+              />
+            ))}
+          </section>
         ))}
       </div>
 

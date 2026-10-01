@@ -14,6 +14,7 @@ GET  /api/v1/predictions/stats                -- prediction statistics (admin)
 All endpoints delegate to the PredictionOrchestrator which coordinates
 the Phase 3 statistical model and Phase 4 research/AI layers.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -23,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from core.cache import (
     cache_match_key,
@@ -73,7 +75,7 @@ class PredictionStatsResponse(BaseModel):
     "/matches/{match_id}/prediction",
     summary="Get latest prediction for a match",
     description="Returns the most recent valid prediction. Uses cache; does not auto-generate. "
-                "Checks whether the stored prediction context hash matches current data.",
+    "Checks whether the stored prediction context hash matches current data.",
     response_model=dict[str, Any],
 )
 async def get_prediction(
@@ -136,8 +138,8 @@ async def get_prediction(
     "/matches/{match_id}/predict",
     summary="Generate a new prediction for a match",
     description="Generates a new prediction using the Poisson model with optional AI research adjustment. "
-                "Creates a new immutable prediction record. Requires admin authentication. "
-                "Uses database-first context loading with provider fallback.",
+    "Creates a new immutable prediction record. Requires admin authentication. "
+    "Uses database-first context loading with provider fallback.",
     dependencies=[Depends(verify_admin_api_key)],
     response_model=dict[str, Any],
 )
@@ -282,9 +284,14 @@ async def list_predictions(
     offset = (page_num - 1) * ps
 
     cache_key = cache_predictions_list_key(
-        match_id=match_id, league_id=league_id, team_id=team_id,
-        model_version=model_version, date_from=date_from, date_to=date_to,
-        page=page_num, page_size=ps,
+        match_id=match_id,
+        league_id=league_id,
+        team_id=team_id,
+        model_version=model_version,
+        date_from=date_from,
+        date_to=date_to,
+        page=page_num,
+        page_size=ps,
     )
 
     try:
@@ -294,15 +301,26 @@ async def list_predictions(
     except Exception:
         pass
 
-    stmt = select(Prediction)
+    from models.league import Team
+
+    home_team = aliased(Team)
+    away_team = aliased(Team)
+    stmt = (
+        select(
+            Prediction,
+            func.coalesce(Match.home_team_name, home_team.name, "Home team"),
+            func.coalesce(Match.away_team_name, away_team.name, "Away team"),
+        )
+        .join(Match, Match.id == Prediction.match_id)
+        .outerjoin(home_team, Match.home_team_id == home_team.id)
+        .outerjoin(away_team, Match.away_team_id == away_team.id)
+    )
     if match_id:
         stmt = stmt.where(Prediction.match_id == match_id)
     if league_id:
-        stmt = stmt.join(Match).where(Match.league_id == league_id)
+        stmt = stmt.where(Match.league_id == league_id)
     if team_id:
-        stmt = stmt.join(Match).where(
-            (Match.home_team_id == team_id) | (Match.away_team_id == team_id)
-        )
+        stmt = stmt.where((Match.home_team_id == team_id) | (Match.away_team_id == team_id))
     if model_version:
         stmt = stmt.where(Prediction.model_version == model_version)
     if date_from:
@@ -316,18 +334,20 @@ async def list_predictions(
 
     stmt = stmt.order_by(Prediction.generated_at.desc()).offset(offset).limit(ps)
     result = await db.execute(stmt)
-    predictions = result.scalars().all()
+    predictions = result.all()
 
     items = [
         PredictionHistoryItem(
             prediction_id=p.id,
             match_id=p.match_id,
-            match_home_team="",
-            match_away_team="",
+            match_home_team=home_name,
+            match_away_team=away_name,
             model_version=p.model_version,
             prediction_version=p.prediction_version,
             generated_at=p.generated_at,
-            data_quality=p.feature_snapshot.get("data_quality", 0.0) if isinstance(p.feature_snapshot, dict) else 0.0,
+            data_quality=p.feature_snapshot.get("data_quality", 0.0)
+            if isinstance(p.feature_snapshot, dict)
+            else 0.0,
             model_confidence=p.confidence or 0.0,
             home_probability=p.home_probability,
             draw_probability=p.draw_probability,
@@ -335,7 +355,7 @@ async def list_predictions(
             ai_adjustment_applied=bool(p.ai_adjustment_json),
             context_hash=p.context_hash,
         )
-        for p in predictions
+        for p, home_name, away_name in predictions
     ]
 
     response = {
@@ -414,7 +434,9 @@ async def get_prediction_by_id(
             "btts_probability": pred.btts_probability,
             "confidence": pred.confidence,
             "prediction_status": pred.prediction_status,
-            "feature_snapshot": pred.feature_snapshot if isinstance(pred.feature_snapshot, dict) else {},
+            "feature_snapshot": pred.feature_snapshot
+            if isinstance(pred.feature_snapshot, dict)
+            else {},
             "news_snapshot": pred.news_snapshot if isinstance(pred.news_snapshot, dict) else {},
             "odds_snapshot": pred.odds_snapshot if isinstance(pred.odds_snapshot, dict) else {},
             "ai_explanation": pred.ai_explanation,
@@ -489,15 +511,19 @@ async def get_match_predictions(
                 "btts_probability": pred.btts_probability,
                 "research_available": bool(pred.ai_evidence_json),
                 "ai_adjustment_applied": bool(pred.ai_adjustment_json),
-                "data_quality": pred.feature_snapshot.get("data_quality", 0.0) if isinstance(pred.feature_snapshot, dict) else 0.0,
+                "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
+                if isinstance(pred.feature_snapshot, dict)
+                else 0.0,
                 "top_scorelines": [],
             }
-        predictions_map[pred.id]["top_scorelines"].append({
-            "rank": sl.rank,
-            "home_goals": sl.home_goals,
-            "away_goals": sl.away_goals,
-            "probability": sl.probability,
-        })
+        predictions_map[pred.id]["top_scorelines"].append(
+            {
+                "rank": sl.rank,
+                "home_goals": sl.home_goals,
+                "away_goals": sl.away_goals,
+                "probability": sl.probability,
+            }
+        )
 
     all_predictions = list(predictions_map.values())
     total = len(all_predictions)
@@ -563,7 +589,9 @@ async def compare_match_predictions(
                 "under_2_5_probability": pred.under_2_5_probability,
                 "btts_probability": pred.btts_probability,
                 "confidence": pred.confidence,
-                "data_quality": pred.feature_snapshot.get("data_quality", 0.0) if isinstance(pred.feature_snapshot, dict) else 0.0,
+                "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
+                if isinstance(pred.feature_snapshot, dict)
+                else 0.0,
                 "research": {"available": bool(pred.ai_evidence_json)},
                 "ai_adjustment": {"applied": bool(pred.ai_adjustment_json)},
             }
@@ -599,14 +627,9 @@ async def prediction_stats(
     total_result = await db.execute(total_stmt)
     total_predictions = total_result.scalar() or 0
 
-    model_stmt = (
-        select(Prediction.model_version, func.count())
-        .group_by(Prediction.model_version)
-    )
+    model_stmt = select(Prediction.model_version, func.count()).group_by(Prediction.model_version)
     model_result = await db.execute(model_stmt)
-    predictions_by_model = {
-        str(row[0]): row[1] for row in model_result if row[0]
-    }
+    predictions_by_model = {str(row[0]): row[1] for row in model_result if row[0]}
 
     quality_result = await db.execute(select(func.avg(Prediction.confidence)))
     avg_quality = quality_result.scalar()

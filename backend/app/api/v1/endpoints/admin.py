@@ -17,7 +17,7 @@ from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.security import verify_admin_api_key
-from db.database import get_db
+from db.database import AsyncSessionLocal, get_db
 from models.match import Match, Prediction, PredictionRun
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -187,7 +187,6 @@ async def list_models(
 @router.post("/predictions/generate", response_model=dict[str, Any])
 async def trigger_batch_predictions(
     _admin: str = Depends(verify_admin_api_key),
-    db: AsyncSession = Depends(get_db),
     league_ids: list[str] | None = Query(
         None, alias="league_ids", description="League IDs to generate predictions for"
     ),
@@ -214,11 +213,12 @@ async def trigger_batch_predictions(
     async def _run_batch():
         try:
             await update_job_status(job_id, "running")
-            result = await orchestrator.generate_upcoming_predictions(
-                league_ids=league_ids,
-                db_session=db,
-                job_id=job_id,
-            )
+            async with AsyncSessionLocal() as db:
+                result = await orchestrator.generate_upcoming_predictions(
+                    league_ids=league_ids,
+                    db_session=db,
+                    job_id=job_id,
+                )
             await update_job_status(
                 job_id,
                 "completed",

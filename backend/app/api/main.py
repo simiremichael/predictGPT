@@ -58,14 +58,20 @@ def create_app() -> FastAPI:
     async def lifespan(app: FastAPI):  # noqa: ANN201
         await redis_client.connect()
 
-        from jobs.daily_sync import daily_sync_loop
+        from jobs.daily_sync import daily_sync_loop, prediction_generation_loop
 
         sync_task = asyncio.create_task(daily_sync_loop())
+        prediction_task = asyncio.create_task(prediction_generation_loop())
 
         yield
         sync_task.cancel()
+        prediction_task.cancel()
         try:
             await sync_task
+        except asyncio.CancelledError:
+            pass
+        try:
+            await prediction_task
         except asyncio.CancelledError:
             pass
         await redis_client.close()

@@ -15,11 +15,12 @@ This service ties together all existing Phase 1-4 components:
 If research or AI is unavailable, the pipeline degrades gracefully
 to the Phase 3 statistical prediction.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from core.config import get_settings
@@ -90,9 +91,7 @@ class PredictionOrchestrator:
             PredictionOutputSchema with the prediction.
         """
         if match_id in _active_predictions and not force_refresh:
-            raise PredictionConflictError(
-                f"Prediction already in progress for match {match_id}"
-            )
+            raise PredictionConflictError(f"Prediction already in progress for match {match_id}")
 
         current_context_hash = context_hash
         prediction_context = None
@@ -123,8 +122,7 @@ class PredictionOrchestrator:
                     return existing
                 if (
                     not current_context_hash
-                    and existing.generated_at
-                    > datetime.utcnow() - timedelta(seconds=max_age)
+                    and existing.generated_at > datetime.utcnow() - timedelta(seconds=max_age)
                 ):
                     logger.info(
                         "Returning fresh cached prediction",
@@ -161,6 +159,7 @@ class PredictionOrchestrator:
         from core.cache import (
             cache_match_key,
             cache_match_prediction_key,
+            cache_predictions_list_key,
             invalidate_cache_keys,
         )
         from prediction.service import PredictionService
@@ -169,9 +168,7 @@ class PredictionOrchestrator:
             try:
                 from services.prediction_data import PredictionDataService
 
-                prediction_context = await PredictionDataService().get_context(
-                    match_id, db_session
-                )
+                prediction_context = await PredictionDataService().get_context(match_id, db_session)
                 context_hash = prediction_context.context_hash
             except Exception as exc:
                 logger.warning(
@@ -188,23 +185,27 @@ class PredictionOrchestrator:
             context_hash=context_hash,
         )
 
-        if prediction is not None:
-            await invalidate_cache_keys(
-                cache_match_key(match_id),
-                cache_match_prediction_key(match_id),
-            )
-            logger.info(
-                "Prediction pipeline completed",
-                extra={
-                    "match_id": match_id,
-                    "model": prediction.model,
-                    "model_version": prediction.model_version,
-                    "data_quality": prediction.data_quality,
-                },
-            )
-            return prediction_id
-        else:
-            return match_id
+        if prediction is None or not prediction.prediction_id:
+            raise RuntimeError(f"Prediction was not persisted for match {match_id}")
+
+        await invalidate_cache_keys(
+            cache_match_key(match_id),
+            cache_match_prediction_key(match_id),
+            cache_predictions_list_key(page=1, page_size=20),
+        )
+        logger.info(
+            "Prediction pipeline completed",
+            extra={
+                "match_id": match_id,
+                "prediction_id": prediction.prediction_id,
+                "model": prediction.model,
+                "model_version": prediction.model_version,
+                "data_quality": prediction.data_quality,
+                "ai_adjustment_applied": prediction.ai_adjustment.applied,
+                "research_available": prediction.research.available,
+            },
+        )
+        return prediction.prediction_id
 
     async def get_latest_prediction(
         self, match_id: str, db_session: Any = None
@@ -226,9 +227,7 @@ class PredictionOrchestrator:
         from models.match import Prediction, PredictionScoreline
         from prediction.service import PredictionService
 
-        result = await db_session.execute(
-            select(Prediction).where(Prediction.id == prediction_id)
-        )
+        result = await db_session.execute(select(Prediction).where(Prediction.id == prediction_id))
         prediction = result.scalar_one_or_none()
         if prediction is None:
             return None
@@ -313,27 +312,32 @@ class PredictionOrchestrator:
         job_id: str | None = None,
     ) -> dict[str, Any]:
         """Generate predictions for upcoming matches in configured leagues."""
-        from datetime import timezone
-
         from sqlalchemy import select
 
         from football_data.models import FixtureStatus
         from jobs.job_manager import set_job_progress, update_job_status
+        from models.league import Season
         from models.match import Match
 
         if db_session is None:
             return {"error": "Database session required", "generated": 0, "failed": 0}
 
-        stmt = select(Match).where(
-            Match.status.in_([FixtureStatus.SCHEDULED.value, FixtureStatus.LIVE.value]),
-            not Match.is_finished,
+        now = datetime.utcnow()
+        cutoff = now + timedelta(days=7)
+        stmt = (
+            select(Match)
+            .join(Season, Season.id == Match.season_id)
+            .where(
+                Match.status == FixtureStatus.SCHEDULED.value,
+                Match.is_finished.is_(False),
+                Match.kickoff_at >= now,
+                Match.kickoff_at <= cutoff,
+                Season.is_current.is_(True),
+            )
         )
         if league_ids:
             stmt = stmt.where(Match.league_id.in_(league_ids))
-
-        cutoff = datetime.now(UTC) + timedelta(hours=72)
-        stmt = stmt.where(Match.kickoff_at <= cutoff)
-        stmt = stmt.order_by(Match.kickoff_at).limit(50)
+        stmt = stmt.order_by(Match.kickoff_at)
 
         result = await db_session.execute(stmt)
         matches = result.scalars().all()
@@ -348,13 +352,15 @@ class PredictionOrchestrator:
         for match in matches:
             try:
                 existing = await self.get_latest_prediction(match.id, db_session)
-                if existing and existing.generated_at > datetime.utcnow() - timedelta(
-                    seconds=self._settings.prediction_cache_ttl
-                ):
-                    continue
-
-                await self._run_pipeline(match.id, db_session, include_research=True)
-                generated += 1
+                prediction = await self.generate_prediction(
+                    match_id=match.id,
+                    db_session=db_session,
+                    include_research=True,
+                )
+                if prediction is None:
+                    raise RuntimeError("Prediction was not returned after generation")
+                if existing is None or prediction.prediction_id != existing.prediction_id:
+                    generated += 1
             except Exception as e:
                 failed += 1
                 errors.append(f"Match {match.id}: {str(e)}")
