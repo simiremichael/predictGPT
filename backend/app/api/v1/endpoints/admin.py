@@ -4,6 +4,7 @@ GET  /api/v1/admin/stats              -- platform-wide statistics
 GET  /api/v1/admin/prediction-runs     -- list prediction runs
 GET  /api/v1/admin/models              -- list model versions
 POST /api/v1/admin/predictions/generate -- trigger batch prediction generation
+DELETE /api/v1/admin/leagues/all        -- delete all leagues
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import desc, func, select
+from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.security import verify_admin_api_key
@@ -238,4 +239,32 @@ async def trigger_batch_predictions(
             "job_id": job_id,
             "status": "queued",
         },
+    }
+
+
+@router.delete("/leagues/all", response_model=dict[str, Any])
+async def delete_all_leagues(
+    _admin: str = Depends(verify_admin_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Delete all leagues from the database (admin only).
+
+    Cascade-deletes dependent rows in related tables first to satisfy
+    foreign-key constraints.
+    """
+    from models.league import League, ProviderLeague, Season
+
+    count_result = await db.execute(select(func.count()).select_from(League))
+    deleted_count = count_result.scalar() or 0
+
+    for model in (ProviderLeague,):
+        await db.execute(delete(model))
+
+    await db.execute(delete(League))
+    await db.commit()
+
+    return {
+        "success": True,
+        "data": {"deleted": deleted_count},
+        "meta": {"message": f"Deleted {deleted_count} league(s)"},
     }

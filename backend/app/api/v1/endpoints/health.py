@@ -3,6 +3,7 @@
 GET  /api/v1/health   -- basic health (app status, DB/Redis connectivity)
 GET  /api/v1/health/deep -- deep health (providers, cache, model availability)
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -119,9 +120,7 @@ async def deep_health(
     checks["models"] = models
 
     overall_healthy = all(
-        c.get("status") == "healthy"
-        for k, c in checks.items()
-        if k not in ("providers", "models")
+        c.get("status") == "healthy" for k, c in checks.items() if k not in ("providers", "models")
     )
 
     return {

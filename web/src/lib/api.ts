@@ -97,6 +97,21 @@ async function request<T>(
   return (await requestResponse<T>(path, options)).data;
 }
 
+/**
+ * Fetch a single resource.
+ *
+ * The provider endpoints return a uniform envelope where `data` is always a
+ * list, even for a single-resource lookup, so unwrap the first element to match
+ * the declared return type.
+ */
+async function requestOne<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const data = await request<T[]>(path, options);
+  return (Array.isArray(data) ? data[0] : data) as T;
+}
+
 export interface PaginatedResult<T> {
   data: T[];
   meta: {
@@ -154,8 +169,14 @@ export const api = {
     const qs = search.toString();
     return requestPaginated<League>(`/api/v1/providers/leagues${qs ? `?${qs}` : ""}`);
   },
-  getLeague: (id: string) =>
-    request<{
+  getLeague: (
+    id: string,
+    params?: { include?: string },
+  ) => {
+    const qs = params?.include
+      ? `?include=${encodeURIComponent(params.include)}`
+      : "";
+    return requestOne<{
       id: string;
       name: string;
       country: string | null;
@@ -163,9 +184,11 @@ export const api = {
       is_active: boolean;
       created_at: string | null;
       current_season: Record<string, unknown> | null;
-    }>(`/api/v1/providers/leagues/${id}`),
+    }>(`/api/v1/providers/leagues/${id}${qs}`);
+  },
   getLeagueSeasons: (id: string, params?: { is_current?: boolean; page?: number; page_size?: number }) => {
     const search = new URLSearchParams();
+    search.set("league_id", id);
     if (params?.is_current !== undefined) search.set("is_current", String(params.is_current));
     if (params?.page) search.set("page", String(params.page));
     if (params?.page_size) search.set("page_size", String(params.page_size));
@@ -178,7 +201,7 @@ export const api = {
       start_date: string | null;
       end_date: string | null;
       is_current: boolean;
-    }>(`/api/v1/providers/leagues/${id}/seasons${qs ? `?${qs}` : ""}`);
+    }>(`/api/v1/providers/leagues/seasons?${qs}`);
   },
   getLeagueStandings: (id: string, params?: { season_id?: string; page?: number; page_size?: number }) => {
     const search = new URLSearchParams();
@@ -219,7 +242,7 @@ export const api = {
     const qs = search.toString();
     return requestPaginated<Team>(`/api/v1/providers/teams${qs ? `?${qs}` : ""}`);
   },
-  getTeam: (id: string) => request<Team>(`/api/v1/providers/teams/${id}`),
+  getTeam: (id: string) => requestOne<Team>(`/api/v1/providers/teams/${id}`),
   getTeamMatches: (id: string, params?: {
     league_id?: string;
     status?: string;
@@ -247,6 +270,26 @@ export const api = {
       team_id: string;
       statistics: Array<Record<string, unknown>>;
     }>(`/api/v1/providers/teams/${id}/statistics${qs ? `?${qs}` : ""}`);
+  },
+  getTeamSeasons: (id: string) =>
+    request<{ success: boolean; data: Array<{
+      id: string;
+      league_id: string;
+      league_name: string;
+      name: string;
+      year: number | null;
+      start_date: string | null;
+      end_date: string | null;
+      is_current: boolean;
+    }>; meta: { total: number } }>(`/api/v1/teams/${id}/seasons`),
+  getTeamCountries: (id: string) =>
+    request<{ success: boolean; data: Array<{ country: string; league_count: number }>; meta: { total: number } }>(`/api/v1/teams/${id}/countries`),
+  getLeagueTeams: (leagueId: string, params?: { page?: number; page_size?: number }) => {
+    const search = new URLSearchParams();
+    if (params?.page) search.set("page", String(params.page));
+    if (params?.page_size) search.set("page_size", String(params.page_size));
+    const qs = search.toString();
+    return requestPaginated<Team>(`/api/v1/teams/leagues/${leagueId}/teams${qs ? `?${qs}` : ""}`);
   },
 
   // Matches
@@ -298,12 +341,12 @@ export const api = {
     const qs = search.toString();
     return requestPaginated<MatchBrief>(`/api/v1/providers/matches/upcoming${qs ? `?${qs}` : ""}`);
   },
-  getMatch: (id: string) => request<MatchDetail>(`/api/v1/providers/matches/${id}`),
-  getMatchSummary: (id: string) => request<MatchSummary>(`/api/v1/providers/matches/${id}/summary`),
+  getMatch: (id: string) => requestOne<MatchDetail>(`/api/v1/providers/matches/${id}`),
+  getMatchSummary: (id: string) => requestOne<MatchSummary>(`/api/v1/providers/matches/${id}/summary`),
 
   // Predictions
   getPrediction: (matchId: string) =>
-    request<{ data: PredictionDetail }>(`/api/v1/providers/matches/${matchId}/prediction`),
+    request<{ data: PredictionDetail }>(`/api/v1/matches/${matchId}/prediction`),
   getPredictions: (params?: {
     match_id?: string;
     league_id?: string;
@@ -359,7 +402,7 @@ export const api = {
     if (params?.page) search.set("page", String(params.page));
     if (params?.page_size) search.set("page_size", String(params.page_size));
     const qs = search.toString();
-    return requestPaginated<Record<string, unknown>>(`/api/v1/providers/matches/${matchId}/predictions${qs ? `?${qs}` : ""}`);
+    return requestPaginated<Record<string, unknown>>(`/api/v1/matches/${matchId}/predictions${qs ? `?${qs}` : ""}`);
   },
   compareMatchPredictions: (matchId: string) =>
     request<{ current: unknown; changes: Record<string, unknown> }>(
@@ -372,9 +415,9 @@ export const api = {
     const search = new URLSearchParams();
     if (params?.force_refresh !== undefined) search.set("force_refresh", String(params.force_refresh));
     const qs = search.toString();
-    return request<ResearchData>(`/api/v1/providers/matches/${matchId}/research${qs ? `?${qs}` : ""}`);
+    return request<ResearchData>(`/api/v1/matches/${matchId}/research${qs ? `?${qs}` : ""}`);
   },
-  getAnalysis: (matchId: string) => request<PredictionDetail>(`/api/v1/providers/matches/${matchId}/analysis`),
+  getAnalysis: (matchId: string) => request<PredictionDetail>(`/api/v1/matches/${matchId}/analysis`),
 
   // Search
   search: (params: {

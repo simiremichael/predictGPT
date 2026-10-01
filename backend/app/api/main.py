@@ -11,6 +11,7 @@ tests.  It wires up:
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -56,7 +57,17 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # noqa: ANN201
         await redis_client.connect()
+
+        from jobs.daily_sync import daily_sync_loop
+
+        sync_task = asyncio.create_task(daily_sync_loop())
+
         yield
+        sync_task.cancel()
+        try:
+            await sync_task
+        except asyncio.CancelledError:
+            pass
         await redis_client.close()
         await engine.dispose()
 
@@ -302,22 +313,6 @@ def create_app() -> FastAPI:
             "success": True,
             "data": {"service": "Football AI", "version": "0.1.0", "docs": "/docs"},
         }
-
-    import http.client
-
-    @app.get("/provider_data")
-    async def get_provdata():
-
-        conn = http.client.HTTPSConnection("v3.football.api-sports.io")
-
-        headers = {"x-apisports-key": "4cbf22d7df1b3cd6fb51ece32827d166"}
-
-        conn.request("GET", "/leagues", headers=headers)
-
-        res = conn.getresponse()
-        data = res.read()
-
-        return data.decode("utf-8")
 
     return app
 

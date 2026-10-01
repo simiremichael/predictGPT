@@ -10,6 +10,7 @@ Mocked HTTP responses are used so no network access is required.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -95,10 +96,10 @@ class _AsyncGetMock:
         return {}
 
     # API-Football typed helpers
-    async def get_leagues(self, params: dict | None = None) -> list:
+    async def get_leagues(self, params: dict | None = None, includes: Any = None) -> list:
         return self._unwrap_list()
 
-    async def get_league(self, league_id: str) -> list:
+    async def get_league(self, league_id: str, includes: Any = None) -> list:
         return self._unwrap_list()
 
     async def get_teams(self, league_id: str | None = None, season_id: str | None = None) -> list:

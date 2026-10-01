@@ -1,4 +1,5 @@
 """Application configuration loaded from environment variables."""
+
 from __future__ import annotations
 
 import os
@@ -61,7 +62,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     # Active data provider
     # ------------------------------------------------------------------ #
-    football_data_provider: Literal["api_football", "sportmonks"] = "api_football"
+    football_data_provider: Literal["api_football", "sportmonks"] = "sportmonks"
 
     # Optional failover provider. Empty string means no failover.
     primary_football_provider: str | None = Field(
@@ -81,7 +82,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("API_FOOTBALL_KEY", "api_football_key"),
     )
     api_football_base_url: str = Field(
-        default="https://v3.football.api-sports.io",
+        default="https://api.sportmonks.com/v3/football",
         validation_alias=AliasChoices("API_FOOTBALL_BASE_URL", "api_football_base_url"),
     )
     api_football_rate_limit: int = Field(
@@ -94,7 +95,9 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------ #
     football_api_connect_timeout: float = Field(
         default=10.0,
-        validation_alias=AliasChoices("FOOTBALL_API_CONNECT_TIMEOUT", "football_api_connect_timeout"),
+        validation_alias=AliasChoices(
+            "FOOTBALL_API_CONNECT_TIMEOUT", "football_api_connect_timeout"
+        ),
     )
     football_api_read_timeout: float = Field(
         default=30.0,
@@ -142,7 +145,7 @@ class Settings(BaseSettings):
     # Database
     # ------------------------------------------------------------------ #
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/football_ai",
+        default="postgresql+asyncpg://neondb_owner:npg_UlzWti9uqGm0@ep-square-grass-za4glnjc-pooler.c-2.eu-west-2.aws.neon.tech/neondb?ssl=require",
         validation_alias=AliasChoices("DATABASE_URL", "database_url"),
     )
 
@@ -246,9 +249,7 @@ class Settings(BaseSettings):
     def _validate_provider(cls, v: str) -> str:
         allowed = {"api_football", "sportmonks"}
         if v not in allowed:
-            raise ValueError(
-                f"Invalid FOOTBALL_DATA_PROVIDER '{v}'. Must be one of: {allowed}"
-            )
+            raise ValueError(f"Invalid FOOTBALL_DATA_PROVIDER '{v}'. Must be one of: {allowed}")
         return v
 
     @property

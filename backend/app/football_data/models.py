@@ -59,6 +59,7 @@ class NormalizedTeam(BaseModel):
     provider: str
     provider_team_id: str
     league_id: str | None = None
+    season_id: str | None = None
     name: str
     short_name: str | None = None
     slug: str | None = None

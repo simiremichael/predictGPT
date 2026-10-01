@@ -11,17 +11,19 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { MatchCard } from "@/components/match-card";
-import type { Standing, Season } from "@/types/models";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { Standing, Season, Team } from "@/types/models";
 
 interface LeagueDetailPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string; page_size?: string }>;
+  searchParams: Promise<{ page?: string; page_size?: string; tab?: string }>;
 }
 
 export async function generateMetadata({ params }: LeagueDetailPageProps) {
   const { id } = await params;
   try {
     const league = await api.getLeague(id);
+    if (!league) throw new Error("League not found");
     return {
       title: `${league.name} | Football AI`,
       description: `League table and matches for ${league.name}.`,
@@ -41,10 +43,12 @@ export default async function LeaguePage({
   const sp = await searchParams;
   const standingsPage = parseInt(sp.page || "1", 10);
   const standingsPageSize = parseInt(sp.page_size || "50", 10);
+  const activeTab = sp.tab || "standings";
 
   let league;
   let seasons = { data: [] as Season[], meta: { total: 0 } };
   let standings = { data: [] as Standing[], meta: { total: 0 } };
+  let teams = { data: [] as Team[], meta: { total: 0 } };
 
   try {
     league = await api.getLeague(id);
@@ -53,6 +57,7 @@ export default async function LeaguePage({
       page: standingsPage,
       page_size: standingsPageSize,
     });
+    teams = await api.getLeagueTeams(id, { page: 1, page_size: 50 });
   } catch (error) {
     return (
       <EmptyState
@@ -62,6 +67,16 @@ export default async function LeaguePage({
             ? error.message
             : "The league data could not be loaded right now."
         }
+        className="py-10"
+      />
+    );
+  }
+
+  if (!league) {
+    return (
+      <EmptyState
+        title="League not found"
+        description="No data available for this league."
         className="py-10"
       />
     );
@@ -117,98 +132,188 @@ export default async function LeaguePage({
         </Card>
       )}
 
-      {standings.data.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Standings</CardTitle>
-            <CardDescription>
-              {standings.meta.total} teams in the table
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2">#</th>
-                    <th className="text-left py-2">Team</th>
-                    <th className="text-center py-2">P</th>
-                    <th className="text-center py-2">W</th>
-                    <th className="text-center py-2">D</th>
-                    <th className="text-center py-2">L</th>
-                    <th className="text-center py-2">GF</th>
-                    <th className="text-center py-2">GA</th>
-                    <th className="text-center py-2">GD</th>
-                    <th className="text-center py-2">Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {standings.data.map((standing: Standing, idx: number) => (
-                    <tr
-                      key={standing.team_id || idx}
-                      className="border-b border-border/50"
+      <Tabs defaultValue={activeTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="standings">Standings</TabsTrigger>
+          <TabsTrigger value="teams">Teams ({teams.meta.total})</TabsTrigger>
+          <TabsTrigger value="matches">Matches</TabsTrigger>
+          <TabsTrigger value="seasons">Seasons</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="standings">
+          {standings.data.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Standings</CardTitle>
+                <CardDescription>
+                  {standings.meta.total} teams in the table
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2">#</th>
+                        <th className="text-left py-2">Team</th>
+                        <th className="text-center py-2">P</th>
+                        <th className="text-center py-2">W</th>
+                        <th className="text-center py-2">D</th>
+                        <th className="text-center py-2">L</th>
+                        <th className="text-center py-2">GF</th>
+                        <th className="text-center py-2">GA</th>
+                        <th className="text-center py-2">GD</th>
+                        <th className="text-center py-2">Pts</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {standings.data.map((standing: Standing, idx: number) => (
+                        <tr
+                          key={standing.team_id || idx}
+                          className="border-b border-border/50"
+                        >
+                          <td className="py-2 font-medium">
+                            {standing.position}
+                          </td>
+                          <td className="py-2">{standing.team_name}</td>
+                          <td className="text-center py-2">
+                            {standing.played}
+                          </td>
+                          <td className="text-center py-2">{standing.wins}</td>
+                          <td className="text-center py-2">{standing.draws}</td>
+                          <td className="text-center py-2">
+                            {standing.losses}
+                          </td>
+                          <td className="text-center py-2">
+                            {standing.goals_for}
+                          </td>
+                          <td className="text-center py-2">
+                            {standing.goals_against}
+                          </td>
+                          <td className="text-center py-2">
+                            {standing.goal_difference}
+                          </td>
+                          <td className="text-center py-2 font-semibold">
+                            {standing.points}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <EmptyState
+              title="No standings"
+              description="Standings data not yet available for this league."
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="teams">
+          {teams.data.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Teams</CardTitle>
+                <CardDescription>
+                  {teams.meta.total} teams in this league
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {teams.data.map((team: Team) => (
+                    <Link
+                      key={team.id}
+                      href={`/teams/${team.id}`}
+                      className="group block"
                     >
-                      <td className="py-2 font-medium">{standing.position}</td>
-                      <td className="py-2">{standing.team_name}</td>
-                      <td className="text-center py-2">{standing.played}</td>
-                      <td className="text-center py-2">{standing.wins}</td>
-                      <td className="text-center py-2">{standing.draws}</td>
-                      <td className="text-center py-2">{standing.losses}</td>
-                      <td className="text-center py-2">{standing.goals_for}</td>
-                      <td className="text-center py-2">
-                        {standing.goals_against}
-                      </td>
-                      <td className="text-center py-2">
-                        {standing.goal_difference}
-                      </td>
-                      <td className="text-center py-2 font-semibold">
-                        {standing.points}
-                      </td>
-                    </tr>
+                      <div className="surface-card flex h-full flex-col rounded-[1.5rem] p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,23,42,0.08)]">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/12 to-cyan-500/10 text-primary ring-1 ring-primary/10">
+                            {team.logo_url ? (
+                              <img
+                                src={team.logo_url}
+                                alt={team.name}
+                                className="h-6 w-6 rounded"
+                              />
+                            ) : (
+                              <span className="text-xs font-bold">
+                                {team.name.charAt(0)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="truncate font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
+                              {team.name}
+                            </h3>
+                            {team.venue_city && (
+                              <p className="truncate text-sm text-muted-foreground">
+                                {team.venue_city}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-4 border-t border-border/80 pt-3">
+                          <Badge
+                            variant={team.is_active ? "default" : "secondary"}
+                            className="text-xs font-semibold"
+                          >
+                            {team.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </Link>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <EmptyState
-          title="No standings"
-          description="Standings data not yet available for this league."
-        />
-      )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <EmptyState
+              title="No teams"
+              description="Team data not yet available for this league."
+            />
+          )}
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Matches</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={<LoadingState message="Loading matches..." />}>
-            <LeagueMatches leagueId={id} />
-          </Suspense>
-        </CardContent>
-      </Card>
+        <TabsContent value="matches">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upcoming Matches</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Suspense
+                fallback={<LoadingState message="Loading matches..." />}
+              >
+                <LeagueMatches leagueId={id} />
+              </Suspense>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {seasons.data.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Seasons</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {seasons.data.map((season: Season) => (
-                <Badge
-                  key={season.id}
-                  variant={season.is_current ? "default" : "outline"}
-                  className="text-xs"
-                >
-                  {season.year || season.name}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="seasons">
+          {seasons.data.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Seasons</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {seasons.data.map((season: Season) => (
+                    <Badge
+                      key={season.id}
+                      variant={season.is_current ? "default" : "outline"}
+                      className="text-xs"
+                    >
+                      {season.year || season.name}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

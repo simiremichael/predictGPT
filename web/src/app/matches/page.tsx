@@ -1,20 +1,7 @@
 import { Calendar } from "lucide-react";
-import { api } from "@/lib/api";
-import { MatchCard } from "@/components/match-card";
-import {
-  LoadingState,
-  EmptyState,
-  PaginationControls,
-} from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
-import type { MatchBrief } from "@/types/models";
-
-export const revalidate = 60;
-
-export const metadata = {
-  title: "Matches | Football AI",
-  description: "Browse football matches and predictions.",
-};
+import { MatchesList } from "@/components/matches/matches-list";
+import { LoadingState } from "@/components/loading-states";
 
 interface MatchesPageProps {
   searchParams: Promise<{
@@ -29,12 +16,21 @@ interface MatchesPageProps {
   }>;
 }
 
+export const metadata = {
+  title: "Matches | Football AI",
+  description: "Browse football matches and predictions.",
+};
+
 export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   const params = await searchParams;
   const page = parseInt(params.page || "1", 10);
-  const page_size = parseInt(params.page_size || "20", 10);
+  const pageSize = parseInt(params.page_size || "20", 10);
   const isToday = params.today === "true";
   const isUpcoming = params.upcoming === "true";
+  const leagueId = params.league_id || "";
+  const teamId = params.team_id || "";
+  const status = params.status || "";
+  const date = params.date || "";
 
   return (
     <div className="space-y-6">
@@ -71,99 +67,14 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
       </section>
 
       <MatchesList
-        page={page}
-        pageSize={page_size}
-        league_id={params.league_id}
-        team_id={params.team_id}
-        status={params.status}
+        initialPage={page}
+        initialPageSize={pageSize}
+        initialLeagueId={leagueId}
+        initialTeamId={teamId}
+        initialStatus={status}
+        initialDate={date}
         today={isToday}
         upcoming={isUpcoming}
-      />
-    </div>
-  );
-}
-
-async function MatchesList({
-  page,
-  pageSize,
-  league_id,
-  team_id,
-  status,
-  today,
-  upcoming,
-}: {
-  page: number;
-  pageSize: number;
-  league_id?: string;
-  team_id?: string;
-  status?: string;
-  today: boolean;
-  upcoming: boolean;
-}) {
-  let result;
-  let error: Error | null = null;
-
-  try {
-    if (today) {
-      result = await api.getTodayMatches({ page, page_size: pageSize });
-    } else if (upcoming) {
-      result = await api.getUpcomingMatches({
-        days: 7,
-        league_id,
-        team_id,
-        page,
-        page_size: pageSize,
-      });
-    } else {
-      result = await api.listMatches({
-        league_id,
-        team_id,
-        status,
-        page,
-        page_size: pageSize,
-      });
-    }
-  } catch (e) {
-    error = e instanceof Error ? e : new Error("Failed to load matches");
-  }
-
-  if (error) {
-    return (
-      <EmptyState title="Unable to load matches" description={error.message} />
-    );
-  }
-
-  if (!result) return <LoadingState message="Loading matches..." />;
-
-  if (result.data.length === 0) {
-    return (
-      <EmptyState
-        title="No matches found"
-        description="Try adjusting your filters or check back later."
-      />
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-3">
-        {result.data.map((match: MatchBrief) => (
-          <MatchCard
-            key={match.id}
-            match={match}
-            showPrediction={false}
-            variant="compact"
-          />
-        ))}
-      </div>
-      <PaginationControls
-        currentPage={page}
-        totalPages={result.meta.total_pages || 1}
-        onPageChange={(newPage) => {
-          const url = new URL(window.location.href);
-          url.searchParams.set("page", String(newPage));
-          window.history.pushState({}, "", url.toString());
-        }}
       />
     </div>
   );

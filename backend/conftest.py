@@ -6,6 +6,7 @@ without an installed package.  When the test suite is run from the
 ``backend`` directory (the default for ``pytest``), this conftest is picked
 up automatically.
 """
+
 import os
 import sys
 from pathlib import Path
@@ -16,9 +17,15 @@ if str(APP_ROOT) not in sys.path:
 
 # Ensure test settings don't depend on a real .env being present.
 os.environ.setdefault("APP_ENV", "testing")
-os.environ.setdefault("FOOTBALL_DATA_PROVIDER", "api_football")
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/football_ai_test")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
+os.environ.setdefault("FOOTBALL_DATA_PROVIDER", "sportmonks")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://neondb_owner:npg_UlzWti9uqGm0@ep-square-grass-za4glnjc-pooler.c-2.eu-west-2.aws.neon.tech/neondb?ssl=require",
+)
+os.environ.setdefault(
+    "REDIS_URL",
+    "rediss://default:gQAAAAAABFumAAIgcDE4Y2JhMTVhMDFlYzE0ZDIzOTViNzYxMjA1ZjVlNWU2Nw@singular-gazelle-285606.upstash.io:6379",
+)
 os.environ.setdefault("ADMIN_API_KEY", "test_admin_key")
 os.environ.setdefault("APP_DEBUG", "false")
 

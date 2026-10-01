@@ -4,7 +4,7 @@ This client is responsible only for communication with the Sportmonks v3
 football REST API.  It extends the shared ``FootballHTTPClient`` with
 Sportmonks-specific concerns:
 
-    * Authentication via Bearer token header
+    * Authentication via ``api_token`` query parameter
     * Pagination handling (Sportmonks returns ``data`` plus meta pagination info)
     * Response wrapper validation (``data``, ``meta``, ``pagination``)
     * Rate-limit header tracking (``X-RateLimit-Remaining`` etc.)
@@ -19,6 +19,7 @@ import logging
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 
@@ -45,6 +46,71 @@ class SportmonksClient:
     # Sportmonks default pagination is 30, max is 200 for most endpoints.
     DEFAULT_PAGE_SIZE = 30
     MAX_PAGES = 50
+
+    # Side-loaded relations requested on league lookups.
+    DEFAULT_LEAGUE_INCLUDES: tuple[str, ...] = (
+        "sport",
+        "country",
+        "currentSeason",
+        "seasons",
+    )
+    DETAILED_LEAGUE_INCLUDES: tuple[str, ...] = (
+        "sport",
+        "country",
+        "stages",
+        "currentSeason",
+        "seasons",
+    )
+
+    # "latest",
+    # "upcoming",
+    # "stages"
+    # "inplay",
+    # "today",
+    @classmethod
+    def _normalize_includes(cls, includes: Any) -> list[str]:
+        """Normalize an include selection into a list of include names.
+
+        Sportmonks treats ``include=a,b`` as a single include literally named
+        ``"a,b"`` and rejects it with response code 5001.  Multiple relations
+        must therefore be sent as repeated ``include`` query parameters, which
+        this list is built for.
+
+        ``None`` means "no include relations", so only endpoints that opt in
+        (see :meth:`get_leagues`) request side-loads.
+        """
+        if includes is None:
+            return []
+        if isinstance(includes, str):
+            candidates: list[Any] = includes.split(",")
+        else:
+            candidates = list(includes)
+        names: list[str] = []
+        for candidate in candidates:
+            name = str(candidate).strip()
+            if name and name not in names:
+                names.append(name)
+        return names
+
+    def _build_params(
+        self,
+        params: dict[str, Any] | None = None,
+        includes: Any = None,
+    ) -> list[tuple[str, str]]:
+        """Build a query-param list, repeating ``include`` for each relation."""
+        pairs: list[tuple[str, str]] = [("api_token", self.api_token)]
+        explicit_include = (params or {}).get("include")
+        for key, value in (params or {}).items():
+            if key == "include" or value is None:
+                continue
+            pairs.append((str(key), str(value)))
+        if explicit_include is not None:
+            for name in self._normalize_includes(explicit_include):
+                pairs.append(("include", name))
+        elif includes is not None:
+            for name in self._normalize_includes(includes):
+                pairs.append(("include", name))
+        return pairs
 
     def __init__(
         self,
@@ -74,8 +140,6 @@ class SportmonksClient:
             connect_timeout=settings.football_api_connect_timeout,
             read_timeout=settings.football_api_read_timeout,
             total_timeout=settings.football_api_total_timeout,
-            auth_header_name="Authorization",
-            auth_header_prefix="Bearer ",
         )
 
     # ── lifecycle ───────────────────────────────────────────────────── #
@@ -148,6 +212,7 @@ class SportmonksClient:
         endpoint: str,
         *,
         params: dict[str, Any] | None = None,
+        includes: Any = None,
         max_retries: int = 3,
         **kwargs: Any,
     ) -> Any:
@@ -155,9 +220,12 @@ class SportmonksClient:
 
         Returns the ``data`` payload from the Sportmonks envelope.
         """
-        merged_params: dict[str, Any] = params or {}
         data = await self._http.request(
-            method, endpoint, params=merged_params, max_retries=max_retries, **kwargs
+            method,
+            endpoint,
+            params=self._build_params(params, includes),
+            max_retries=max_retries,
+            **kwargs,
         )
         return self._unwrap_response(data)
 
@@ -166,6 +234,7 @@ class SportmonksClient:
         endpoint: str,
         *,
         params: dict[str, Any] | None = None,
+        includes: Any = None,
         max_pages: int | None = None,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> AsyncIterator[Any]:
@@ -196,7 +265,7 @@ class SportmonksClient:
         elif max_pages > self.MAX_PAGES:
             max_pages = self.MAX_PAGES
 
-        merged_params: dict[str, Any] = {**(params or {})}
+        merged_params: dict[str, Any] = dict(params or {})
         merged_params.setdefault("page", 1)
         merged_params.setdefault("per_page", page_size)
 
@@ -205,7 +274,9 @@ class SportmonksClient:
 
         while pages_yielded < max_pages:
             merged_params["page"] = current_page
-            data = await self._http.request("GET", endpoint, params=merged_params)
+            data = await self._http.request(
+                "GET", endpoint, params=self._build_params(merged_params, includes)
+            )
             result = self._unwrap_response(data)
 
             if not result:
@@ -222,20 +293,36 @@ class SportmonksClient:
             next_page = pagination.get("next_page")
             if not next_page:
                 break
-            current_page = next_page
+            if isinstance(next_page, int):
+                current_page = next_page
+            else:
+                parsed = urlparse(next_page)
+                qs = parse_qs(parsed.query)
+                page_values = qs.get("page")
+                if not page_values:
+                    break
+                try:
+                    current_page = int(page_values[0])
+                except (TypeError, ValueError):
+                    break
 
     async def request_all_pages(
         self,
         endpoint: str,
         *,
         params: dict[str, Any] | None = None,
+        includes: Any = None,
         max_pages: int | None = None,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> list[Any]:
         """Fetch all pages and return a single combined list."""
         results: list[Any] = []
         async for page in self.get_paginated(
-            endpoint, params=params, max_pages=max_pages, page_size=page_size
+            endpoint,
+            params=params,
+            includes=includes,
+            max_pages=max_pages,
+            page_size=page_size,
         ):
             if isinstance(page, list):
                 results.extend(page)
@@ -251,7 +338,7 @@ class SportmonksClient:
         """
         try:
             start = datetime.utcnow()
-            await self._http.get("/leagues")
+            await self._http.get("/leagues", params={"api_token": self.api_token, "per_page": 1})
             duration_ms = (datetime.utcnow() - start).total_seconds() * 1000
             metrics = self._http.get_metrics()
             return {
@@ -269,11 +356,23 @@ class SportmonksClient:
             }
 
     # ── request helpers with automatic pagination ───────────────────── #
-    async def get_leagues(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        return await self.request_all_pages("/leagues", params=params or {})
+    async def get_leagues(
+        self,
+        params: dict[str, Any] | None = None,
+        includes: Any = None,
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/leagues",
+            params=params,
+            includes=self.DEFAULT_LEAGUE_INCLUDES if includes is None else includes,
+        )
 
-    async def get_league(self, league_id: str) -> Any:
-        return await self.request("GET", f"/leagues/{league_id}")
+    async def get_league(self, league_id: str, includes: Any = None) -> Any:
+        return await self.request(
+            "GET",
+            f"/leagues/{league_id}",
+            includes=self.DETAILED_LEAGUE_INCLUDES if includes is None else includes,
+        )
 
     async def get_seasons(
         self, league_id: str | None = None, params: dict[str, Any] | None = None
@@ -299,6 +398,20 @@ class SportmonksClient:
     async def get_team(self, team_id: str) -> Any:
         return await self.request("GET", f"/teams/{team_id}")
 
+    # ── Team squads ───────────────────────────────────────────────────── #
+    async def get_team_squad(self, team_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/teams/{team_id}/squad")
+
+    async def get_extended_team_squad(self, team_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/teams/{team_id}/squad/extended")
+
+    async def get_team_squad_by_team_and_season(
+        self, team_id: str, season_id: str
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            f"/teams/{team_id}/squad", params={"season_id": season_id}
+        )
+
     async def get_fixtures(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return await self.request_all_pages("/fixtures", params=params or {})
 
@@ -317,6 +430,28 @@ class SportmonksClient:
         if season_id:
             merged["season_id"] = season_id
         return await self.request_all_pages("/standings", params=merged)
+
+    async def get_standings_by_season_id(self, season_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/standings/seasons/{season_id}")
+
+    async def get_standings_by_round_id(self, round_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/standings/rounds/{round_id}")
+
+    async def get_standing_corrections_by_season_id(self, season_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/standings/seasons/{season_id}/corrections")
+
+    async def get_live_standings_by_league_id(self, league_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/standings/live", params={"league_id": league_id})
+
+    async def get_grouped_standings_by_round_id(self, round_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/standings/grouped/rounds/{round_id}")
+
+    # ── Topscorers ───────────────────────────────────────────────────── #
+    async def get_topscorers_by_season_id(self, season_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/topscorers/seasons/{season_id}")
+
+    async def get_topscorers_by_stage_id(self, stage_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/topscorers/stages/{stage_id}")
 
     async def get_predictions(self, fixture_id: str) -> Any:
         return await self.request("GET", f"/fixtures/{fixture_id}/predictions")
@@ -345,6 +480,37 @@ class SportmonksClient:
     async def get_player(self, player_id: str) -> Any:
         return await self.request("GET", f"/players/{player_id}")
 
+    async def get_players_by_country_id(self, country_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/players", params={"country_id": country_id})
+
+    async def search_players(self, query: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/players/search/{query}")
+
+    async def get_last_updated_players(self) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/players/last-updated")
+
+    # ── Match facts ───────────────────────────────────────────────────── #
+    async def get_match_facts(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/match-facts", params=params or {})
+
+    async def get_match_facts_by_fixture_id(self, fixture_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/match-facts/fixtures/{fixture_id}")
+
+    async def get_match_facts_by_date_range(
+        self, from_date: str, to_date: str
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/match-facts", params={"from": from_date, "to": to_date}
+        )
+
+    async def get_match_facts_by_league_id(
+        self, league_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages(
+            "/match-facts", params={"league_id": league_id, **merged}
+        )
+
     async def get_lineups(self, fixture_id: str) -> list[dict[str, Any]]:
         return await self.request_all_pages(f"/fixtures/{fixture_id}/lineups")
 
@@ -371,6 +537,42 @@ class SportmonksClient:
     ) -> list[dict[str, Any]]:
         return await self.request_all_pages("/odds/pre-match", params=params or {})
 
+    async def get_odds_by_fixture_and_bookmaker(
+        self, fixture_id: str, bookmaker_id: str
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/odds/pre-match",
+            params={"fixture_id": fixture_id, "bookmaker_id": bookmaker_id},
+        )
+
+    async def get_odds_by_fixture_and_market(
+        self, fixture_id: str, market_id: str
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/odds/pre-match",
+            params={"fixture_id": fixture_id, "market_id": market_id},
+        )
+
+    async def get_last_updated_pre_match_odds(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/odds/pre-match/last-updated", params=params or {})
+
+    async def get_live_odds_by_fixture_id(self, fixture_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/odds/live", params={"fixture_id": fixture_id})
+
+    async def get_live_odds_by_fixture_and_market(
+        self, fixture_id: str, market_id: str
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/odds/live", params={"fixture_id": fixture_id, "market_id": market_id}
+        )
+
+    async def get_last_updated_live_odds(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/odds/live/last-updated", params=params or {})
+
     async def get_head_to_head(self, team_id: str, vs_team_id: str) -> list[dict[str, Any]]:
         params = {"team_id": team_id, "vs_team_id": vs_team_id}
         return await self.request_all_pages("/head-to-head", params=params)
@@ -382,3 +584,252 @@ class SportmonksClient:
         if season_id:
             merged["season_id"] = season_id
         return await self.request("GET", f"/teams/{team_id}/stats", params=merged)
+
+    # ── League endpoints ──────────────────────────────────────────────── #
+    async def get_leagues_by_live(self) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/leagues/live")
+
+    async def get_leagues_by_fixture_date(self, date: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/leagues/date/{date}")
+
+    async def get_leagues_by_country_id(self, country_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/leagues/countries/{country_id}")
+
+    async def search_leagues(self, query: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/leagues/search/{query}")
+
+    async def get_all_leagues_by_team_id(self, team_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/leagues/team/{team_id}")
+
+    async def get_current_leagues_by_team_id(self, team_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/leagues/team/{team_id}/current")
+
+    # ── Season endpoints ──────────────────────────────────────────────── #
+    async def get_season(self, season_id: str) -> Any:
+        return await self.request("GET", f"/seasons/{season_id}")
+
+    async def get_seasons_by_team_id(
+        self, team_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/seasons/team/{team_id}", params=params or {})
+
+    async def search_seasons(self, query: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/seasons/search/{query}")
+
+    async def get_brackets_by_season_id(self, season_id: str) -> Any:
+        return await self.request("GET", f"/seasons/{season_id}/brackets")
+
+    async def get_season_statistics_by_participant(
+        self, season_id: str, participant_id: str
+    ) -> Any:
+        return await self.request(
+            "GET", f"/seasons/{season_id}/participants/{participant_id}/statistics"
+        )
+
+    # ── Stage endpoints ───────────────────────────────────────────────── #
+    async def get_stages(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/stages", params=params or {})
+
+    async def get_stage(self, stage_id: str) -> Any:
+        return await self.request("GET", f"/stages/{stage_id}")
+
+    async def get_stages_by_season_id(
+        self, season_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/stages/seasons/{season_id}", params=params or {})
+
+    async def search_stages(self, query: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/stages/search/{query}")
+
+    async def get_stage_statistics(self, stage_id: str) -> Any:
+        return await self.request("GET", f"/stages/{stage_id}/statistics")
+
+    # ── Round endpoints ───────────────────────────────────────────────── #
+    async def get_rounds(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/rounds", params=params or {})
+
+    async def get_round(self, round_id: str) -> Any:
+        return await self.request("GET", f"/rounds/{round_id}")
+
+    async def get_rounds_by_season_id(
+        self, season_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/rounds/seasons/{season_id}", params=params or {})
+
+    async def search_rounds(self, query: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/rounds/search/{query}")
+
+    async def get_round_statistics(self, round_id: str) -> Any:
+        return await self.request("GET", f"/rounds/{round_id}/statistics")
+
+    # ── Schedule endpoints ─────────────────────────────────────────────── #
+    async def get_schedules_by_season_id(
+        self, season_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/schedules/season/{season_id}", params=params or {})
+
+    async def get_schedules_by_team_id(
+        self, team_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/schedules/team/{team_id}", params=params or {})
+
+    async def get_schedules_by_season_and_team(
+        self, season_id: str, team_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages(
+            f"/schedules/season/{season_id}/team/{team_id}", params=merged
+        )
+
+    # ── Team rankings (beta) ───────────────────────────────────────────── #
+    async def get_team_rankings(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/team-rankings", params=params or {})
+
+    async def get_team_rankings_by_team_id(self, team_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/team-rankings", params={"team_id": team_id})
+
+    async def get_team_rankings_by_date(
+        self, date: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages("/team-rankings", params={"date": date, **merged})
+
+    # ── Expected (xG) ────────────────────────────────────────────────── #
+    async def get_expected_by_team_id(
+        self, team_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages("/expected", params={"team_id": team_id, **merged})
+
+    async def get_expected_by_player_id(
+        self, player_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages("/expected", params={"player_id": player_id, **merged})
+
+    # ── Predictions ───────────────────────────────────────────────────── #
+    async def get_probabilities(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/predictions/probabilities", params=params or {})
+
+    async def get_probabilities_by_fixture_id(self, fixture_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/predictions/probabilities", params={"fixture_id": fixture_id}
+        )
+
+    async def get_predictability_by_league_id(
+        self, league_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages(
+            "/predictions/predictability", params={"league_id": league_id, **merged}
+        )
+
+    async def get_value_bets(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/predictions/value-bets", params=params or {})
+
+    async def get_value_bets_by_fixture_id(self, fixture_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/predictions/value-bets", params={"fixture_id": fixture_id}
+        )
+
+    async def get_live_probabilities(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/predictions/live-probabilities", params=params or {})
+
+    async def get_live_probabilities_by_fixture_id(self, fixture_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(
+            "/predictions/live-probabilities", params={"fixture_id": fixture_id}
+        )
+
+    # ── Bookmakers ─────────────────────────────────────────────────────── #
+    async def get_bookmakers(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/bookmakers", params=params or {})
+
+    async def get_premium_bookmakers(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/bookmakers/premium", params=params or {})
+
+    async def get_bookmaker(self, bookmaker_id: str) -> Any:
+        return await self.request("GET", f"/bookmakers/{bookmaker_id}")
+
+    async def search_bookmakers(self, query: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/bookmakers/search/{query}")
+
+    async def get_bookmakers_by_fixture_id(self, fixture_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/bookmakers", params={"fixture_id": fixture_id})
+
+    async def get_bookmaker_mappings_by_fixture_id(self, fixture_id: str) -> list[dict[str, Any]]:
+        return await self.request_all_pages(f"/bookmakers/mappings/fixtures/{fixture_id}")
+
+    # ── Livescores ─────────────────────────────────────────────────────── #
+    async def get_inplay_livescores(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/livescores/inplay", params=params or {})
+
+    async def get_all_livescores(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/livescores", params=params or {})
+
+    async def get_latest_updated_livescores(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/livescores/latest-updated", params=params or {})
+
+    async def get_fixtures_live(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/fixtures/live", params=params or {})
+
+    # ── News ───────────────────────────────────────────────────────────── #
+    async def get_pre_match_news(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/news/pre-match", params=params or {})
+
+    async def get_pre_match_news_by_season_id(
+        self, season_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages(
+            "/news/pre-match", params={"season_id": season_id, **merged}
+        )
+
+    async def get_pre_match_news_for_upcoming_fixtures(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/news/pre-match/upcoming", params=params or {})
+
+    async def get_post_match_news(
+        self, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/news/post-match", params=params or {})
+
+    async def get_post_match_news_by_season_id(
+        self, season_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages(
+            "/news/post-match", params={"season_id": season_id, **merged}
+        )
+
+    # ── Types ──────────────────────────────────────────────────────────── #
+    async def get_types(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/types", params=params or {})
+
+    async def get_type(self, type_id: str) -> Any:
+        return await self.request("GET", f"/types/{type_id}")
+
+    async def get_type_by_entity(
+        self, entity_id: str, params: dict[str, Any] | None = None
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, Any] = params or {}
+        return await self.request_all_pages(f"/types/entity/{entity_id}", params=merged)
+
+    # ── States ─────────────────────────────────────────────────────────── #
+    async def get_states(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        return await self.request_all_pages("/states", params=params or {})
+
+    async def get_state(self, state_id: str) -> Any:
+        return await self.request("GET", f"/states/{state_id}")

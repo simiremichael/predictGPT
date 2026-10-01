@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import UUID, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import UUID, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
@@ -30,13 +30,17 @@ class League(Base):
     country_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-
+    provider_league_id: Mapped[str] = mapped_column(String(100), nullable=False)
     # Relationships
     head_to_heads: Mapped[list["HeadToHead"]] = relationship("HeadToHead", back_populates="league")
     matches: Mapped[list["Match"]] = relationship("Match", back_populates="league")
-    provider_leagues: Mapped[list["ProviderLeague"]] = relationship("ProviderLeague", back_populates="league")
+    provider_leagues: Mapped[list["ProviderLeague"]] = relationship(
+        "ProviderLeague", back_populates="league"
+    )
     seasons: Mapped[list["Season"]] = relationship("Season", back_populates="league")
-    team_statistics: Mapped[list["TeamStatistics"]] = relationship("TeamStatistics", back_populates="league")
+    team_statistics: Mapped[list["TeamStatistics"]] = relationship(
+        "TeamStatistics", back_populates="league"
+    )
 
     def __repr__(self) -> str:
         return f"<League {self.name}>"
@@ -107,5 +111,22 @@ class ProviderTeam(Base):
     )
     provider_name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     provider_team_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider_league_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    season_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # One mapping per (team, provider, league, season).  NULLS NOT DISTINCT so
+    # that the NULL league/season rows written by an unfiltered team fetch
+    # still collide instead of piling up a duplicate on every sync.
+    __table_args__ = (
+        Index(
+            "uq_provider_teams_identity",
+            "internal_team_id",
+            "provider_name",
+            "provider_league_id",
+            "season_id",
+            unique=True,
+            postgresql_nulls_not_distinct=True,
+        ),
+    )

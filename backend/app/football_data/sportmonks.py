@@ -14,7 +14,7 @@ Sportmonks passes the token as a ``token`` query parameter.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from core.config import get_settings
@@ -170,13 +170,15 @@ class SportmonksProvider(FootballDataProvider):
 
     # ── leagues & seasons ───────────────────────────────────────────── #
     async def get_leagues(self, **kwargs: Any) -> list[NormalizedLeague]:
-        response = await self.http.get_leagues()
+        includes = kwargs.get("includes", kwargs.get("include"))
+        response = await self.http.get_leagues(includes=includes)
         if not isinstance(response, list):
             response = []
         return [self._normalize_league(entry) for entry in response]
 
     async def get_league(self, league_id: str, **kwargs: Any) -> NormalizedLeague | None:
-        response = await self.http.get_league(league_id)
+        includes = kwargs.get("includes", kwargs.get("include"))
+        response = await self.http.get_league(league_id, includes=includes)
         if not response:
             return None
         if isinstance(response, list):
@@ -201,7 +203,10 @@ class SportmonksProvider(FootballDataProvider):
         response = await self.http.get_teams(league_id=league_id, season_id=season_id)
         if not isinstance(response, list):
             response = []
-        return [self._normalize_team(entry) for entry in response]
+        return [
+            self._normalize_team(entry, league_id=league_id, season_id=season_id)
+            for entry in response
+        ]
 
     async def get_team(self, team_id: str, **kwargs: Any) -> NormalizedTeam | None:
         response = await self.http.get_team(team_id)
@@ -262,6 +267,14 @@ class SportmonksProvider(FootballDataProvider):
             params["team_id"] = team_id
         if kwargs.get("last_n"):
             params["last"] = str(kwargs["last_n"])
+        if kwargs.get("today"):
+            today = datetime.utcnow().date()
+            params["from"] = today.strftime("%Y-%m-%d")
+            params["to"] = today.strftime("%Y-%m-%d")
+        if kwargs.get("upcoming"):
+            params["from"] = datetime.utcnow().strftime("%Y-%m-%d")
+            days = kwargs.get("days", 7)
+            params["to"] = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
 
         response = await self.http.get_fixtures(params=params)
         if not isinstance(response, list):
@@ -380,6 +393,268 @@ class SportmonksProvider(FootballDataProvider):
         if isinstance(response, list):
             response = response[0] if response else {}
         return self._normalize_match_statistics(response, fixture_id)
+
+    # ── livescores ───────────────────────────────────────────────────── #
+    async def get_inplay_livescores(self, **kwargs: Any) -> list[dict[str, Any]]:
+        response = await self.http.get_inplay_livescores()
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_all_livescores(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_all_livescores(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_latest_updated_livescores(self, **kwargs: Any) -> list[dict[str, Any]]:
+        response = await self.http.get_last_updated_livescores()
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_fixtures_live(self, **kwargs: Any) -> list[NormalizedFixture]:
+        params: dict[str, Any] = {"live": "1"}
+        if kwargs.get("league_id"):
+            params["league_id"] = kwargs["league_id"]
+        if kwargs.get("team_id"):
+            params["team_id"] = kwargs["team_id"]
+        response = await self.http.get_fixtures(params=params)
+        if not isinstance(response, list):
+            response = []
+        return [self._normalize_fixture(entry) for entry in response]
+
+    # ── news ──────────────────────────────────────────────────────────── #
+    async def get_pre_match_news(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_pre_match_news(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_post_match_news(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_post_match_news(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── bookmakers ────────────────────────────────────────────────────── #
+    async def get_bookmakers(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        if "fixture_id" in params:
+            params["fixture_id"] = str(params["fixture_id"])
+        response = await self.http.get_bookmakers(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_premium_bookmakers(self, **kwargs: Any) -> list[dict[str, Any]]:
+        response = await self.http.get_premium_bookmakers()
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_bookmaker(self, bookmaker_id: str, **kwargs: Any) -> dict[str, Any] | None:
+        return await self.http.get_bookmaker(bookmaker_id)
+
+    async def search_bookmakers(self, query: str, **kwargs: Any) -> list[dict[str, Any]]:
+        response = await self.http.search_bookmakers(query)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── states & types ────────────────────────────────────────────────── #
+    async def get_states(self, **kwargs: Any) -> list[dict[str, Any]]:
+        response = await self.http.get_states()
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_state(self, state_id: str, **kwargs: Any) -> dict[str, Any] | None:
+        return await self.http.get_state(state_id)
+
+    async def get_types(self, **kwargs: Any) -> list[dict[str, Any]]:
+        response = await self.http.get_types()
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_type(self, type_id: str, **kwargs: Any) -> dict[str, Any] | None:
+        return await self.http.get_type(type_id)
+
+    async def get_type_by_entity(self, entity_id: str, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_type_by_entity(entity_id, params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── topscorers ────────────────────────────────────────────────────── #
+    async def get_topscorers_by_season_id(
+        self, season_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_topscorers_by_season_id(season_id)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_topscorers_by_stage_id(
+        self, stage_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_topscorers_by_stage_id(stage_id)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── match facts ───────────────────────────────────────────────────── #
+    async def get_match_facts(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_match_facts(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_match_facts_by_fixture_id(
+        self, fixture_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_match_facts_by_fixture_id(fixture_id)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_match_facts_by_date_range(
+        self, from_date: str, to_date: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_match_facts_by_date_range(from_date, to_date)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_match_facts_by_league_id(
+        self, league_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_match_facts_by_league_id(league_id, params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── team rankings ────────────────────────────────────────────────── #
+    async def get_team_rankings(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_team_rankings(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_team_rankings_by_team_id(
+        self, team_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_team_rankings_by_team_id(team_id)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_team_rankings_by_date(self, date: str, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_team_rankings_by_date(date, params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── expected (xG) ────────────────────────────────────────────────── #
+    async def get_expected_by_team_id(self, team_id: str, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_expected_by_team_id(team_id, params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_expected_by_player_id(
+        self, player_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_expected_by_player_id(player_id, params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── predictions ──────────────────────────────────────────────────── #
+    async def get_probabilities(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_probabilities(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_probabilities_by_fixture_id(
+        self, fixture_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_probabilities_by_fixture_id(fixture_id)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_predictability_by_league_id(
+        self, league_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_predictability_by_league_id(league_id, params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_value_bets(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_value_bets(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_value_bets_by_fixture_id(
+        self, fixture_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_value_bets_by_fixture_id(fixture_id)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_live_probabilities(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        response = await self.http.get_live_probabilities(params=params or {})
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    async def get_live_probabilities_by_fixture_id(
+        self, fixture_id: str, **kwargs: Any
+    ) -> list[dict[str, Any]]:
+        response = await self.http.get_live_probabilities_by_fixture_id(fixture_id)
+        if not isinstance(response, list):
+            response = []
+        return response
+
+    # ── odds ─────────────────────────────────────────────────────────── #
+    async def get_pre_match_odds(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        fixture_id = params.pop("fixture_id", None)
+        response: list[dict[str, Any]] = []
+        if fixture_id:
+            response = await self.http.get_odds(str(fixture_id))
+        else:
+            response = await self.http.get_odds_pre_match(params=params)
+        if not isinstance(response, list):
+            response = [response] if response else []
+        return response
+
+    async def get_in_play_odds(self, **kwargs: Any) -> list[dict[str, Any]]:
+        params = dict(kwargs)
+        fixture_id = params.pop("fixture_id", None)
+        if fixture_id:
+            return await self.http.get_live_odds_by_fixture_id(str(fixture_id))
+        return await self.http.get_odds_live(params=params)
 
     # ── odds ────────────────────────────────────────────────────────── #
     async def get_odds(self, fixture_id: str | None = None, **kwargs: Any) -> NormalizedOdds | None:
@@ -555,9 +830,10 @@ class SportmonksProvider(FootballDataProvider):
     # ── health check ────────────────────────────────────────────────── #
     async def health_check(self) -> bool:
         try:
-            await self.http.get_leagues()
+            await self.http.get_leagues(includes=[])
             return True
-        except Exception:
+        except Exception as exc:
+            logger.warning(f"Sportmonks health check failed: {exc}")
             return False
 
     # ── normalizers ─────────────────────────────────────────────────── #
@@ -590,10 +866,14 @@ class SportmonksProvider(FootballDataProvider):
         )
 
     @staticmethod
-    def _normalize_team(raw: dict[str, Any]) -> NormalizedTeam:
+    def _normalize_team(
+        raw: dict[str, Any], league_id: str | None = None, season_id: str | None = None
+    ) -> NormalizedTeam:
         return NormalizedTeam(
             provider="sportmonks",
             provider_team_id=str(raw.get("id", "")),
+            league_id=league_id,
+            season_id=season_id,
             name=raw.get("name", ""),
             short_name=raw.get("short_code") or raw.get("short_name"),
             slug=raw.get("slug"),

@@ -3,10 +3,12 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { LoadingState, EmptyState } from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { MatchCard } from "@/components/match-card";
-import type { MatchBrief } from "@/types/models";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { MatchBrief, TeamSeason, TeamCountry } from "@/types/models";
 import Image from "next/image";
+import { notFound } from "next/navigation";
 
 interface TeamDetailPageProps {
   params: Promise<{ id: string }>;
@@ -30,9 +32,22 @@ export const revalidate = 60;
 export default async function TeamPage({ params }: TeamDetailPageProps) {
   const { id } = await params;
 
-  const team = await api.getTeam(id);
-  const teamMatches = await api.getTeamMatches(id, { page_size: 20 });
-  const teamStats = await api.getTeamStats(id);
+  const team = await api.getTeam(id).catch(() => null);
+  if (!team?.id) {
+    notFound();
+  }
+
+  const [teamMatches, teamStats, teamSeasons, teamCountries] = await Promise.all([
+    api.getTeamMatches(id, { page_size: 20 }).catch(() => null),
+    api.getTeamStats(id).catch(() => null),
+    api.getTeamSeasons(id).catch(() => null),
+    api.getTeamCountries(id).catch(() => null),
+  ]);
+
+  const matches = teamMatches?.data ?? [];
+  const stats = teamStats?.statistics ?? [];
+  const seasons = teamSeasons?.data ?? [];
+  const countries = teamCountries?.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -83,63 +98,204 @@ export default async function TeamPage({ params }: TeamDetailPageProps) {
                 {team.venue_city && `, ${team.venue_city}`}
               </p>
             )}
+            {team.short_name && (
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold">Short name:</span> {team.short_name}
+              </p>
+            )}
           </div>
         </div>
       </section>
 
-      <Card className="surface-card rounded-[1.5rem]">
-        <CardHeader>
-          <CardTitle className="text-xl font-black tracking-[-0.04em] text-foreground">
-            Team Statistics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {teamStats.statistics?.map(
-              (
-                stat: {
-                  league_id?: number;
-                  season_id?: number;
-                  games_played?: number;
-                  wins?: number;
-                  draws?: number;
-                  losses?: number;
-                  goals_for?: number;
-                  goals_against?: number;
-                  points?: number;
-                  position?: number | string;
-                  average_xg?: number;
-                  average_xga?: number;
-                },
-                idx: number,
-              ) => (
-                <div
-                  key={idx}
-                  className="rounded-2xl border border-border bg-background/60 p-3"
-                >
-                  <div className="text-sm font-semibold text-foreground">
-                    {stat.league_id
-                      ? `League ${stat.league_id}`
-                      : `Season ${stat.season_id}`}
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <div>P: {stat.games_played ?? 0}</div>
-                    <div>W: {stat.wins ?? 0}</div>
-                    <div>D: {stat.draws ?? 0}</div>
-                    <div>L: {stat.losses ?? 0}</div>
-                    <div>GF: {stat.goals_for ?? 0}</div>
-                    <div>GA: {stat.goals_against ?? 0}</div>
-                    <div>Pts: {stat.points ?? 0}</div>
-                    <div>Pos: {stat.position ?? "N/A"}</div>
-                    <div>xG: {stat.average_xg?.toFixed(2) ?? "N/A"}</div>
-                    <div>xGA: {stat.average_xga?.toFixed(2) ?? "N/A"}</div>
-                  </div>
+      <Tabs defaultValue="info" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="info">Info</TabsTrigger>
+          <TabsTrigger value="statistics">Statistics</TabsTrigger>
+          <TabsTrigger value="seasons">Seasons ({seasons.length || 0})</TabsTrigger>
+          <TabsTrigger value="countries">Countries ({countries.length || 0})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="info">
+          <Card className="surface-card rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="text-xl font-black tracking-[-0.04em] text-foreground">
+                Team Information
+              </CardTitle>
+              <CardDescription>Basic team details and venue information</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Name</h3>
+                  <p className="mt-1 text-lg font-medium text-foreground">{team.name}</p>
                 </div>
-              ),
-            ) || []}
-          </div>
-        </CardContent>
-      </Card>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Short Name</h3>
+                  <p className="mt-1 text-lg font-medium text-foreground">{team.short_name || "N/A"}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Country</h3>
+                  <p className="mt-1 text-lg font-medium text-foreground">{team.country || "N/A"}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Venue</h3>
+                  <p className="mt-1 text-lg font-medium text-foreground">
+                    {team.venue_name || "N/A"}
+                    {team.venue_city && `, ${team.venue_city}`}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Status</h3>
+                  <p className="mt-1 text-lg font-medium text-foreground">
+                    <Badge variant={team.is_active ? "default" : "secondary"}>
+                      {team.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background/60 p-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground">Team ID</h3>
+                  <p className="mt-1 text-sm font-mono text-muted-foreground">{team.id}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="statistics">
+          <Card className="surface-card rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="text-xl font-black tracking-[-0.04em] text-foreground">
+                Team Statistics
+              </CardTitle>
+              <CardDescription>Performance statistics across leagues and seasons</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats.length > 0 ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {stats.map(
+                    (
+                      stat: {
+                        league_id?: string | number;
+                        season_id?: string | number;
+                        games_played?: number;
+                        wins?: number;
+                        draws?: number;
+                        losses?: number;
+                        goals_for?: number;
+                        goals_against?: number;
+                        points?: number;
+                        position?: number | string;
+                        average_xg?: number;
+                        average_xga?: number;
+                      },
+                      idx: number,
+                    ) => (
+                      <div
+                        key={idx}
+                        className="rounded-2xl border border-border bg-background/60 p-4"
+                      >
+                        <div className="text-sm font-semibold text-foreground mb-2">
+                          {stat.league_id
+                            ? `League ${stat.league_id}`
+                            : `Season ${stat.season_id}`}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                          <div>P: <span className="text-foreground font-medium">{stat.games_played ?? 0}</span></div>
+                          <div>W: <span className="text-foreground font-medium">{stat.wins ?? 0}</span></div>
+                          <div>D: <span className="text-foreground font-medium">{stat.draws ?? 0}</span></div>
+                          <div>L: <span className="text-foreground font-medium">{stat.losses ?? 0}</span></div>
+                          <div>GF: <span className="text-foreground font-medium">{stat.goals_for ?? 0}</span></div>
+                          <div>GA: <span className="text-foreground font-medium">{stat.goals_against ?? 0}</span></div>
+                          <div>Pts: <span className="text-foreground font-medium">{stat.points ?? 0}</span></div>
+                          <div>Pos: <span className="text-foreground font-medium">{stat.position ?? "N/A"}</span></div>
+                          <div>xG: <span className="text-foreground font-medium">{stat.average_xg?.toFixed(2) ?? "N/A"}</span></div>
+                          <div>xGA: <span className="text-foreground font-medium">{stat.average_xga?.toFixed(2) ?? "N/A"}</span></div>
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              ) : (
+                <EmptyState title="No statistics" description="Statistics data not yet available for this team." />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="seasons">
+          <Card className="surface-card rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="text-xl font-black tracking-[-0.04em] text-foreground">
+                Seasons
+              </CardTitle>
+              <CardDescription>Seasons this team has participated in</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {seasons.length > 0 ? (
+                <div className="space-y-3">
+                  {seasons.map((season: TeamSeason, idx: number) => (
+                    <div
+                      key={idx}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-xl border border-border bg-background/60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge
+                          variant={season.is_current ? "default" : "outline"}
+                          className="text-sm"
+                        >
+                          {season.year || season.name}
+                        </Badge>
+                        <div>
+                          <p className="font-medium text-foreground">{season.league_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {season.start_date ? new Date(season.start_date).getFullYear() : ""}
+                            {season.end_date && season.start_date ? " - " : ""}
+                            {season.end_date ? new Date(season.end_date).getFullYear() : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {season.is_current && <span className="text-primary font-medium">Current</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No seasons" description="Season data not yet available for this team." />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="countries">
+          <Card className="surface-card rounded-[1.5rem]">
+            <CardHeader>
+              <CardTitle className="text-xl font-black tracking-[-0.04em] text-foreground">
+                Countries
+              </CardTitle>
+              <CardDescription>Countries where this team has played (via league participation)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {countries.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {countries.map((country: TeamCountry, idx: number) => (
+                    <div
+                      key={idx}
+                      className="rounded-2xl border border-border bg-background/60 p-4 text-center"
+                    >
+                      <p className="text-2xl font-black text-foreground">{country.league_count}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{country.country}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">leagues</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState title="No countries" description="Country data not yet available for this team." />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Card className="surface-card rounded-[1.5rem]">
         <CardHeader>
@@ -149,7 +305,7 @@ export default async function TeamPage({ params }: TeamDetailPageProps) {
         </CardHeader>
         <CardContent>
           <Suspense fallback={<LoadingState message="Loading matches..." />}>
-            <TeamMatches matches={teamMatches.data} />
+            <TeamMatches matches={matches} />
           </Suspense>
         </CardContent>
       </Card>

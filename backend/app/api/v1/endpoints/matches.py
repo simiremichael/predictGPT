@@ -273,6 +273,90 @@ async def get_todays_matches(
     return response
 
 
+@router.get("/live", response_model=dict[str, Any])
+async def get_live_matches(
+    request: Request,
+    league_id: str | None = Query(None),
+    team_id: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> dict[str, Any]:
+    """Get live matches from the provider (Sportmonks inplay livescores).
+
+    Falls back to the local database if the provider is unavailable.
+    """
+    from football_data.factory import get_football_provider
+
+    page_num = get_page(page)
+    ps = get_page_size(page_size)
+
+    cache_key = cache_matches_list_key(
+        live=True, league_id=league_id, team_id=team_id,
+        page=page_num, page_size=ps,
+    )
+
+    try:
+        cached = await get_cached(cache_key)
+        if cached:
+            return cached
+    except Exception:
+        pass
+
+    provider = get_football_provider()
+    try:
+        await provider.connect()
+        params: dict[str, Any] = {"page": page_num, "page_size": ps}
+        if league_id:
+            params["league_id"] = league_id
+        if team_id:
+            params["team_id"] = team_id
+        fixtures = await provider.get_fixtures_live(params=params)
+    except Exception:
+        fixtures = []
+    finally:
+        await provider.close()
+
+    if not fixtures:
+        # Fallback to DB
+        stmt = select(Match).where(
+            Match.status == "live",
+            not Match.is_finished,
+        )
+        stmt = _resolve_league_filter(league_id, stmt)
+        if team_id:
+            stmt = stmt.where(
+                (Match.home_team_id == team_id) | (Match.away_team_id == team_id)
+            )
+        offset = (page_num - 1) * ps
+        stmt = stmt.order_by(Match.kickoff_at).offset(offset).limit(ps)
+        result = await db.execute(stmt)
+        matches = result.scalars().all()
+        fixtures = [_match_to_brief(m) for m in matches]
+
+    briefs = fixtures[:ps]
+    total = len(fixtures) if fixtures else 0
+
+    response = {
+        "success": True,
+        "data": briefs,
+        "meta": {
+            "page": page_num,
+            "page_size": ps,
+            "total": total,
+            "total_pages": max(1, -(-total // ps)) if ps > 0 else 1,
+            "source": "provider" if fixtures else "database",
+        },
+    }
+
+    try:
+        from core.config import get_settings
+        await set_cached(cache_key, response, ttl=get_settings().cache_ttl_fixtures)
+    except Exception:
+        pass
+
+    return response
+
+
 @router.get("/{match_id}", response_model=dict[str, Any])
 async def get_match(
     request: Request,

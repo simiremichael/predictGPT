@@ -413,3 +413,119 @@ export interface ProviderStatus {
   active_provider: string;
   providers: Record<string, Record<string, unknown>>;
 }
+
+export interface ProviderLeague {
+  id: string;
+  name: string;
+  country: string | null;
+  country_code: string | null;
+  is_active: boolean;
+  created_at: string | null;
+}
+
+export interface ProviderSeason {
+  id: string;
+  league_id: string;
+  name: string;
+  year: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+}
+
+export interface ProviderTeam {
+  id: string;
+  name: string;
+  short_name: string | null;
+  slug: string | null;
+  logo_url: string | null;
+  country: string | null;
+  is_active: boolean;
+  created_at: string | null;
+}
+
+export interface ProviderPlayer {
+  id: string;
+  provider_player_id: string;
+  team_id: string | null;
+  full_name: string;
+  position: string | null;
+  nationality: string | null;
+}
+
+export interface ProviderInjury {
+  id: string;
+  player_name: string | null;
+  position: string | null;
+  injury_type: string | null;
+  severity: string | null;
+  description: string | null;
+}
+
+export interface ProviderSuspension {
+  id: string;
+  player_name: string | null;
+  position: string | null;
+  reason: string | null;
+  suspension_type: string | null;
+}
+
+export interface ProviderCoach {
+  id: string;
+  name: string;
+  nationality: string | null;
+  team_id: string | null;
+}
+
+export interface ProviderTransfer {
+  id: string;
+  player_name: string;
+  from_team: string | null;
+  to_team: string | null;
+  transfer_date: string | null;
+  fee: string | null;
+}
+
+export interface ProviderTrophy {
+  id: string;
+  name: string;
+  team_name: string | null;
+  player_name: string | null;
+  season: string | null;
+}
+
+export interface ProviderVenue {
+  id: string;
+  name: string;
+  city: string | null;
+  country: string | null;
+  capacity: number | null;
+}
+
+export interface OddsMarket {
+  market: string;
+  selection: string;
+  odds: number;
+  is_main: boolean;
+}
+
+export interface Odds {
+  id: string;
+  fixture_id: string;
+  markets: OddsMarket[];
+}
+
+export interface SyncResponse {
+  success: boolean;
+  data: {
+    synced: boolean;
+    leagues?: number;
+    seasons?: number;
+    teams?: number;
+    fixtures?: number;
+    standings?: number;
+  };
+  meta: {
+    message: string;
+  };
+}

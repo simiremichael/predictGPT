@@ -757,7 +757,8 @@ class APIFootballProvider(FootballDataProvider):
             result = await self.client.health_check()
             await self.close()
             return result["healthy"]
-        except Exception:
+        except Exception as exc:
+            logger.warning(f"API Football health check failed: {exc}")
             return False
 
     # ── normalizers ─────────────────────────────────────────────────── #

@@ -1,9 +1,12 @@
 """Team API endpoints.
 
-GET  /api/v1/teams                    -- list all teams
-GET  /api/v1/teams/{team_id}          -- team detail
-GET  /api/v1/teams/{team_id}/matches  -- matches for a team
-GET  /api/v1/teams/{team_id}/statistics -- team statistics
+GET  /api/v1/teams                           -- list all teams
+GET  /api/v1/teams/{team_id}                 -- team detail
+GET  /api/v1/teams/{team_id}/matches         -- matches for a team
+GET  /api/v1/teams/{team_id}/statistics      -- team statistics
+GET  /api/v1/teams/{team_id}/seasons         -- team seasons
+GET  /api/v1/teams/{team_id}/countries       -- team countries
+GET  /api/v1/leagues/{league_id}/teams       -- teams in a league
 """
 from __future__ import annotations
 
@@ -22,9 +25,8 @@ from core.cache import (
 )
 from core.pagination import get_page, get_page_size
 from db.database import get_db
-from models.league import Team
-from models.match import Match
-from models.match import TeamStatistics as TeamStatsModel
+from models.league import League, ProviderLeague, ProviderTeam, Season, Team
+from models.match import Match, TeamStatistics as TeamStatsModel
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 
@@ -293,3 +295,166 @@ async def get_team_statistics(
         pass
 
     return response
+
+
+@router.get("/{team_id}/seasons", response_model=dict[str, Any])
+async def get_team_seasons(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get seasons a team has participated in."""
+    stmt = (
+        select(Season, League)
+        .join(ProviderLeague, ProviderLeague.internal_league_id == Season.league_id)
+        .join(League, League.id == Season.league_id)
+        .join(ProviderTeam, ProviderTeam.provider_league_id == ProviderLeague.provider_league_id)
+        .where(ProviderTeam.internal_team_id == team_id)
+        .distinct(Season.id)
+        .order_by(Season.year.desc().nullslast(), Season.name)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    seasons_data = []
+    for season, league in rows:
+        seasons_data.append({
+            "id": season.id,
+            "league_id": league.id,
+            "league_name": league.name,
+            "name": season.name,
+            "year": season.year,
+            "start_date": season.start_date.isoformat() if season.start_date else None,
+            "end_date": season.end_date.isoformat() if season.end_date else None,
+            "is_current": season.is_current,
+        })
+
+    return {
+        "success": True,
+        "data": seasons_data,
+        "meta": {"total": len(seasons_data)},
+    }
+
+
+@router.get("/{team_id}/countries", response_model=dict[str, Any])
+async def get_team_countries(
+    team_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get countries a team has played in (via leagues)."""
+    stmt = (
+        select(League.country, func.count(League.id).label("league_count"))
+        .join(Season, Season.league_id == League.id)
+        .join(ProviderLeague, ProviderLeague.internal_league_id == League.id)
+        .join(ProviderTeam, ProviderTeam.provider_league_id == ProviderLeague.provider_league_id)
+        .where(ProviderTeam.internal_team_id == team_id)
+        .where(League.country.isnot(None))
+        .group_by(League.country)
+        .order_by(func.count(League.id).desc())
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    countries_data = [
+        {"country": row.country, "league_count": row.league_count}
+        for row in rows
+    ]
+
+    return {
+        "success": True,
+        "data": countries_data,
+        "meta": {"total": len(countries_data)},
+    }
+
+
+@router.get("/leagues/{league_id}/teams", response_model=dict[str, Any])
+async def get_league_teams(
+    league_id: str,
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+) -> dict[str, Any]:
+    """Get all teams in a league."""
+    from core.config import get_settings
+
+    settings = get_settings()
+    provider_name = settings.football_data_provider
+    page_num = get_page(page)
+    ps = get_page_size(page_size)
+    offset = (page_num - 1) * ps
+
+    current_season_stmt = (
+        select(Season.id)
+        .where(Season.league_id == league_id, Season.is_current.is_(True))
+        .limit(1)
+    )
+    current_season_id = (await db.execute(current_season_stmt)).scalar_one_or_none()
+
+    base_stmt = (
+        select(Team)
+        .join(ProviderTeam, ProviderTeam.internal_team_id == Team.id)
+        .where(ProviderTeam.provider_league_id == league_id)
+        .where(ProviderTeam.provider_name == provider_name)
+    )
+    if current_season_id:
+        base_stmt = base_stmt.where(ProviderTeam.season_id == current_season_id)
+
+    stmt = base_stmt.distinct(Team.id).order_by(Team.id, Team.name)
+
+    count_stmt = select(func.count()).select_from(
+        base_stmt.with_only_columns(Team.id).distinct(Team.id).subquery()
+    )
+    count_result = await db.execute(count_stmt)
+    total = count_result.scalar() or 0
+
+    if total == 0:
+        try:
+            from football_data.factory import get_football_provider
+            from api.v1.endpoints.providers import _save_provider_data_to_db
+
+            provider = get_football_provider()
+            await provider.connect()
+            try:
+                provider_data = await provider.get_teams(
+                    league_id=league_id, season_id=current_season_id
+                )
+            finally:
+                await provider.close()
+
+            if provider_data:
+                if not isinstance(provider_data, list):
+                    provider_data = [provider_data]
+                await _save_provider_data_to_db("get_teams", provider_data)
+                await db.commit()
+            count_result = await db.execute(count_stmt)
+            total = count_result.scalar() or 0
+        except Exception:
+            pass
+
+    stmt = stmt.offset(offset).limit(ps)
+    result = await db.execute(stmt)
+    teams = result.scalars().all()
+
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": t.id,
+                "name": t.name,
+                "short_name": t.short_name,
+                "slug": t.slug,
+                "logo_url": t.logo_url,
+                "venue_name": t.venue_name,
+                "venue_city": t.venue_city,
+                "country": t.country,
+                "is_active": t.is_active,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+            }
+            for t in teams
+        ],
+        "meta": {
+            "page": page_num,
+            "page_size": ps,
+            "total": total,
+            "total_pages": max(1, -(-total // ps)) if ps > 0 else 1,
+        },
+    }

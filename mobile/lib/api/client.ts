@@ -16,6 +16,7 @@ import type {
   ResearchData,
   SearchResultItem,
   ProviderStatus,
+  Standing,
 } from "@/types";
 
 export { ApiError } from "./errors";
@@ -428,8 +429,7 @@ class ApiClient {
       predictions: SearchResultItem[];
     }>(`/api/v1/search?${qs}`);
   };
-}
 
-export const api = new ApiClient(env.apiUrl);
+}
 
 export type { SearchResultItem };
