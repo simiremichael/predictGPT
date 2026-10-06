@@ -43,8 +43,10 @@ class SportmonksClient:
 
     provider_name = "sportmonks"
 
-    # Sportmonks default pagination is 30, max is 200 for most endpoints.
-    DEFAULT_PAGE_SIZE = 30
+    # Sportmonks allows up to 200 per page on most endpoints. Requesting the
+    # default 30 makes full-season fixture pulls span dozens of pages per league
+    # and quickly trips the rate limiter, so ask for a larger page instead.
+    DEFAULT_PAGE_SIZE = 100
     MAX_PAGES = 50
 
     # Side-loaded relations requested on league lookups.
@@ -822,7 +824,24 @@ class SportmonksClient:
     async def get_fixtures_live(self, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         return await self.request_all_pages("/fixtures/live", params=params or {})
 
-    # ── News ───────────────────────────────────────────────────────────── #
+    async def get_fixtures_between(
+        self,
+        from_date: str,
+        to_date: str,
+        includes: Any = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch fixtures whose kickoff falls within ``[from_date, to_date]``.
+
+        Uses the date-scoped route ``/fixtures/between/{from}/{to}``.  Unlike the
+        flat ``/fixtures`` endpoint (which ignores the ``from``/``to`` query
+        params and returns the sport-wide corpus), this route actually filters by
+        kickoff date.
+        """
+        return await self.request_all_pages(
+            f"/fixtures/between/{from_date}/{to_date}", includes=includes
+        )
+
+    # ── News ─�──────────────────────────────────────────────────────────── #
     async def get_pre_match_news(
         self, params: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:

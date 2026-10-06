@@ -49,6 +49,8 @@ async def test_sportmonks_get_fixture_requests_relations_and_normalizes_v3_shape
 async def test_sportmonks_get_fixtures_includes_participants_for_sync() -> None:
     raw_fixture = {
         "id": 19049276,
+        "league_id": "8",
+        "season_id": "27",
         "starting_at": "2026-10-03T15:00:00Z",
         "participants": [
             {"id": 101, "name": "Home FC", "meta": {"location": "home"}},

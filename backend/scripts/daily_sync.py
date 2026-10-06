@@ -200,17 +200,17 @@ async def sync_seasons_diff(
         logger.warning("Failed to fetch seasons for %s: %s", league_internal_id, exc)
         return []
 
+    current_season_id: str | None = None
+    for norm in seasons:
+        if norm.is_current:
+            current_season_id = norm.provider_season_id
+            break
+
     result: list[NormalizedSeason] = []
     for norm in seasons:
         try:
             existing = await db.get(Season, norm.provider_season_id)
             if existing is None:
-                if norm.is_current:
-                    await db.execute(
-                        update(Season)
-                        .where(Season.league_id == league_internal_id)
-                        .values(is_current=False)
-                    )
                 season = Season(
                     id=norm.provider_season_id,
                     league_id=league_internal_id,
@@ -218,13 +218,17 @@ async def sync_seasons_diff(
                     year=norm.year,
                     start_date=norm.start_date,
                     end_date=norm.end_date,
-                    is_current=norm.is_current,
+                    is_current=False,
                 )
                 db.add(season)
                 result.append(norm)
             else:
-                existing.is_current = norm.is_current
-                existing.year = norm.year or existing.year
+                # Re-assert the owning league: earlier syncs wrote seasons
+                # against a mapping slug instead of the leagues table id.
+                existing.league_id = league_internal_id
+                existing.is_current = False
+                if norm.year:
+                    existing.year = norm.year
                 if norm.start_date:
                     existing.start_date = norm.start_date
                 if norm.end_date:
@@ -232,6 +236,24 @@ async def sync_seasons_diff(
                 result.append(norm)
         except Exception as exc:
             logger.warning("Error storing season: %s", exc)
+
+    # Exactly one current season per league. Clearing first and then flagging
+    # only the provider's current season keeps the invariant even when several
+    # seasons were previously flagged.
+    await db.execute(
+        update(Season)
+        .where(Season.league_id == league_internal_id)
+        .values(is_current=False)
+    )
+    if current_season_id:
+        await db.execute(
+            update(Season)
+            .where(Season.id == current_season_id)
+            .values(league_id=league_internal_id, is_current=True)
+        )
+    logger.info(
+        "League %s current season: %s", league_internal_id, current_season_id or "none"
+    )
 
     await db.commit()
     await _log_sync(
@@ -304,9 +326,25 @@ async def sync_teams_diff(
                     internal_team_id=norm.provider_team_id,
                     provider_name=provider_name,
                     provider_team_id=norm.provider_team_id,
+                    provider_league_id=provider_league_id,
+                    season_id=provider_season_id or None,
                     is_active=True,
                 )
-                .on_conflict_do_nothing()
+                .on_conflict_do_update(
+                    # Backfill rows written before these columns were populated,
+                    # and refresh the scope on every sync.
+                    index_elements=[
+                        "internal_team_id",
+                        "provider_name",
+                        "provider_league_id",
+                        "season_id",
+                    ],
+                    set_={
+                        "provider_team_id": norm.provider_team_id,
+                        "provider_league_id": provider_league_id,
+                        "season_id": provider_season_id or None,
+                    },
+                )
             )
             await db.execute(stmt)
             team_map[norm.provider_team_id] = norm.provider_team_id
@@ -565,7 +603,7 @@ async def increment_db_version() -> int:
         return 0
 
 
-async def run_daily_sync():
+async def run_daily_sync(core_only: bool = False):
     """Main entry point for daily sync job."""
     logger.info("Starting daily sync job...")
     start_time = datetime.now(timezone.utc)
@@ -603,8 +641,13 @@ async def run_daily_sync():
                 if not p_league_id:
                     continue
 
+                # sync_leagues_diff stores leagues keyed by the provider league
+                # id, so that same id is what every child table must reference.
+                # The mapping slug is not a row in `leagues`.
+                league_db_id = p_league_id
+
                 # Sync seasons
-                seasons = await sync_seasons_diff(db, provider, cfg.internal_id, p_league_id)
+                seasons = await sync_seasons_diff(db, provider, league_db_id, p_league_id)
 
                 if not p_season_id and seasons:
                     for s in seasons:
@@ -616,40 +659,46 @@ async def run_daily_sync():
 
                 # Sync teams
                 team_map = await sync_teams_diff(
-                    db, provider, cfg.internal_id, p_league_id, p_season_id or ""
+                    db, provider, league_db_id, p_league_id, p_season_id or ""
                 )
                 total_teams += len(team_map)
                 all_team_ids.extend(list(team_map.keys()))
 
                 # Sync fixtures
                 total_fixtures += await sync_fixtures_diff(
-                    db, provider, cfg.internal_id, p_league_id, p_season_id or ""
+                    db, provider, league_db_id, p_league_id, p_season_id or ""
                 )
 
                 # Sync standings
                 total_standings += await sync_standings_diff(
-                    db, provider, cfg.internal_id, p_league_id, p_season_id or ""
+                    db, provider, league_db_id, p_league_id, p_season_id or ""
                 )
 
-            # Refresh provider metadata and supporting data that is not yet backed by a dedicated table.
-            await refresh_provider_metadata(db, provider, "timezones", "get_timezones")
-            await refresh_provider_metadata(db, provider, "countries", "get_countries")
-            await refresh_provider_metadata(db, provider, "venues", "get_venues")
-            await refresh_provider_metadata(db, provider, "coaches", "get_coaches")
-            await refresh_provider_metadata(db, provider, "transfers", "get_transfers")
-            await refresh_provider_metadata(db, provider, "trophies", "get_trophies")
-            await refresh_provider_metadata(
-                db, provider, "predictions", "get_predictions", fixture_id="latest"
-            )
-
-            # Fetch injuries and suspensions for key teams (limit to reduce API calls)
-            if all_team_ids:
-                logger.info("Fetching injuries and suspensions for %d teams", len(all_team_ids))
-                await sync_injuries(db, provider, all_team_ids[:20])  # Limit to first 20 teams
-                await sync_suspensions(db, provider, all_team_ids[:20])
+            # Refresh provider metadata and supporting data that is not yet
+            # backed by a dedicated table. These are large global pulls, so
+            # --core-only skips them when only leagues/seasons/teams/fixtures
+            # are needed and the provider rate limit is tight.
+            if not core_only:
+                await refresh_provider_metadata(db, provider, "timezones", "get_timezones")
+                await refresh_provider_metadata(db, provider, "countries", "get_countries")
+                await refresh_provider_metadata(db, provider, "venues", "get_venues")
+                await refresh_provider_metadata(db, provider, "coaches", "get_coaches")
+                await refresh_provider_metadata(db, provider, "transfers", "get_transfers")
+                await refresh_provider_metadata(db, provider, "trophies", "get_trophies")
                 await refresh_provider_metadata(
-                    db, provider, "sidelined", "get_sidelined", team_id=all_team_ids[0]
+                    db, provider, "predictions", "get_predictions", fixture_id="latest"
                 )
+
+                # Fetch injuries and suspensions for key teams (limit to reduce API calls)
+                if all_team_ids:
+                    logger.info(
+                        "Fetching injuries and suspensions for %d teams", len(all_team_ids)
+                    )
+                    await sync_injuries(db, provider, all_team_ids[:20])  # Limit to first 20 teams
+                    await sync_suspensions(db, provider, all_team_ids[:20])
+                    await refresh_provider_metadata(
+                        db, provider, "sidelined", "get_sidelined", team_id=all_team_ids[0]
+                    )
 
             # Increment DB version to invalidate frontend caches
             await increment_db_version()
@@ -676,4 +725,19 @@ async def run_daily_sync():
 
 
 if __name__ == "__main__":
-    asyncio.run(run_daily_sync())
+    import argparse
+
+    import logging as _logging
+
+    # httpx logs the full request URL at INFO, which writes the provider
+    # api_token query parameter into the logs.
+    _logging.getLogger("httpx").setLevel(_logging.WARNING)
+
+    _parser = argparse.ArgumentParser()
+    _parser.add_argument(
+        "--core-only",
+        action="store_true",
+        help="Skip large global metadata pulls (timezones, countries, venues, ...).",
+    )
+    _args = _parser.parse_args()
+    asyncio.run(run_daily_sync(core_only=_args.core_only))

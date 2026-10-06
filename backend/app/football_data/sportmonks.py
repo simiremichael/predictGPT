@@ -191,6 +191,16 @@ class SportmonksProvider(FootballDataProvider):
         response = await self.http.get_seasons(league_id=league_id)
         if not isinstance(response, list):
             response = []
+        if league_id:
+            # Sportmonks' /seasons endpoint ignores a league_id filter and
+            # returns every season in the sport, so scope the list here.
+            # Without this each league's fetch returns the same global rows and
+            # they overwrite one another under the same primary key.
+            response = [
+                entry
+                for entry in response
+                if str(entry.get("league_id")) == str(league_id)
+            ]
         return [self._normalize_season(entry, league_id) for entry in response]
 
     # ── teams ───────────────────────────────────────────────────────── #
@@ -280,12 +290,35 @@ class SportmonksProvider(FootballDataProvider):
             days = kwargs.get("days", 7)
             params["to"] = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
 
-        response = await self.http.get_fixtures(
-            params=params,
-            includes=["participants"],
-        )
+        # The flat `/fixtures` endpoint silently ignores its `from`/`to` query
+        # params and returns the sport-wide corpus (a stale 2024 set in this
+        # sandbox).  Any call that carries an explicit date window therefore has
+        # to use Sportmonks' date-scoped `/fixtures/between/{from}/{to}` route,
+        # which actually filters by kickoff date.  league/season/team scoping is
+        # still applied client-side below on the returned records.
+        if from_date and to_date:
+            start_str = from_date.strftime("%Y-%m-%d") if not isinstance(from_date, str) else from_date
+            end_str = to_date.strftime("%Y-%m-%d") if not isinstance(to_date, str) else to_date
+            response = await self.http.get_fixtures_between(start_str, end_str, includes=["participants"])
+        else:
+            response = await self.http.get_fixtures(
+                params=params,
+                includes=["participants"],
+            )
         if not isinstance(response, list):
             response = []
+        # The Sportmonks /fixtures endpoint honours the `from`/`to` date range
+        # but ignores league_id/season_id, returning fixtures for the whole
+        # sport. Scope the result to the requested league+season here using the
+        # league_id each fixture record carries, otherwise every league would
+        # re-save the sport's full fixture set and clobber one another.
+        if league_id or season_id:
+            response = [
+                entry
+                for entry in response
+                if (not league_id or str(entry.get("league_id")) == str(league_id))
+                and (not season_id or str(entry.get("season_id")) == str(season_id))
+            ]
         return [self._normalize_fixture(entry) for entry in response]
 
     async def get_fixture(self, fixture_id: str, **kwargs: Any) -> NormalizedFixture | None:
@@ -866,7 +899,9 @@ class SportmonksProvider(FootballDataProvider):
         return NormalizedSeason(
             provider="sportmonks",
             provider_season_id=str(raw.get("id", raw.get("season_id", ""))),
-            league_id=league_id or "",
+            # Prefer the league the record actually belongs to; the requested
+            # league_id is only a hint and is not enforced by the endpoint.
+            league_id=str(raw.get("league_id") or league_id or ""),
             name=raw.get("name", str(raw.get("id", ""))),
             year=raw.get("year"),
             start_date=raw.get("start"),

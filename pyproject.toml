@@ -14,3 +14,8 @@ known-first-party = ["core", "db", "football_data", "api", "models", "schemas", 
 testpaths = ["backend/tests"]
 pythonpath = ["backend/app"]
 asyncio_mode = "auto"
+
+[dependency-groups]
+dev = [
+    "fastapi[standard]>=0.142.2",
+]

@@ -75,25 +75,7 @@ async def test_batch_selection_targets_current_season_unplayed_matches() -> None
 async def test_fixture_sync_refreshes_existing_blank_match_fields() -> None:
     from api.v1.endpoints import providers as provider_routes
 
-    existing = SimpleNamespace(
-        home_score=None,
-        away_score=None,
-        status="scheduled",
-        is_finished=False,
-        retrieved_at=None,
-        kickoff_at=None,
-        league_id=None,
-        season_id=None,
-        home_team_id=None,
-        away_team_id=None,
-        home_team_name=None,
-        away_team_name=None,
-        venue=None,
-        referee=None,
-        provider_metadata={},
-    )
     database = AsyncMock()
-    database.get = AsyncMock(return_value=existing)
     kickoff = datetime(2026, 10, 3, 15)
 
     await provider_routes._save_fixtures(
@@ -113,19 +95,23 @@ async def test_fixture_sync_refreshes_existing_blank_match_fields() -> None:
                 "status": "scheduled",
                 "is_finished": False,
                 "provider_metadata": {"refreshed": True},
-            }
+            },
         ],
     )
 
-    assert existing.league_id == "league-1"
-    assert existing.season_id == "season-1"
-    assert existing.home_team_id == "home-1"
-    assert existing.away_team_id == "away-1"
-    assert existing.home_team_name == "Home FC"
-    assert existing.away_team_name == "Away FC"
-    assert existing.kickoff_at == kickoff
-    assert existing.venue == "City Stadium"
-    assert existing.provider_metadata["refreshed"] is True
+    # _save_fixtures now writes the match rows as a single bulk upsert.
+    statement = database.execute.await_args.args[0]
+    sql = str(statement.compile())
+    assert "ON CONFLICT" in sql.upper()
+    # COALESCE keeps a stored value when the provider omits the field.
+    assert "COALESCE" in sql.upper()
+
+    params = str(statement.compile().params)
+    assert "fixture-1" in params
+    assert "league-1" in params
+    assert "season-1" in params
+    assert "Home FC" in params
+    assert "City Stadium" in params
 
 
 @pytest.mark.asyncio

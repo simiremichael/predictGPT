@@ -887,55 +887,67 @@ async def _save_teams(db: AsyncSession, payload: list[Any]) -> None:
         if item.get("provider_team_id") or item.get("id"):
             items.append(item)
 
+    # Load the existing ids in one query. Calling db.get() per team costs one
+    # round trip per row, which is thousands of queries for a full league and
+    # tends to drop a pooled connection part-way through a sync.
+    team_ids = [str(item.get("provider_team_id") or item.get("id")) for item in items]
+    existing_ids: set[str] = set()
+    if team_ids:
+        existing_ids = set(
+            (
+                await db.execute(select(Team.id).where(Team.id.in_(team_ids)))
+            ).scalars()
+        )
+
+    to_insert = []
     for item in items:
-        provider_team_id = item.get("provider_team_id") or item.get("id")
-        existing = await db.get(Team, provider_team_id)
-        if existing is None:
-            db.add(
-                Team(
-                    id=provider_team_id,
-                    name=item.get("name"),
-                    short_name=item.get("short_name"),
-                    slug=item.get("slug"),
-                    logo_url=item.get("logo_url"),
-                    venue_name=item.get("venue_name"),
-                    venue_city=item.get("venue_city"),
-                    country=item.get("country"),
-                    is_active=True,
-                )
-            )
-        else:
-            for field in (
-                "name",
-                "short_name",
-                "slug",
-                "logo_url",
-                "venue_name",
-                "venue_city",
-                "country",
-            ):
-                value = item.get(field)
-                if value:
-                    setattr(existing, field, value)
+        provider_team_id = str(item.get("provider_team_id") or item.get("id"))
+        if provider_team_id in existing_ids:
+            continue
+        existing_ids.add(provider_team_id)
+        to_insert.append(
+            {
+                "id": provider_team_id,
+                "name": item.get("name"),
+                "short_name": item.get("short_name"),
+                "slug": item.get("slug"),
+                "logo_url": item.get("logo_url"),
+                "venue_name": item.get("venue_name"),
+                "venue_city": item.get("venue_city"),
+                "country": item.get("country"),
+                "is_active": True,
+            }
+        )
+
+    if to_insert:
+        # Skip ids that already exist so a concurrent writer cannot trip the
+        # primary key; the mapping rows below still get written.
+        await db.execute(
+            pg_insert(Team.__table__)
+            .values(to_insert)
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
 
     # provider_teams.internal_team_id references teams.id and the session runs
     # with autoflush=False, so the pending Team inserts must be flushed before
     # the mapping rows are written or the foreign key fails.
     await db.flush()
 
-    for item in items:
-        provider_team_id = item.get("provider_team_id") or item.get("id")
-        provider_name = item.get("provider", "sportmonks")
-        stmt = (
+    mappings = [
+        {
+            "internal_team_id": str(item.get("provider_team_id") or item.get("id")),
+            "provider_name": item.get("provider", "sportmonks"),
+            "provider_team_id": str(item.get("provider_team_id") or item.get("id")),
+            "provider_league_id": item.get("league_id"),
+            "season_id": item.get("season_id"),
+            "is_active": True,
+        }
+        for item in items
+    ]
+    if mappings:
+        await db.execute(
             pg_insert(ProviderTeam.__table__)
-            .values(
-                internal_team_id=provider_team_id,
-                provider_name=provider_name,
-                provider_team_id=provider_team_id,
-                provider_league_id=item.get("league_id"),
-                season_id=item.get("season_id"),
-                is_active=True,
-            )
+            .values(mappings)
             .on_conflict_do_update(
                 index_elements=[
                     "internal_team_id",
@@ -943,10 +955,9 @@ async def _save_teams(db: AsyncSession, payload: list[Any]) -> None:
                     "provider_league_id",
                     "season_id",
                 ],
-                set_={"is_active": True, "provider_team_id": provider_team_id},
+                set_={"is_active": True},
             )
         )
-        await db.execute(stmt)
 
 
 async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
@@ -1063,8 +1074,86 @@ async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
             existing.provider_metadata = item.get("provider_metadata", {})
 
 
+async def _ensure_fixture_references(db: AsyncSession, rows: list[dict[str, Any]]) -> None:
+    """Provision minimal parent rows for fixtures whose FKs are unresolvable.
+
+    The provider's fixture set can belong to seasons that were never fetched by
+    its /seasons endpoint (the sandbox's fixtures lag behind /seasons, sitting on
+    2024 seasons while 2026/27 are flagged current). Without these parent rows the
+    Match.season_id / league_id / team_id foreign keys reject the upsert, so the
+    fixtures table stays empty and the matches page renders nothing. Inserting
+    stub seasons/leagues/teams for any missing reference lets the fixtures land.
+
+    Inserts are idempotent (ON CONFLICT DO NOTHING), so no existence pre-check is
+    performed and this remains safe to run alongside the normal sync.
+    """
+    season_league: dict[str, str] = {}
+    league_ids: set[str] = set()
+    team_ids: set[str] = set()
+    for r in rows:
+        sid = r.get("season_id")
+        lid = r.get("league_id")
+        if sid and lid:
+            season_league.setdefault(str(sid), str(lid))
+            league_ids.add(str(lid))
+        elif lid:
+            league_ids.add(str(lid))
+        for tid in (r.get("home_team_id"), r.get("away_team_id")):
+            if tid:
+                team_ids.add(str(tid))
+
+    if league_ids:
+        await db.execute(
+            pg_insert(League.__table__)
+            .values(
+                [
+                    {
+                        "id": lid,
+                        "provider_league_id": lid,
+                        "name": f"League {lid}",
+                        "country": None,
+                        "country_code": None,
+                        "is_active": True,
+                    }
+                    for lid in league_ids
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+
+    if season_league:
+        await db.execute(
+            pg_insert(Season.__table__)
+            .values(
+                [
+                    {
+                        "id": sid,
+                        "league_id": season_league[sid],
+                        "name": f"Season {sid}",
+                        "year": None,
+                        "start_date": None,
+                        "end_date": None,
+                        "is_current": False,
+                    }
+                    for sid in season_league
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+
+    if team_ids:
+        await db.execute(
+            pg_insert(Team.__table__)
+            .values(
+                [{"id": tid, "name": f"Team {tid}", "is_active": True} for tid in team_ids]
+            )
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+
+
 async def _save_fixtures(db: AsyncSession, payload: list[Any]) -> None:
     """Upsert fixtures from provider data."""
+    rows: list[dict[str, Any]] = []
     for item in payload:
         if hasattr(item, "model_dump"):
             item = item.model_dump()
@@ -1080,57 +1169,158 @@ async def _save_fixtures(db: AsyncSession, payload: list[Any]) -> None:
         if hasattr(status_val, "value"):
             status_val = status_val.value
 
-        existing = await db.get(Match, provider_fixture_id)
-        if existing is None:
-            db.add(
-                Match(
-                    id=provider_fixture_id,
-                    provider_name=provider_name,
-                    provider_fixture_id=provider_fixture_id,
-                    league_id=item.get("league_id"),
-                    season_id=item.get("season_id"),
-                    home_team_id=item.get("home_team_id"),
-                    away_team_id=item.get("away_team_id"),
-                    home_team_name=item.get("home_team_name"),
-                    away_team_name=item.get("away_team_name"),
-                    kickoff_at=item.get("kickoff_at"),
-                    status=status_val or "scheduled",
-                    venue=item.get("venue"),
-                    referee=item.get("referee"),
-                    home_score=item.get("home_score"),
-                    away_score=item.get("away_score"),
-                    is_finished=item.get("is_finished", False),
-                    retrieved_at=item.get("retrieved_at", datetime.utcnow()),
-                    provider_metadata=item.get("provider_metadata", {}),
-                )
+        rows.append(
+            {
+                "id": str(provider_fixture_id),
+                "provider_name": provider_name,
+                "provider_fixture_id": str(provider_fixture_id),
+                "league_id": item.get("league_id"),
+                "season_id": item.get("season_id"),
+                "home_team_id": item.get("home_team_id"),
+                "away_team_id": item.get("away_team_id"),
+                "home_team_name": item.get("home_team_name"),
+                "away_team_name": item.get("away_team_name"),
+                "kickoff_at": item.get("kickoff_at"),
+                "status": status_val or "scheduled",
+                "venue": item.get("venue"),
+                "referee": item.get("referee"),
+                "home_score": item.get("home_score"),
+                "away_score": item.get("away_score"),
+                "is_finished": item.get("is_finished", False),
+                "retrieved_at": item.get("retrieved_at") or datetime.utcnow(),
+                "provider_metadata": item.get("provider_metadata") or {},
+            }
+        )
+
+    if rows:
+        # Make sure referenced seasons/leagues/teams exist so the FK columns
+        # below never trip an integrity error on fixtures from seasons that were
+        # not present in /seasons (see _ensure_fixture_references).
+        await _ensure_fixture_references(db, rows)
+        # One statement for the whole batch. A per-fixture db.get() meant
+        # thousands of round trips per league and dropped pooled connections
+        # mid-sync.
+        upsert = pg_insert(Match.__table__).values(rows)
+        updatable = (
+            "league_id",
+            "season_id",
+            "home_team_id",
+            "away_team_id",
+            "home_team_name",
+            "away_team_name",
+            "kickoff_at",
+            "status",
+            "venue",
+            "referee",
+            "home_score",
+            "away_score",
+            "is_finished",
+            "retrieved_at",
+            "provider_metadata",
+        )
+        await db.execute(
+            upsert.on_conflict_do_update(
+                index_elements=["id"],
+                # COALESCE keeps the previous value when the provider omits a
+                # field, so a partial payload never blanks stored data.
+                set_={
+                    name: func.coalesce(
+                        getattr(upsert.excluded, name), getattr(Match.__table__.c, name)
+                    )
+                for name in updatable
+                },
             )
-        else:
-            for field in (
-                "league_id",
-                "season_id",
-                "home_team_id",
-                "away_team_id",
-                "home_team_name",
-                "away_team_name",
-                "kickoff_at",
-                "venue",
-                "referee",
-                "home_score",
-                "away_score",
-            ):
-                value = item.get(field)
-                if value is not None:
-                    setattr(existing, field, value)
-            existing.status = status_val or existing.status
-            if item.get("is_finished") is not None:
-                existing.is_finished = item["is_finished"]
-            existing.retrieved_at = datetime.utcnow()
-            provider_metadata = item.get("provider_metadata") or {}
-            if provider_metadata:
-                existing.provider_metadata = {
-                    **(existing.provider_metadata or {}),
-                    **provider_metadata,
+        )
+
+
+async def _map_fixture_teams(db: AsyncSession, payload: list[Any]) -> None:
+    """Persist ProviderTeam mappings for team ids seen in fixtures.
+
+    The provider /teams endpoint is not league-scoped, so the fixtures (which
+    carry their own league_id + season_id) are the only reliable source for
+    mapping a team to a league + current season.
+    """
+    team_mapping_rows: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for item in payload:
+        if hasattr(item, "model_dump"):
+            item = item.model_dump()
+        elif hasattr(item, "dict"):
+            item = item.dict()
+        league_id = item.get("league_id") or item.get("provider_league_id")
+        season_id = item.get("season_id")
+        provider_name = item.get("provider", "sportmonks")
+        if not league_id:
+            continue
+        for team_field in ("home_team_id", "away_team_id"):
+            team_id = item.get(team_field)
+            if not team_id:
+                continue
+            team_id = str(team_id)
+            team_mapping_rows.setdefault((team_id, str(league_id)), []).append(
+                {
+                    "internal_team_id": team_id,
+                    "provider_name": provider_name,
+                    "provider_team_id": team_id,
+                    "provider_league_id": str(league_id),
+                    "season_id": season_id,
+                    "is_active": True,
                 }
+            )
+
+    if not team_mapping_rows:
+        return
+
+    # provider_teams.internal_team_id references teams.id and the session runs
+    # with autoflush=False, so insert any missing team stub first.
+    team_ids = {team_id for team_id, _ in team_mapping_rows}
+    existing_ids = set(
+        (await db.execute(select(Team.id).where(Team.id.in_(team_ids)))).scalars().all()
+    )
+    missing: list[dict[str, Any]] = []
+    for team_id in team_ids:
+        if team_id not in existing_ids:
+            existing_ids.add(team_id)
+            missing.append({"id": team_id, "name": None, "is_active": True})
+    if missing:
+        await db.execute(
+            pg_insert(Team.__table__)
+            .values(missing)
+            .on_conflict_do_nothing(index_elements=["id"])
+        )
+
+    # A team plays many fixtures in the same league + season, so the list under
+    # each (team_id, league_id) key contains duplicates that would make the bulk
+    # ``ON CONFLICT DO UPDATE`` touch the same row twice (asyncpg raises
+    # CardinalityViolationError).  Collapse to one row per conflict target; the
+    # surviving row is authoritative (is_active=True for every mapping).
+    seen: set[tuple[str, str, str, str | None]] = set()
+    flat_rows: list[dict[str, Any]] = []
+    for rows in team_mapping_rows.values():
+        for row in rows:
+            key = (
+                row["internal_team_id"],
+                row["provider_name"],
+                row["provider_league_id"],
+                row["season_id"],
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            flat_rows.append(row)
+
+    await db.execute(
+        pg_insert(ProviderTeam.__table__)
+        .values(flat_rows)
+        .on_conflict_do_update(
+            index_elements=[
+                "internal_team_id",
+                "provider_name",
+                "provider_league_id",
+                "season_id",
+            ],
+            set_={"is_active": True},
+        )
+    )
 
 
 async def _save_players(db: AsyncSession, payload: list[Any]) -> None:
@@ -1366,7 +1556,7 @@ async def _provider_data_response(
         except Exception as exc:
             logger.error(f"DB read error for {provider_method}: {exc}")
             db_payload = None
-        if db_payload and db_payload.get("data"):
+        if db_payload and (db_payload.get("data") or provider_method == "get_fixtures"):
             rows = db_payload["data"]
             if requested_includes is not None:
                 if provider_method == "get_league":
