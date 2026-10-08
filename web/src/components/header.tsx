@@ -16,6 +16,7 @@ const navItems = [
   { href: "/leagues", label: "Leagues" },
   { href: "/teams", label: "Teams" },
   { href: "/performance", label: "Performance" },
+  // { href: "/admin", label: "Admin" },
 ];
 
 export function Header() {
@@ -80,7 +81,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="rounded-full border border-border/70 bg-card/60 shadow-sm md:hidden hover:bg-accent hover:text-foreground"
+              className="rounded-full border border-border/70 bg-card/60 shadow-sm md:hidden hover:bg-accent hover:text-foreground pointer"
             >
               <Menu className="h-4 w-4" />
             </Button>

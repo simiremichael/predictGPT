@@ -275,6 +275,10 @@ async def list_predictions(
     model_version: str | None = Query(None),
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
+    upcoming_only: bool = Query(
+        True,
+        description="Only show predictions for matches that haven't been played yet (status='scheduled' and kickoff_at >= now)",
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
@@ -310,6 +314,8 @@ async def list_predictions(
             Prediction,
             func.coalesce(Match.home_team_name, home_team.name, "Home team"),
             func.coalesce(Match.away_team_name, away_team.name, "Away team"),
+            Match.kickoff_at,
+            Match.status,
         )
         .join(Match, Match.id == Prediction.match_id)
         .outerjoin(home_team, Match.home_team_id == home_team.id)
@@ -327,6 +333,9 @@ async def list_predictions(
         stmt = stmt.where(Prediction.generated_at >= date_from)
     if date_to:
         stmt = stmt.where(Prediction.generated_at <= date_to)
+    if upcoming_only:
+        now = datetime.utcnow()
+        stmt = stmt.where(Match.kickoff_at >= now).where(Match.is_finished.is_(False))
 
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total_result = await db.execute(total_stmt)
@@ -342,6 +351,8 @@ async def list_predictions(
             match_id=p.match_id,
             match_home_team=home_name,
             match_away_team=away_name,
+            match_kickoff=match_kickoff,
+            match_status=match_status,
             model_version=p.model_version,
             prediction_version=p.prediction_version,
             generated_at=p.generated_at,
@@ -351,12 +362,6 @@ async def list_predictions(
             model_confidence=p.confidence or 0.0,
             home_probability=p.home_probability,
             draw_probability=p.draw_probability,
-            away_probability=p.away_probability,
-            ai_adjustment_applied=bool(p.ai_adjustment_json),
-            context_hash=p.context_hash,
-        )
-        for p, home_name, away_name in predictions
-    ]
 
     response = {
         "success": True,

@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   ApiErrorResponse,
   ApiSuccessResponse,
+  ApiResponseMeta,
 } from "@/types/api";
 import type {
   League,
@@ -122,6 +123,124 @@ export interface PaginatedResult<T> {
     total: number;
     total_pages: number;
   };
+}
+
+export interface AdminLeague {
+  id: string;
+  provider_league_id: string | null;
+  name: string;
+  country: string | null;
+  country_code: string | null;
+  is_active: boolean;
+  created_at: string | null;
+}
+
+export interface AdminTeam {
+  id: string;
+  provider_team_id: string | null;
+  league_id: string | null;
+  name: string;
+  short_name: string | null;
+  country: string | null;
+  is_active: boolean;
+  created_at: string | null;
+  match_count: number;
+}
+
+type QsValue = string | number | boolean | undefined | null;
+type QsRecord = Record<string, QsValue | QsValue[]>;
+
+function buildQs(params: QsRecord): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item !== undefined && item !== null && item !== "") {
+          sp.append(key, String(item));
+        }
+      }
+    } else if (value !== "") {
+      sp.append(key, String(value));
+    }
+  }
+  const qs = sp.toString();
+  return qs ? `?${qs}` : "";
+}
+
+function adminHeaders(): Record<string, string> {
+  return { "X-Admin-Api-Key": env.adminApiKey };
+}
+
+type AdminEnvelope<T = unknown> = {
+  success: boolean;
+  data?: T | null;
+  meta?: { message?: string; [key: string]: unknown };
+  error?: { code?: string; message?: string; details?: unknown };
+  detail?: string;
+};
+
+async function adminCall<T = unknown>(
+  path: string,
+  init: RequestInit = {},
+): Promise<ApiSuccessResponse<T>> {
+  // Admin endpoints return the standard envelope but (a) fail with useful
+  // `meta.message` bodies on 200 `success:false` and (b) `{ detail }` on
+  // HTTP errors. `requestResponse` doesn't surface those, so we handle the
+  // envelope explicitly here to give the UI actionable error text.
+  const url = `${env.apiUrl}${path}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...init.headers,
+        "X-Admin-Api-Key": env.adminApiKey,
+      },
+    });
+
+    let data: AdminEnvelope<T> | null = null;
+    const text = await response.text();
+    if (text) {
+      try {
+        data = JSON.parse(text) as AdminEnvelope<T>;
+      } catch {
+        data = null;
+      }
+    }
+
+    const isFailure = data !== null && data.success === false;
+
+    if (!response.ok || isFailure) {
+      const message =
+        data?.meta?.message ||
+        data?.error?.message ||
+        data?.detail ||
+        response.statusText ||
+        "Request failed";
+      throw new ApiError(message, response.status);
+    }
+    return {
+      success: true,
+      data: data?.data ?? null,
+      meta: (data?.meta ?? undefined) as ApiResponseMeta | undefined,
+    } as ApiSuccessResponse<T>;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new ApiError("Request timeout", 408, "TIMEOUT");
+    }
+    throw new ApiError(
+      err instanceof Error ? err.message : "Unknown error",
+      500,
+      "UNKNOWN_ERROR",
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function requestPaginated<T>(
@@ -453,5 +572,135 @@ export const api = {
       predictions: SearchResultItem[];
       players: SearchResultItem[];
     }>(`/api/v1/search?${qs}`);
+  },
+
+  // Admin — all calls send the X-Admin-Api-Key header.
+  admin: {
+    listLeagues: (params?: {
+      page?: number;
+      page_size?: number;
+      search?: string;
+      is_active?: boolean;
+    }) => {
+      const qs = buildQs({
+        page: params?.page,
+        page_size: params?.page_size,
+        search: params?.search,
+        is_active: params?.is_active,
+      });
+      return requestPaginated<AdminLeague>(
+        `/api/v1/admin/leagues${qs}`,
+        { headers: adminHeaders() },
+      );
+    },
+    listTeams: (params?: {
+      page?: number;
+      page_size?: number;
+      search?: string;
+      league_id?: string;
+    }) => {
+      const qs = buildQs({
+        page: params?.page,
+        page_size: params?.page_size,
+        search: params?.search,
+        league_id: params?.league_id,
+      });
+      return requestPaginated<AdminTeam>(
+        `/api/v1/admin/teams${qs}`,
+        { headers: adminHeaders() },
+      );
+    },
+    listPredictions: (params?: {
+      match_id?: string;
+      league_id?: string;
+      team_id?: string;
+      model_version?: string;
+      date_from?: string;
+      date_to?: string;
+      page?: number;
+      page_size?: number;
+    }) => {
+      const qs = buildQs(params || {});
+      return requestPaginated<PredictionHistoryItem>(
+        `/api/v1/predictions${qs}`,
+      );
+    },
+    deleteLeague: (id: string) =>
+      adminCall<{ deleted: number; league_id: string }>(
+        `/api/v1/admin/leagues/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      ),
+    deleteLeagues: (ids: string[]) =>
+      adminCall<{ deleted: number; league_ids: string[] }>(
+        `/api/v1/admin/leagues${buildQs({ ids })}`,
+        { method: "DELETE" },
+      ),
+    deleteTeam: (id: string) =>
+      adminCall<{ deleted: number; team_id: string }>(
+        `/api/v1/admin/teams/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      ),
+    deleteTeams: (ids: string[]) =>
+      adminCall<{ deleted: number; team_ids: string[] }>(
+        `/api/v1/admin/teams${buildQs({ ids })}`,
+        { method: "DELETE" },
+      ),
+    deletePrediction: (id: string) =>
+      adminCall<{ deleted: number; prediction_id: string }>(
+        `/api/v1/admin/predictions/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      ),
+    deletePredictions: (ids: string[]) =>
+      adminCall<{ deleted: number; prediction_ids: string[] }>(
+        `/api/v1/admin/predictions${buildQs({ ids })}`,
+        { method: "DELETE" },
+      ),
+    resyncLeague: (id: string) =>
+      adminCall<Record<string, number>>(
+        `/api/v1/admin/leagues/${encodeURIComponent(id)}/resync`,
+        { method: "POST" },
+      ),
+    resyncTeam: (id: string) =>
+      adminCall<Record<string, number>>(
+        `/api/v1/admin/teams/${encodeURIComponent(id)}/resync`,
+        { method: "POST" },
+      ),
+    resyncFixtures: (params: {
+      date_from?: string;
+      date_to?: string;
+      league_id?: string;
+    }) =>
+      adminCall<Record<string, number>>(
+        `/api/v1/admin/fixtures/resync${buildQs({
+          date_from: params?.date_from,
+          date_to: params?.date_to,
+          league_id: params?.league_id,
+        })}`,
+        { method: "POST" },
+      ),
+    fetchLeagues: () =>
+      adminCall<{ synced: boolean; leagues: number }>(
+        "/api/v1/providers/sync/leagues",
+        { method: "POST" },
+      ),
+    fetchTeams: (params: { league_id: string; season_id: string }) =>
+      adminCall<{ synced: boolean; teams: number }>(
+        `/api/v1/providers/sync/teams${buildQs({
+          league_id: params.league_id,
+          season_id: params.season_id,
+        })}`,
+        { method: "POST" },
+      ),
+    generatePredictions: (params?: {
+      league_ids?: string[];
+      force_refresh?: boolean;
+    }) =>
+      adminCall<{ job_id: string; status: string }>(
+        `/api/v1/admin/predictions/generate${buildQs({
+          league_ids: params?.league_ids,
+          force_refresh: params?.force_refresh,
+        })}`,
+        { method: "POST" },
+      ),
   },
 };

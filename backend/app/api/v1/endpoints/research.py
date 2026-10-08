@@ -28,6 +28,7 @@ from core.security import verify_admin_api_key
 from db.database import get_db
 from models.match import Match
 from models.research import ResearchEvidence, ResearchRun
+from services.ai_prediction_service import AIPredictionService
 
 router = APIRouter(tags=["research"])
 
@@ -243,6 +244,106 @@ async def get_analysis(
         "success": True,
         "data": prediction.model_dump() if hasattr(prediction, "model_dump") else prediction,
     }
+
+
+class AIPredictionRequest(BaseModel):
+    include_research: bool = Field(default=True, description="Perform DuckDuckGo research before generating the prediction")
+    force_refresh: bool = Field(default=False, description="Force a fresh research run even if cached")
+
+
+class AIBatchPredictionRequest(BaseModel):
+    league_id: str | None = Field(default=None, description="Limit to a specific league")
+    limit: int = Field(default=10, ge=1, le=100, description="Maximum number of fixtures to predict")
+    include_research: bool = Field(default=True, description="Perform DuckDuckGo research for each match")
+
+
+@router.post(
+    "/matches/{match_id}/predictions/ai",
+    response_model=dict[str, Any],
+    summary="Generate an AI research-backed prediction for a match",
+    dependencies=[Depends(verify_admin_api_key)],
+)
+async def generate_ai_prediction(
+    request: Request,
+    match_id: str,
+    body: AIPredictionRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Generate a prediction using DuckDuckGo research + AI analysis.
+
+    Fetches the match from the database, searches DuckDuckGo for team news,
+    injuries, suspensions, and lineups, then uses the AI provider to produce
+    a research-adjusted prediction with an explanation. The prediction and
+    research run are saved to the database.
+
+    Requires admin authentication.
+    """
+    match_stmt = select(Match).where(Match.id == match_id)
+    match_result = await db.execute(match_stmt)
+    match = match_result.scalar_one_or_none()
+
+    if match is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Match {match_id} not found",
+        )
+
+    service = AIPredictionService(db_session=db)
+
+    try:
+        result = await service.generate_prediction(
+            match_id=match_id,
+            include_research=body.include_research,
+            force_refresh=body.force_refresh,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"AI prediction generation failed: {str(exc)}",
+        ) from exc
+
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=result.get("error", "Prediction generation failed"),
+        )
+
+    return result
+
+
+@router.post(
+    "/predictions/ai/batch",
+    response_model=dict[str, Any],
+    summary="Generate AI predictions for upcoming fixtures",
+    dependencies=[Depends(verify_admin_api_key)],
+)
+async def generate_ai_predictions_batch(
+    request: Request,
+    body: AIBatchPredictionRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Fetch fixtures from the DB and generate AI predictions for each.
+
+    Retrieves upcoming scheduled matches from the database, runs DuckDuckGo
+    research + AI prediction for each, and saves results to the database.
+
+    Requires admin authentication.
+    """
+    service = AIPredictionService(db_session=db)
+
+    try:
+        result = await service.generate_predictions_for_league(
+            league_id=body.league_id,
+            limit=body.limit,
+            include_research=body.include_research,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Batch AI prediction generation failed: {str(exc)}",
+        ) from exc
+
+    return result
 
 
 def _research_to_response(

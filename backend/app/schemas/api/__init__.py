@@ -141,6 +141,8 @@ class PredictionHistoryItem(BaseModel):
     match_id: str
     match_home_team: str
     match_away_team: str
+    match_kickoff: datetime | None = None
+    match_status: str | None = None
     model_version: str
     prediction_version: str
     generated_at: datetime

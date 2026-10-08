@@ -11,7 +11,6 @@ tests.  It wires up:
 
 from __future__ import annotations
 
-import asyncio
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -57,23 +56,15 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # noqa: ANN201
         await redis_client.connect()
-
-        from jobs.daily_sync import daily_sync_loop, prediction_generation_loop
-
-        sync_task = asyncio.create_task(daily_sync_loop())
-        prediction_task = asyncio.create_task(prediction_generation_loop())
+        # The automatic daily-sync and prediction-generation background loops
+        # have been removed. Provider sync and prediction generation are now
+        # triggered manually by an admin via the admin API, e.g.:
+        #   POST /api/v1/admin/predictions/generate
+        #   POST /api/v1/admin/leagues/resync?league_id=...
+        #   POST /api/v1/admin/teams/resync?team_id=...
+        #   POST /api/v1/admin/fixtures/resync?date_from=...&date_to=...
 
         yield
-        sync_task.cancel()
-        prediction_task.cancel()
-        try:
-            await sync_task
-        except asyncio.CancelledError:
-            pass
-        try:
-            await prediction_task
-        except asyncio.CancelledError:
-            pass
         await redis_client.close()
         await engine.dispose()
 
