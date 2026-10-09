@@ -33,7 +33,9 @@ export function PredictionSummary({
             {prediction.match_home_team} vs {prediction.match_away_team}
           </h3>
           <p className="text-xs text-muted-foreground">
-            {new Date(prediction.generated_at).toLocaleDateString()}
+            {prediction.match_kickoff
+              ? new Date(prediction.match_kickoff).toLocaleString()
+              : new Date(prediction.generated_at).toLocaleDateString()}
           </p>
         </div>
       )}

@@ -61,37 +61,44 @@ async def create_job(
     if extra:
         data.update(extra)
 
-    await redis_client.set_json(_job_key(job_id), data, ttl=JOB_TTL)
+    try:
+        await redis_client.set_json(_job_key(job_id), data, ttl=JOB_TTL)
+    except Exception as exc:
+        logger.warning("Redis unavailable, job tracking disabled", extra={"job_id": job_id, "error": str(exc)})
     logger.info("Job created", extra={"job_id": job_id, "job_type": job_type, "entity_id": entity_id})
     return job_id
 
 
 async def get_job(job_id: str) -> dict[str, Any] | None:
     """Retrieve job status/details."""
-    data = await redis_client.get_json(_job_key(job_id))
-    if data is None:
+    try:
+        data = await redis_client.get_json(_job_key(job_id))
+        if data is None:
+            return None
+        return data
+    except Exception as exc:
+        logger.warning("Redis unavailable, cannot retrieve job", extra={"job_id": job_id, "error": str(exc)})
         return None
-    return data
 
 
 async def update_job_status(job_id: str, status: str, **extra: Any) -> None:
     """Update a job's status and optional extra fields."""
-    data = await redis_client.get_json(_job_key(job_id))
-    if data is None:
+    try:
+        data = await redis_client.get_json(_job_key(job_id))
+        if data is None:
+            return
+        data["status"] = status
+        now = datetime.utcnow().isoformat()
+        if status == JobStatus.RUNNING and not data.get("started_at"):
+            data["started_at"] = now
+        elif status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
+            data["completed_at"] = now
+        for k, v in extra.items():
+            data[k] = v
+        await redis_client.set_json(_job_key(job_id), data, ttl=JOB_TTL)
+    except Exception as exc:
+        logger.warning("Redis unavailable, job status update skipped", extra={"job_id": job_id, "error": str(exc)})
         return
-
-    data["status"] = status
-    now = datetime.utcnow().isoformat()
-
-    if status == JobStatus.RUNNING and not data.get("started_at"):
-        data["started_at"] = now
-    elif status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):
-        data["completed_at"] = now
-
-    for k, v in extra.items():
-        data[k] = v
-
-    await redis_client.set_json(_job_key(job_id), data, ttl=JOB_TTL)
     logger.info("Job status updated", extra={"job_id": job_id, "status": status})
 
 

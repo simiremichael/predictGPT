@@ -487,6 +487,7 @@ export const api = {
     model_version?: string;
     date_from?: string;
     date_to?: string;
+    upcoming_only?: boolean;
     page?: number;
     page_size?: number;
   }) => {
@@ -502,6 +503,7 @@ export const api = {
   getPredictionById: (id: string) => request<{
     prediction_id: string;
     match_id: string;
+    match_kickoff?: string | null;
     model_version: string;
     prediction_version: string;
     generated_at: string | null;
@@ -617,6 +619,7 @@ export const api = {
       model_version?: string;
       date_from?: string;
       date_to?: string;
+      upcoming_only?: boolean;
       page?: number;
       page_size?: number;
     }) => {
@@ -694,13 +697,32 @@ export const api = {
     generatePredictions: (params?: {
       league_ids?: string[];
       force_refresh?: boolean;
+      clear_all?: boolean;
+      include_research?: boolean;
+      limit?: number;
     }) =>
       adminCall<{ job_id: string; status: string }>(
         `/api/v1/admin/predictions/generate${buildQs({
           league_ids: params?.league_ids,
           force_refresh: params?.force_refresh,
+          clear_all: params?.clear_all,
+          include_research: params?.include_research,
+          limit: params?.limit,
         })}`,
-        { method: "POST" },
+          { method: "POST" },
       ),
+    getJobStatus: (jobId: string) =>
+      request<{
+        success: boolean;
+        data: {
+          job_id: string;
+          status: string;
+          succeeded?: number;
+          failed?: number;
+          total?: number;
+          errors?: string[];
+          extra?: Record<string, unknown>;
+        };
+      }>(`/api/v1/predictions/jobs/${jobId}`),
   },
 };

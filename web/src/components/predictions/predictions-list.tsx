@@ -164,20 +164,46 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl bg-muted/40 px-2 py-1.5">
+                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  O 2.5
+                </div>
+                <div className="mt-1 text-sm font-bold text-foreground">
+                  {item.over_2_5_probability
+                    ? `${Math.round(item.over_2_5_probability * 100)}%`
+                    : "—"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-muted/40 px-2 py-1.5">
+                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  BTTS
+                </div>
+                <div className="mt-1 text-sm font-bold text-foreground">
+                  {item.btts_probability
+                    ? `${Math.round(item.btts_probability * 100)}%`
+                    : "—"}
+                </div>
+              </div>
+            </div>
+
             <div className="text-right text-xs text-muted-foreground">
               <Calendar className="mr-1 inline h-3 w-3" />
-              {new Date(item.generated_at).toLocaleDateString()}
+              {item.match_kickoff
+                ? new Date(item.match_kickoff).toLocaleDateString()
+                : new Date(item.generated_at).toLocaleDateString()}
             </div>
           </div>
-        </div>
 
-        {item.ai_adjustment_applied && (
-          <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px] font-semibold text-emerald-600">
-            <TrendingUp className="h-3 w-3" />
-            AI-adjusted
-          </div>
-        )}
+          {item.ai_adjustment_applied && (
+            <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px] font-semibold text-emerald-600">
+              <TrendingUp className="h-3 w-3" />
+              AI-adjusted
+            </div>
+          )}
+        </div>
       </div>
     </Link>
-  );
-}
+    );
+  }
+

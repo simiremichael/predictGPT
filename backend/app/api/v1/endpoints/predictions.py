@@ -276,7 +276,7 @@ async def list_predictions(
     date_from: datetime | None = Query(None),
     date_to: datetime | None = Query(None),
     upcoming_only: bool = Query(
-        True,
+        False,
         description="Only show predictions for matches that haven't been played yet (status='scheduled' and kickoff_at >= now)",
     ),
     page: int = Query(1, ge=1),
@@ -294,6 +294,7 @@ async def list_predictions(
         model_version=model_version,
         date_from=date_from,
         date_to=date_to,
+        upcoming_only=upcoming_only,
         page=page_num,
         page_size=ps,
     )
@@ -341,7 +342,9 @@ async def list_predictions(
     total_result = await db.execute(total_stmt)
     total = total_result.scalar() or 0
 
-    stmt = stmt.order_by(Prediction.generated_at.desc()).offset(offset).limit(ps)
+    stmt = stmt.order_by(
+        Match.kickoff_at.asc().nullslast(), Prediction.generated_at.desc()
+    ).offset(offset).limit(ps)
     result = await db.execute(stmt)
     predictions = result.all()
 
@@ -362,6 +365,15 @@ async def list_predictions(
             model_confidence=p.confidence or 0.0,
             home_probability=p.home_probability,
             draw_probability=p.draw_probability,
+            away_probability=p.away_probability,
+            over_2_5_probability=p.over_2_5_probability,
+            under_2_5_probability=p.under_2_5_probability,
+            btts_probability=p.btts_probability,
+            ai_adjustment_applied=bool(p.ai_adjustment_json),
+            context_hash=p.context_hash,
+        )
+        for p, home_name, away_name, match_kickoff, match_status in predictions
+    ]
 
     response = {
         "success": True,
@@ -371,6 +383,7 @@ async def list_predictions(
             "page_size": ps,
             "total": total,
             "total_pages": max(1, -(-total // ps)) if ps > 0 else 1,
+            "upcoming_only": upcoming_only,
         },
     }
 
@@ -403,8 +416,9 @@ async def get_prediction_by_id(
         pass
 
     stmt = (
-        select(Prediction, PredictionScoreline)
-        .join(PredictionScoreline, PredictionScoreline.prediction_id == Prediction.id)
+        select(Prediction, PredictionScoreline, Match.kickoff_at)
+        .join(Match, Match.id == Prediction.match_id)
+        .outerjoin(PredictionScoreline, PredictionScoreline.prediction_id == Prediction.id)
         .where(Prediction.id == prediction_id)
         .order_by(PredictionScoreline.rank)
     )
@@ -418,6 +432,7 @@ async def get_prediction_by_id(
         )
 
     pred = rows[0][0]
+    match_kickoff = rows[0][2]
     scorelines = [row[1] for row in rows]
 
     response = {
@@ -425,6 +440,7 @@ async def get_prediction_by_id(
         "data": {
             "prediction_id": pred.id,
             "match_id": pred.match_id,
+            "match_kickoff": match_kickoff.isoformat() if match_kickoff else None,
             "model_version": pred.model_version,
             "prediction_version": pred.prediction_version,
             "generated_at": pred.generated_at.isoformat() if pred.generated_at else None,

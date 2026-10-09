@@ -262,22 +262,71 @@ export default async function HomePage() {
                   href={`/predictions/${item.prediction_id}`}
                   className="block rounded-2xl border border-border bg-background/60 p-3 transition-all hover:border-primary/20 hover:bg-primary/5"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {item.match_home_team} vs {item.match_away_team}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(item.generated_at).toLocaleDateString()} •{" "}
-                        {item.model_version}
-                      </p>
-                    </div>
-                    <Badge
-                      variant="default"
-                      className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-                    >
-                      {(item.model_confidence * 100).toFixed(0)}%
-                    </Badge>
+                   <div className="flex items-center justify-between gap-3">
+                     <div>
+                       <p className="font-semibold text-foreground">
+                         {item.match_home_team} vs {item.match_away_team}
+                       </p>
+                       <p className="text-xs text-muted-foreground">
+                         {item.match_kickoff
+                           ? new Date(item.match_kickoff).toLocaleDateString()
+                           : new Date(item.generated_at).toLocaleDateString()}{" "}
+                         • {item.model_version}
+                       </p>
+                     </div>
+
+                     <div className="flex items-center gap-4">
+                       <div className="flex gap-2 text-center">
+                         <div>
+                           <span className="text-[9px] uppercase text-muted-foreground">H</span>
+                           <p className="text-sm font-bold">
+                             {item.home_probability
+                               ? `${Math.round(item.home_probability * 100)}%`
+                               : "—"}
+                           </p>
+                         </div>
+                         <div>
+                           <span className="text-[9px] uppercase text-muted-foreground">D</span>
+                           <p className="text-sm font-bold">
+                             {item.draw_probability
+                               ? `${Math.round(item.draw_probability * 100)}%`
+                               : "—"}
+                           </p>
+                         </div>
+                         <div>
+                           <span className="text-[9px] uppercase text-muted-foreground">A</span>
+                           <p className="text-sm font-bold">
+                             {item.away_probability
+                               ? `${Math.round(item.away_probability * 100)}%`
+                               : "—"}
+                           </p>
+                         </div>
+                       </div>
+                       <div className="flex gap-2 text-center">
+                         <div>
+                           <span className="text-[9px] uppercase text-muted-foreground">O 2.5</span>
+                           <p className="text-sm font-bold">
+                             {item.over_2_5_probability
+                               ? `${Math.round(item.over_2_5_probability * 100)}%`
+                               : "—"}
+                           </p>
+                         </div>
+                         <div>
+                           <span className="text-[9px] uppercase text-muted-foreground">BTTS</span>
+                           <p className="text-sm font-bold">
+                             {item.btts_probability
+                               ? `${Math.round(item.btts_probability * 100)}%`
+                               : "—"}
+                           </p>
+                         </div>
+                       </div>
+                       <Badge
+                         variant="default"
+                         className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                       >
+                         {(item.model_confidence * 100).toFixed(0)}%
+                       </Badge>
+                     </div>
                   </div>
                 </Link>
               ))

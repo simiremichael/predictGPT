@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # Evidence Extraction Prompts
 
 EXTRACTION_SYSTEM_PROMPT = (
@@ -122,34 +121,42 @@ TEAM_NEWS_EXTRACTION_USER_PROMPT = (
 
 AI_ADJUSTMENT_SYSTEM_PROMPT = (
     "You are a football analytics assistant. Your task is to produce a structured "
-    "adjustment to a statistical prediction model based on extracted web evidence.\n\n"
+    "adjustment to a statistical prediction model based on extracted web evidence "
+    "and match context.\n\n"
     "CRITICAL RULES:\n"
     "- You are NOT a primary prediction engine. The Poisson statistical model makes the prediction.\n"
     "- You may only produce bounded, explainable adjustments to model inputs (goal-rate lambda).\n"
     "- NEVER output a final score or match result directly.\n"
     "- NEVER convert 'reported' evidence to 'confirmed'.\n"
     "- Every adjustment must reference source IDs from the provided evidence.\n"
-    "- If evidence is insufficient, return zero adjustments (all zeros).\n"
+    "- If evidence is insufficient, return small, context-aware adjustments based on\n"
+    "  match context (team names, league, base lambdas). Each match MUST receive\n"
+    "  different adjustments so predictions vary meaningfully.\n"
     "- Adjustments must be small and evidence-based.\n\n"
     "Respond with valid JSON only.\n\n"
     "Evidence weight mapping:\n"
-    "- No evidence: 0.0 adjustment\n"
-    "- Speculative/unknown evidence: 0.0 adjustment (no meaningful signal)\n"
+    "- No evidence: small context-based adjustment (team form/reputation inferred from names)\n"
+    "- Speculative/unknown evidence: up to 30% of the configured cap\n"
     "- Reported/probable evidence: up to 50% of the configured cap\n"
-    "- Confirmed evidence from official sources: up to 100% of the configured cap\n\n"
+    "- Confirmed evidence from official sources: up to 100% of the configured cap\n"
+    "- Even WITHOUT evidence: produce small non-zero adjustments unique to each match\n\n"
     "Configured caps (you MUST NOT exceed these):\n"
     "- max_attack_adjustment: {max_attack_adjustment}\n"
-    "- max_defense_adjustment: {max_defense_adjustment}"
+    "- max_defense_adjustment: {max_defense_adjustment}\n\n"
+    "If you cannot produce a match-specific adjustment, return all zeros."
 )
 
 AI_ADJUSTMENT_USER_PROMPT = (
-    "Base statistical prediction for {home_team} vs {away_team}:\n"
+    "Base statistical prediction for {home_team} vs {away_team} ({league}):\n"
     "- Home expected goals (lambda_home): {lambda_home}\n"
     "- Away expected goals (lambda_away): {lambda_away}\n\n"
     "Extracted evidence:\n"
     "{evidence_text}\n\n"
-    "Based only on the evidence above, produce a bounded adjustment to the model inputs.\n"
-    "If no evidence affects the prediction, return all-zero adjustments.\n"
+    "Based ONLY on the evidence above and the match context (team names, league),\n"
+    "produce small, match-specific adjustments to the model inputs.\n"
+    "Each match MUST receive different adjustments reflecting the unique matchup.\n"
+    "If no evidence affects the prediction, still produce small non-zero adjustments\n"
+    "based on the team names and league context.\n"
     "Remember: NEVER exceed the configured caps.\n\n"
     "Return JSON: {{\"home_attack_adjustment\": float, \"away_attack_adjustment\": float, "
     "\"home_defense_adjustment\": float, \"away_defense_adjustment\": float, "

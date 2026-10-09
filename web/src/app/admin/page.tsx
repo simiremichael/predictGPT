@@ -2,10 +2,15 @@
 
 import { useState } from "react";
 import { CheckSquare, RefreshCw, Search, Square, Trash2 } from "lucide-react";
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api, ApiError, type AdminLeague, type AdminTeam } from "@/lib/api";
-import type { PredictionHistoryItem, MatchBrief, Scoreline } from "@/types/models";
+import type {
+  PredictionHistoryItem,
+  MatchBrief,
+  Scoreline,
+} from "@/types/models";
 import { LoadingState, EmptyState } from "@/components/loading-states";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -737,6 +742,8 @@ function AdminPredictions() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [actionId, setActionId] = useState<string | null>(null);
   const [forceRefresh, setForceRefresh] = useState(false);
+  const [clearAll, setClearAll] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const {
     data: listResult,
@@ -744,7 +751,12 @@ function AdminPredictions() {
     isPending: loading,
   } = useQuery({
     queryKey: ["admin-predictions", page],
-    queryFn: () => api.admin.listPredictions({ page, page_size: PAGE_SIZE }),
+    queryFn: () =>
+      api.admin.listPredictions({
+        page,
+        page_size: PAGE_SIZE,
+        upcoming_only: false,
+      }),
   });
 
   const rows = listResult?.data ?? [];
@@ -762,12 +774,25 @@ function AdminPredictions() {
     onError: (e) => toast.error(errMsg(e)),
   });
   const generateMutation = useMutation({
-    mutationFn: () =>
-      api.admin.generatePredictions({ force_refresh: forceRefresh }),
+    mutationFn: (params?: {
+      clear_all?: boolean;
+      include_research?: boolean;
+      force_refresh?: boolean;
+      league_ids?: string[];
+      limit?: number;
+    }) =>
+      api.admin.generatePredictions({
+        clear_all: params?.clear_all,
+        include_research: params?.include_research,
+        force_refresh: params?.force_refresh,
+        league_ids: params?.league_ids,
+        limit: params?.limit,
+      }),
     onSuccess: (r) => {
-      toast.success(
-        `Prediction generation queued (job ${r.data.job_id}, status ${r.data.status})`,
-      );
+      const jobId = r.data.job_id;
+      setCurrentJobId(jobId);
+      toast.success(`Prediction generation started (job ${jobId})`);
+      queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -780,6 +805,31 @@ function AdminPredictions() {
     },
     onError: (e) => toast.error(errMsg(e)),
   });
+
+  const { data: jobStatus, isError: jobStatusError } = useQuery({
+    queryKey: ["admin-job-status", currentJobId],
+    queryFn: () => api.admin.getJobStatus(currentJobId!),
+    enabled: !!currentJobId,
+    refetchInterval: 2000,
+  });
+
+  useEffect(() => {
+    if (jobStatus?.data?.status === "completed") {
+      setCurrentJobId(null);
+      queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
+      toast.success("Predictions generated successfully");
+    } else if (jobStatus?.data?.status === "failed") {
+      setCurrentJobId(null);
+      toast.error("Prediction generation failed");
+    } else if (jobStatusError && currentJobId) {
+      const timer = setTimeout(() => {
+        setCurrentJobId(null);
+        queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
+        toast("Prediction generation started (job tracking unavailable)");
+      }, 30000);
+      return () => clearTimeout(timer);
+    }
+  }, [jobStatus, jobStatusError, queryClient, currentJobId]);
 
   async function remove(id: string) {
     if (!confirm(`Delete prediction ${id}?`)) return;
@@ -798,26 +848,39 @@ function AdminPredictions() {
 
   async function bulkDelete() {
     const ids = Array.from(selected);
-    if (!ids.length || (!confirm(`Delete ${ids.length} predictions?`))) return;
+    if (!ids.length || !confirm(`Delete ${ids.length} predictions?`)) return;
     await bulkDeleteMutation.mutateAsync(ids);
   }
 
   function ScorelineList({ predictionId }: { predictionId: string }) {
-    const { data: detail, isPending, error: loadError } = useQuery({
+    const {
+      data: detail,
+      isPending,
+      error: loadError,
+    } = useQuery({
       queryKey: ["prediction-detail", predictionId],
       queryFn: () => api.getPredictionById(predictionId),
       staleTime: 300_000,
     });
 
-    if (isPending || loadError || !detail) return <span className="text-xs text-muted-foreground">—</span>;
+    if (isPending || loadError || !detail)
+      return <span className="text-xs text-muted-foreground">—</span>;
     const scorelines: Scoreline[] = detail.top_scorelines || [];
-    if (!scorelines.length) return <span className="text-xs text-muted-foreground">No scorelines</span>;
+    if (!scorelines.length)
+      return (
+        <span className="text-xs text-muted-foreground">No scorelines</span>
+      );
 
     return (
       <div className="flex flex-col gap-1">
         {scorelines.map((sl) => (
-          <div key={`${sl.home_goals}-${sl.away_goals}`} className="flex items-center justify-between text-xs">
-            <span className="font-mono">{sl.home_goals} - {sl.away_goals}</span>
+          <div
+            key={`${sl.home_goals}-${sl.away_goals}`}
+            className="flex items-center justify-between text-xs"
+          >
+            <span className="font-mono">
+              {sl.home_goals} - {sl.away_goals}
+            </span>
             <span className="text-muted-foreground">{pct(sl.probability)}</span>
           </div>
         ))}
@@ -852,12 +915,26 @@ function AdminPredictions() {
             />
             Force refresh
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={clearAll}
+              onChange={(e) => setClearAll(e.target.checked)}
+            />
+            Clear all
+          </label>
           <Button
             variant="outline"
-            onClick={() => void generateMutation.mutate()}
-            disabled={generateMutation.isPending}
+            onClick={() =>
+              void generateMutation.mutate({
+                clear_all: clearAll,
+                include_research: true,
+                limit: 50,
+              })
+            }
+            disabled={generateMutation.isPending || !!currentJobId}
           >
-            {generateMutation.isPending
+            {generateMutation.isPending || currentJobId
               ? "Generating..."
               : "Generate predictions"}
           </Button>
@@ -895,6 +972,7 @@ function AdminPredictions() {
               <th className="px-3 py-2 font-medium">Top 4 Scorelines</th>
               <th className="px-3 py-2 font-medium">Research</th>
               <th className="px-3 py-2 font-medium">AI Adj.</th>
+              <th className="px-3 py-2 font-medium">Match Date</th>
             </tr>
           </thead>
           <tbody>
@@ -943,7 +1021,9 @@ function AdminPredictions() {
                   )}
                 </td>
                 <td className="px-3 py-2">
-                  {new Date(p.generated_at).toLocaleDateString()}
+                  {p.match_kickoff
+                    ? new Date(p.match_kickoff).toLocaleString()
+                    : "—"}
                 </td>
                 <td className="px-3 py-2 text-right">
                   <Button

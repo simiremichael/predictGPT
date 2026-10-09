@@ -219,6 +219,7 @@ export interface PredictionDetail {
   match_id: string;
   match_home_team: string;
   match_away_team: string;
+  match_kickoff?: string | null;
   model: string;
   model_version: string;
   prediction_version: string;
@@ -252,6 +253,8 @@ export interface PredictionHistoryItem {
   match_id: string;
   match_home_team: string;
   match_away_team: string;
+  match_kickoff?: string | null;
+  match_status?: string | null;
   model_version: string;
   prediction_version: string;
   generated_at: string;
@@ -260,6 +263,9 @@ export interface PredictionHistoryItem {
   home_probability?: number | null;
   draw_probability?: number | null;
   away_probability?: number | null;
+  over_2_5_probability?: number | null;
+  under_2_5_probability?: number | null;
+  btts_probability?: number | null;
   ai_adjustment_applied: boolean;
 }
 

@@ -62,6 +62,22 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+async def _delete_all_predictions(db: AsyncSession) -> list[str]:
+    """Delete all predictions, scorelines, and related evidence from the database."""
+    deleted_ids: list[str] = []
+
+    result = await db.execute(select(Prediction.id))
+    deleted_ids = [row[0] for row in result.all()]
+
+    await db.execute(delete(PredictionScoreline))
+    await db.execute(delete(Prediction))
+    await db.execute(delete(ResearchEvidence))
+    await db.execute(delete(ResearchRun))
+    await db.commit()
+
+    return deleted_ids
+
+
 @router.get("/stats", response_model=dict[str, Any])
 async def get_admin_stats(
     _admin: str = Depends(verify_admin_api_key),
@@ -229,41 +245,70 @@ async def trigger_batch_predictions(
         None, alias="league_ids", description="League IDs to generate predictions for"
     ),
     force_refresh: bool = Query(False, description="Force regeneration of existing predictions"),
+    clear_all: bool = Query(
+        False,
+        description="Delete ALL existing predictions from the database before generating new ones",
+    ),
+    include_research: bool = Query(
+        True,
+        description="Run DuckDuckGo research for team news before generating each prediction",
+    ),
+    limit: int = Query(
+        50,
+        ge=1,
+        le=500,
+        description="Maximum number of upcoming matches to generate predictions for",
+    ),
 ) -> dict[str, Any]:
     """Trigger batch prediction generation.
 
     Queues a background prediction job for upcoming matches.
     """
     from jobs.job_manager import create_job, update_job_status
-    from services.prediction_orchestrator import PredictionOrchestrator
 
     job_id = await create_job(
         job_type="batch_prediction",
         extra={
             "league_ids": league_ids or [],
             "force_refresh": force_refresh,
+            "clear_all": clear_all,
+            "include_research": include_research,
             "trigger": "admin_api",
         },
     )
-
-    orchestrator = PredictionOrchestrator()
 
     async def _run_batch():
         try:
             await update_job_status(job_id, "running")
             async with AsyncSessionLocal() as db:
-                result = await orchestrator.generate_upcoming_predictions(
+                if clear_all:
+                    deleted_count = await _delete_all_predictions(db)
+                    logger.info("Cleared all predictions", extra={"deleted": len(deleted_count)})
+
+                from services.ai_prediction_service import AIPredictionService
+
+                service = AIPredictionService(db_session=db)
+                result = await service.generate_predictions_for_league(
                     league_ids=league_ids,
-                    db_session=db,
-                    job_id=job_id,
+                    limit=limit,
+                    include_research=include_research,
                 )
-            await update_job_status(
-                job_id,
-                "completed",
-                succeeded=result.get("generated", 0),
-                failed=result.get("failed", 0),
-                extra={"total_matches": result.get("total_matches", 0)},
-            )
+
+                all_predictions = result.get("data", {}).get("predictions", [])
+                all_errors = result.get("data", {}).get("errors", [])
+
+                await update_job_status(
+                    job_id,
+                    "completed",
+                    succeeded=result.get("data", {}).get("generated", 0),
+                    failed=result.get("data", {}).get("failed", 0),
+                    extra={
+                        "total_matches": result.get("data", {}).get("total_matches", 0),
+                        "predictions": all_predictions,
+                        "errors": all_errors,
+                        "clear_all": clear_all,
+                    },
+                )
         except Exception as exc:
             await update_job_status(job_id, "failed", errors=[str(exc)])
 

@@ -91,21 +91,22 @@ async function PredictionDetailContent({
       match_id: res.match_id,
       match_home_team: homeName,
       match_away_team: awayName,
+      match_kickoff: res.match_kickoff || null,
       model: res.model_version || "poisson",
       model_version: res.model_version || "v1.0.0",
       prediction_version: res.prediction_version || "v1.0.0",
       generated_at: res.generated_at || new Date().toISOString(),
-      lambda_home: res.lambda_home || 1.5,
-      lambda_away: res.lambda_away || 1.2,
+      lambda_home: res.lambda_home ?? 0,
+      lambda_away: res.lambda_away ?? 0,
       expected_goals: {
-        home: res.lambda_home || 1.5,
-        away: res.lambda_away || 1.2,
+        home: res.lambda_home ?? 0,
+        away: res.lambda_away ?? 0,
       },
-      expected_total_goals: (res.lambda_home || 1.5) + (res.lambda_away || 1.2),
+      expected_total_goals: (res.lambda_home ?? 0) + (res.lambda_away ?? 0),
       result_probabilities: {
-        home: res.home_probability || 0,
-        draw: res.draw_probability || 0,
-        away: res.away_probability || 0,
+        home: res.home_probability ?? 0,
+        draw: res.draw_probability ?? 0,
+        away: res.away_probability ?? 0,
       },
       top_scoreline: res.top_scorelines?.[0]
         ? {
@@ -141,8 +142,8 @@ async function PredictionDetailContent({
         clean_sheets: { home_clean_sheet: 0, away_clean_sheet: 0 },
         double_chance: { home_or_draw: 0, draw_or_away: 0, home_or_away: 0 },
       },
-      data_quality: 0.5,
-      model_confidence: res.confidence || 0.5,
+      data_quality: 0,
+      model_confidence: res.confidence ?? 0,
       prediction_stability: "medium",
       feature_explanations: [],
       feature_snapshot: res.feature_snapshot || {},
@@ -196,7 +197,9 @@ async function PredictionDetailContent({
             </Badge>
           </CardTitle>
           <CardDescription>
-            Generated: {new Date(prediction.generated_at).toLocaleString()}
+            {prediction.match_kickoff
+              ? `Kickoff: ${new Date(prediction.match_kickoff).toLocaleString()}`
+              : `Generated: ${new Date(prediction.generated_at).toLocaleString()}`}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -17,6 +17,7 @@ The pipeline:
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -149,6 +150,7 @@ class AIPredictionService:
     async def generate_predictions_for_league(
         self,
         league_id: str | None = None,
+        league_ids: list[str] | None = None,
         db_session: AsyncSession | None = None,
         limit: int = 10,
         include_research: bool = True,
@@ -165,28 +167,34 @@ class AIPredictionService:
 
             async with AsyncSessionLocal() as session:
                 return await self._generate_predictions_batch(
-                    session, league_id, limit, include_research
+                    session, league_id, league_ids, limit, include_research
                 )
 
         return await self._generate_predictions_batch(
-            db, league_id, limit, include_research
+            db, league_id, league_ids, limit, include_research
         )
 
     async def _generate_predictions_batch(
         self,
         db: AsyncSession,
         league_id: str | None,
+        league_ids: list[str] | None,
         limit: int,
         include_research: bool,
     ) -> dict[str, Any]:
         from football_data.models import FixtureStatus
         from models.match import Match
 
+        now = datetime.utcnow()
+
         stmt = (
             select(Match)
             .where(
-                Match.status == FixtureStatus.SCHEDULED.value,
+                Match.status.in_(
+                    [FixtureStatus.SCHEDULED.value, FixtureStatus.LIVE.value]
+                ),
                 Match.is_finished.is_(False),
+                Match.kickoff_at >= now,
             )
             .order_by(Match.kickoff_at)
             .limit(limit)
@@ -194,6 +202,8 @@ class AIPredictionService:
 
         if league_id:
             stmt = stmt.where(Match.league_id == league_id)
+        if league_ids:
+            stmt = stmt.where(Match.league_id.in_(league_ids))
 
         result = await db.execute(stmt)
         matches = result.scalars().all()

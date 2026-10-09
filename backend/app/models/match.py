@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     JSON,
@@ -19,6 +19,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
 from models.league import _uuid
+
+if TYPE_CHECKING:
+    from models.league import League, Team
 
 
 class Match(Base):
@@ -53,6 +56,16 @@ class Match(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     league: Mapped["League"] = relationship("League", back_populates="matches")
+    home_team: Mapped[Team | None] = relationship(
+        "Team",
+        foreign_keys=[home_team_id],
+        lazy="selectin",
+    )
+    away_team: Mapped[Team | None] = relationship(
+        "Team",
+        foreign_keys=[away_team_id],
+        lazy="selectin",
+    )
 
 
 class MatchStatistics(Base):

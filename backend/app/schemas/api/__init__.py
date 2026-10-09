@@ -151,6 +151,9 @@ class PredictionHistoryItem(BaseModel):
     home_probability: float | None = None
     draw_probability: float | None = None
     away_probability: float | None = None
+    over_2_5_probability: float | None = None
+    under_2_5_probability: float | None = None
+    btts_probability: float | None = None
     ai_adjustment_applied: bool = False
     context_hash: str | None = None
 
