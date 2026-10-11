@@ -488,6 +488,8 @@ export const api = {
     date_from?: string;
     date_to?: string;
     upcoming_only?: boolean;
+    played?: boolean;
+    kickoff_date?: string;
     page?: number;
     page_size?: number;
   }) => {
@@ -531,6 +533,9 @@ export const api = {
       away_goals: number;
       probability: number;
     }>;
+    admin_verify_gg: boolean | null;
+    admin_verify_win: boolean | null;
+    admin_verify_over_2_5: boolean | null;
   }>(`/api/v1/predictions/${id}`),
   getMatchPredictions: (matchId: string, params?: { page?: number; page_size?: number }) => {
     const search = new URLSearchParams();
@@ -620,6 +625,8 @@ export const api = {
       date_from?: string;
       date_to?: string;
       upcoming_only?: boolean;
+      played?: boolean;
+      kickoff_date?: string;
       page?: number;
       page_size?: number;
     }) => {
@@ -724,5 +731,23 @@ export const api = {
           extra?: Record<string, unknown>;
         };
       }>(`/api/v1/predictions/jobs/${jobId}`),
+    verifyPrediction: (id: string, data: {
+      gg?: boolean;
+      win?: boolean;
+      over_2_5?: boolean;
+    }) =>
+      adminCall<{
+        prediction_id: string;
+        admin_verify_gg: boolean | null;
+        admin_verify_win: boolean | null;
+        admin_verify_over_2_5: boolean | null;
+      }>(
+        `/api/v1/predictions/${encodeURIComponent(id)}/verify${buildQs({
+          gg: data.gg,
+          win: data.win,
+          over_2_5: data.over_2_5,
+        })}`,
+        { method: "PUT" },
+      ),
   },
 };

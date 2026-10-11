@@ -385,6 +385,10 @@ class Prediction(Base):
     context_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
+    admin_verify_gg: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+    admin_verify_win: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+    admin_verify_over_2_5: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+
     __table_args__ = (
         # A match+model_version should produce at most one active prediction
     )

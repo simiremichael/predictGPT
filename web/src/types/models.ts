@@ -245,10 +245,13 @@ export interface PredictionDetail {
   ai_explanation?: string | null;
   confidence: number;
   uncertainty: number;
-  source_ids: string[];
-}
+   source_ids: string[];
+   admin_verify_gg?: boolean | null;
+   admin_verify_win?: boolean | null;
+   admin_verify_over_2_5?: boolean | null;
+ }
 
-export interface PredictionHistoryItem {
+ export interface PredictionHistoryItem {
   prediction_id: string;
   match_id: string;
   match_home_team: string;
@@ -265,11 +268,14 @@ export interface PredictionHistoryItem {
   away_probability?: number | null;
   over_2_5_probability?: number | null;
   under_2_5_probability?: number | null;
-  btts_probability?: number | null;
-  ai_adjustment_applied: boolean;
-}
+   btts_probability?: number | null;
+   ai_adjustment_applied: boolean;
+   admin_verify_gg?: boolean | null;
+   admin_verify_win?: boolean | null;
+   admin_verify_over_2_5?: boolean | null;
+ }
 
-export interface SearchResultItem {
+ export interface SearchResultItem {
   id: string;
   type: string;
   name: string;

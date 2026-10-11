@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { CheckSquare, RefreshCw, Search, Square, Trash2 } from "lucide-react";
+import { CheckSquare, Calendar, RefreshCw, Search, Square, Trash2 } from "lucide-react";
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useDebounce } from "@/lib/hooks/useDebounce";
 import { api, ApiError, type AdminLeague, type AdminTeam } from "@/lib/api";
 import type {
   PredictionHistoryItem,
@@ -65,9 +66,10 @@ function Toggle({
 function AdminLeagues() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [actionId, setActionId] = useState<string | null>(null);
+  const searchTerm = useDebounce(searchInput, 500);
 
   const {
     data: listResult,
@@ -159,7 +161,7 @@ function AdminLeagues() {
   if (!listResult || rows.length === 0) {
     return (
       <EmptyState
-        title={searchTerm ? "No leagues match your search" : "No leagues found"}
+        title={searchInput ? "No leagues match your search" : "No leagues found"}
       />
     );
   }
@@ -172,9 +174,9 @@ function AdminLeagues() {
           <Input
             className="pl-9"
             placeholder="Search leagues..."
-            value={searchTerm}
+            value={searchInput}
             onChange={(e) => {
-              setSearchTerm(e.target.value);
+              setSearchInput(e.target.value);
               setPage(1);
               setSelected(new Set());
             }}
@@ -290,12 +292,14 @@ function AdminLeagues() {
 function AdminTeams() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [leagueId, setLeagueId] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [leagueInput, setLeagueInput] = useState("");
   const [fetchLeagueId, setFetchLeagueId] = useState("");
   const [fetchSeasonId, setFetchSeasonId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [actionId, setActionId] = useState<string | null>(null);
+  const searchTerm = useDebounce(searchInput, 500);
+  const leagueId = useDebounce(leagueInput, 500);
 
   const {
     data: listResult,
@@ -398,9 +402,9 @@ function AdminTeams() {
           <Input
             className="pl-9"
             placeholder="Search teams..."
-            value={searchTerm}
+            value={searchInput}
             onChange={(e) => {
-              setSearchTerm(e.target.value);
+              setSearchInput(e.target.value);
               setPage(1);
               setSelected(new Set());
             }}
@@ -409,10 +413,11 @@ function AdminTeams() {
         <Input
           className="w-44"
           placeholder="Provider league id (e.g. 85)"
-          value={leagueId}
+          value={leagueInput}
           onChange={(e) => {
-            setLeagueId(e.target.value);
+            setLeagueInput(e.target.value);
             setPage(1);
+            setSearchInput("");
           }}
         />
         <Button
@@ -558,9 +563,10 @@ const now = () => new Date().toISOString().slice(0, 10);
 function FixturesTab() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState(() => now());
-  const [leagueId, setLeagueId] = useState("");
+  const [leagueInput, setLeagueInput] = useState("");
   const [resyncResult, setResyncResult] = useState<string | null>(null);
   const [matchPage, setMatchPage] = useState(1);
+  const leagueId = useDebounce(leagueInput, 500);
 
   const resync = useMutation({
     mutationFn: () =>
@@ -636,14 +642,14 @@ function FixturesTab() {
           <label className="mb-1 block text-sm font-medium">
             League ID (optional provider id)
           </label>
-          <Input
+           <Input
             placeholder="e.g. 85"
-            value={leagueId}
+            value={leagueInput}
             onChange={(e) => {
-              setLeagueId(e.target.value);
+              setLeagueInput(e.target.value);
               setMatchPage(1);
             }}
-          />
+           />
         </div>
         <div className="flex items-end gap-2">
           <Button
@@ -744,18 +750,105 @@ function AdminPredictions() {
   const [forceRefresh, setForceRefresh] = useState(false);
   const [clearAll, setClearAll] = useState(false);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [filterPlayed, setFilterPlayed] = useState<boolean | null>(null);
+  const [filterDate, setFilterDate] = useState<string | null>(null);
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [verifyStates, setVerifyStates] = useState<
+    Record<string, { gg: boolean; win: boolean; over_2_5: boolean }>
+  >({});
+
+  const matchPassed = (kickoff?: string | null): boolean =>
+    !!kickoff &&
+    new Date(kickoff).getTime() + 100 * 60 * 1000 < Date.now();
+
+  const renderMarketBox = (
+    prediction: PredictionHistoryItem,
+    key: "gg" | "win" | "over_2_5",
+    label: string,
+  ) => {
+    const v = verifyStates[prediction.prediction_id]?.[key] ??
+      (key === "gg" ? prediction.admin_verify_gg :
+       key === "win" ? prediction.admin_verify_win :
+       prediction.admin_verify_over_2_5) ?? false;
+    const passed = matchPassed(prediction.match_kickoff);
+
+    let outcome = "";
+    if (key === "gg") {
+      outcome = prediction.btts_probability
+        ? (prediction.btts_probability >= 0.5 ? "GG" : "NG")
+        : "";
+    } else if (key === "win") {
+      if (prediction.home_probability &&
+          prediction.home_probability >= (prediction.draw_probability ?? 0) &&
+          prediction.home_probability >= (prediction.away_probability ?? 0)) {
+        outcome = "H";
+      } else if (prediction.draw_probability &&
+                 prediction.draw_probability >= (prediction.away_probability ?? 0)) {
+        outcome = "D";
+      } else if (prediction.away_probability) {
+        outcome = "A";
+      }
+    } else if (key === "over_2_5") {
+      outcome = prediction.over_2_5_probability
+        ? (prediction.over_2_5_probability >= 0.5 ? "O2.5" : "U2.5")
+        : "";
+    }
+
+    return (
+      <td className="px-3 py-2 text-center" key={key}>
+        <label className="flex items-center justify-center gap-1 text-xs">
+          <input
+            type="checkbox"
+            checked={v}
+            onChange={async (e) => {
+              const val = e.target.checked;
+              setVerifyStates((s) => ({
+                ...s,
+                [prediction.prediction_id]: { ...s[prediction.prediction_id], [key]: val },
+              }));
+              await verifyMutation.mutateAsync({ id: prediction.prediction_id, data: { [key]: val } });
+            }}
+          />
+          {v ? (
+            <span className="text-green-600">✓</span>
+          ) : (
+            <span className={passed ? "text-red-600" : "text-muted-foreground"}>
+              {passed ? "✗" : ""}
+            </span>
+          )}
+          <span className="ml-1 font-mono text-xs">
+            {outcome}
+          </span>
+          <span title={label} className="sr-only">{label}</span>
+        </label>
+      </td>
+    );
+  };
+
+  const verifyMutation = useMutation({
+    mutationFn: ({ id, data }: {
+      id: string;
+      data: { gg?: boolean; win?: boolean; over_2_5?: boolean };
+    }) => api.admin.verifyPrediction(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
+    },
+    onError: (e: unknown) => toast.error(errMsg(e)),
+  });
 
   const {
     data: listResult,
     error,
     isPending: loading,
   } = useQuery({
-    queryKey: ["admin-predictions", page],
+    queryKey: ["admin-predictions", page, filterPlayed, filterDate],
     queryFn: () =>
       api.admin.listPredictions({
         page,
         page_size: PAGE_SIZE,
         upcoming_only: false,
+        played: filterPlayed ?? undefined,
+        kickoff_date: filterDate ?? undefined,
       }),
   });
 
@@ -900,13 +993,57 @@ function AdminPredictions() {
   if (!listResult || rows.length === 0)
     return <EmptyState title="No predictions found" />;
 
-  return (
+   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm text-muted-foreground">
           {total} predictions
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant={filterDate === todayStr ? "default" : "outline"}
+              onClick={() => setFilterDate(todayStr)}
+            >
+              Today
+            </Button>
+            <Button
+              size="sm"
+              variant={filterPlayed === true ? "default" : "outline"}
+              onClick={() => setFilterPlayed(true)}
+            >
+              Played
+            </Button>
+            <Button
+              size="sm"
+              variant={filterPlayed === false ? "default" : "outline"}
+              onClick={() => setFilterPlayed(false)}
+            >
+              Not played
+            </Button>
+            <div className="relative">
+              <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="date"
+                value={filterDate ?? ""}
+                onChange={(e) => setFilterDate(e.target.value || null)}
+                className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
+              />
+            </div>
+            {(filterPlayed !== null || filterDate) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setFilterPlayed(null);
+                  setFilterDate(null);
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -915,23 +1052,35 @@ function AdminPredictions() {
             />
             Force refresh
           </label>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-sm font-medium text-destructive">
             <input
               type="checkbox"
               checked={clearAll}
-              onChange={(e) => setClearAll(e.target.checked)}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  if (!confirm("Clear ALL existing predictions before generating new ones?")) {
+                    return;
+                  }
+                }
+                setClearAll(e.target.checked);
+              }}
             />
-            Clear all
+            Clear all existing predictions
           </label>
-          <Button
+           <Button
             variant="outline"
-            onClick={() =>
+            onClick={() => {
+              if (clearAll && !confirm(
+                "WARNING: This will delete ALL existing predictions.\n\nClick OK to proceed, Cancel to keep existing predictions.",
+              )) {
+                return;
+              }
               void generateMutation.mutate({
                 clear_all: clearAll,
                 include_research: true,
                 limit: 50,
-              })
-            }
+              });
+            }}
             disabled={generateMutation.isPending || !!currentJobId}
           >
             {generateMutation.isPending || currentJobId
@@ -971,9 +1120,12 @@ function AdminPredictions() {
               <th className="px-3 py-2 font-medium">A</th>
               <th className="px-3 py-2 font-medium">Top 4 Scorelines</th>
               <th className="px-3 py-2 font-medium">Research</th>
-              <th className="px-3 py-2 font-medium">AI Adj.</th>
-              <th className="px-3 py-2 font-medium">Match Date</th>
-            </tr>
+               <th className="px-3 py-2 font-medium">AI Adj.</th>
+               <th className="px-3 py-2 font-medium">Match Date</th>
+                <th className="px-3 py-2 font-medium">BTTS</th>
+                <th className="px-3 py-2 font-medium">Win</th>
+                <th className="px-3 py-2 font-medium">O 2.5</th>
+             </tr>
           </thead>
           <tbody>
             {rows.map((p: PredictionHistoryItem) => (
@@ -1020,12 +1172,15 @@ function AdminPredictions() {
                     <span className="text-xs text-muted-foreground">Base</span>
                   )}
                 </td>
-                <td className="px-3 py-2">
-                  {p.match_kickoff
-                    ? new Date(p.match_kickoff).toLocaleString()
-                    : "—"}
-                </td>
-                <td className="px-3 py-2 text-right">
+                 <td className="px-3 py-2">
+                   {p.match_kickoff
+                     ? new Date(p.match_kickoff).toLocaleString()
+                     : "—"}
+                 </td>
+                 {renderMarketBox(p, "gg", "BTTS")}
+                 {renderMarketBox(p, "win", "Win")}
+                 {renderMarketBox(p, "over_2_5", "Over 2.5")}
+                 <td className="px-3 py-2 text-right">
                   <Button
                     variant="destructive"
                     size="sm"

@@ -156,6 +156,9 @@ class PredictionHistoryItem(BaseModel):
     btts_probability: float | None = None
     ai_adjustment_applied: bool = False
     context_hash: str | None = None
+    admin_verify_gg: bool | None = None
+    admin_verify_win: bool | None = None
+    admin_verify_over_2_5: bool | None = None
 
 
 class PredictionComparisonItem(BaseModel):

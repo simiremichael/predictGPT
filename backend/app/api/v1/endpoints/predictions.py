@@ -17,7 +17,7 @@ the Phase 3 statistical model and Phase 4 research/AI layers.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -127,11 +127,71 @@ async def get_prediction(
     }
 
     try:
-        await set_cached(cache_key, response, ttl=300)
+        await set_cached(cache_key, response, ttl=get_settings().cache_ttl_predictions)
     except Exception:
         pass
 
     return response
+
+
+class PredictionVerifyRequest(BaseModel):
+    gg: bool | None = None
+    win: bool | None = None
+    over_2_5: bool | None = None
+
+
+@router.put(
+    "/predictions/{prediction_id}/verify",
+    summary="Verify a prediction (admin)",
+    response_model=dict[str, Any],
+    dependencies=[Depends(verify_admin_api_key)],
+)
+async def verify_prediction(
+    prediction_id: str,
+    body: PredictionVerifyRequest = Depends(),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Set admin verification flags for a prediction.
+
+    - gg: whether the admin checked BTTS (both teams scored)
+    - win: whether the admin confirmed the team with highest probability won
+    - over_2_5: whether the admin confirmed over 2.5 goals
+    """
+    from models.match import Prediction
+
+    stmt = select(Prediction).where(Prediction.id == prediction_id)
+    result = await db.execute(stmt)
+    prediction = result.scalar_one_or_none()
+    if prediction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Prediction {prediction_id} not found",
+        )
+
+    if body.gg is not None:
+        prediction.admin_verify_gg = body.gg
+    if body.win is not None:
+        prediction.admin_verify_win = body.win
+    if body.over_2_5 is not None:
+        prediction.admin_verify_over_2_5 = body.over_2_5
+
+    await db.commit()
+    await db.refresh(prediction)
+
+    invalidate_cache_keys(
+        cache_match_prediction_key(prediction.match_id),
+        cache_predictions_list_key(),
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "prediction_id": prediction.id,
+            "admin_verify_gg": prediction.admin_verify_gg,
+            "admin_verify_win": prediction.admin_verify_win,
+            "admin_verify_over_2_5": prediction.admin_verify_over_2_5,
+        },
+    }
 
 
 @router.post(
@@ -279,6 +339,14 @@ async def list_predictions(
         False,
         description="Only show predictions for matches that haven't been played yet (status='scheduled' and kickoff_at >= now)",
     ),
+    played: bool | None = Query(
+        None,
+        description="Filter by match played status. True for played, False for not played.",
+    ),
+    kickoff_date: date | None = Query(
+        None,
+        description="Filter by match kickoff date (YYYY-MM-DD).",
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
@@ -295,6 +363,8 @@ async def list_predictions(
         date_from=date_from,
         date_to=date_to,
         upcoming_only=upcoming_only,
+        played=played,
+        kickoff_date=str(kickoff_date) if kickoff_date else None,
         page=page_num,
         page_size=ps,
     )
@@ -337,6 +407,12 @@ async def list_predictions(
     if upcoming_only:
         now = datetime.utcnow()
         stmt = stmt.where(Match.kickoff_at >= now).where(Match.is_finished.is_(False))
+    if played is not None:
+        stmt = stmt.where(Match.is_finished.is_(played))
+    if kickoff_date:
+        start = datetime.combine(kickoff_date, datetime.min.time())
+        end = start + timedelta(days=1)
+        stmt = stmt.where(Match.kickoff_at >= start).where(Match.kickoff_at < end)
 
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total_result = await db.execute(total_stmt)
@@ -371,6 +447,9 @@ async def list_predictions(
             btts_probability=p.btts_probability,
             ai_adjustment_applied=bool(p.ai_adjustment_json),
             context_hash=p.context_hash,
+            admin_verify_gg=p.admin_verify_gg,
+            admin_verify_win=p.admin_verify_win,
+            admin_verify_over_2_5=p.admin_verify_over_2_5,
         )
         for p, home_name, away_name, match_kickoff, match_status in predictions
     ]
@@ -465,6 +544,9 @@ async def get_prediction_by_id(
             "ai_adjustment": pred.ai_adjustment_json,
             "source_ids": pred.source_ids,
             "context_hash": pred.context_hash,
+            "admin_verify_gg": pred.admin_verify_gg,
+            "admin_verify_win": pred.admin_verify_win,
+            "admin_verify_over_2_5": pred.admin_verify_over_2_5,
             "top_scorelines": [
                 {
                     "rank": sl.rank,

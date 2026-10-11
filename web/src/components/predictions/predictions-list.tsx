@@ -10,6 +10,7 @@ import {
   PaginationControls,
 } from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { PredictionHistoryItem } from "@/types/models";
 import { getConfidenceColor } from "@/lib/predictions";
 
@@ -35,6 +36,9 @@ export function PredictionsList({
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filterPlayed, setFilterPlayed] = useState<boolean | null>(null);
+  const [filterDate, setFilterDate] = useState<string | null>(null);
+  const todayStr = new Date().toISOString().split("T")[0];
 
   async function fetchPredictions(requestedPage: number = page) {
     setLoading(true);
@@ -46,6 +50,8 @@ export function PredictionsList({
         team_id: teamId || undefined,
         page: requestedPage,
         page_size: initialPageSize,
+        played: filterPlayed ?? undefined,
+        kickoff_date: filterDate ?? undefined,
       });
       setResult(data);
     } catch (e) {
@@ -58,7 +64,7 @@ export function PredictionsList({
   useEffect(() => {
     void fetchPredictions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filterPlayed, filterDate]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -92,6 +98,50 @@ export function PredictionsList({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          size="sm"
+          variant={filterDate === todayStr ? "default" : "outline"}
+          onClick={() => setFilterDate(todayStr)}
+        >
+          Today
+        </Button>
+        <Button
+          size="sm"
+          variant={filterPlayed === true ? "default" : "outline"}
+          onClick={() => setFilterPlayed(true)}
+        >
+          Played
+        </Button>
+        <Button
+          size="sm"
+          variant={filterPlayed === false ? "default" : "outline"}
+          onClick={() => setFilterPlayed(false)}
+        >
+          Not played
+        </Button>
+        <div className="relative">
+          <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="date"
+            value={filterDate ?? ""}
+            onChange={(e) => setFilterDate(e.target.value || null)}
+            className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
+          />
+        </div>
+        {(filterPlayed !== null || filterDate) && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setFilterPlayed(null);
+              setFilterDate(null);
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </div>
       {result.data.map((item: PredictionHistoryItem) => (
         <PredictionItem key={item.prediction_id} item={item} />
       ))}
@@ -106,6 +156,25 @@ export function PredictionsList({
 
 function PredictionItem({ item }: { item: PredictionHistoryItem }) {
   const confidenceInfo = getConfidenceColor(item.model_confidence);
+
+  const matchPassed =
+    item.match_kickoff &&
+    new Date(item.match_kickoff).getTime() + 100 * 60 * 1000 < Date.now();
+
+  const renderVerify = (
+    checked: boolean | null | undefined,
+  ) => {
+    if (checked === true) {
+      return <span className="text-center text-green-600">✓</span>;
+    }
+    if (matchPassed) {
+      return <span className="text-center text-red-600">✗</span>;
+    }
+    if (checked === false) {
+      return <span className="text-center text-red-600">✗</span>;
+    }
+    return null;
+  };
 
   return (
     <Link href={`/predictions/${item.prediction_id}`}>
@@ -130,60 +199,56 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-right">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-muted/40 px-2 py-1.5">
-                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  H
-                </div>
-                <div className="mt-1 text-sm font-bold text-foreground">
-                  {item.home_probability
-                    ? `${Math.round(item.home_probability * 100)}%`
-                    : "N/A"}
-                </div>
+          <div className="flex items-center gap-3 text-right">
+            {/* Win prediction */}
+            <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
+              <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                Win
               </div>
-              <div className="rounded-xl bg-muted/40 px-2 py-1.5">
-                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  D
-                </div>
-                <div className="mt-1 text-sm font-bold text-foreground">
-                  {item.draw_probability
-                    ? `${Math.round(item.draw_probability * 100)}%`
-                    : "N/A"}
-                </div>
+              <div className="mt-0.5 text-sm font-bold text-foreground">
+                {item.home_probability != null &&
+                item.home_probability >= (item.draw_probability ?? 0) &&
+                item.home_probability >= (item.away_probability ?? 0)
+                  ? "H"
+                  : item.draw_probability != null &&
+                      item.draw_probability >= (item.away_probability ?? 0)
+                    ? "D"
+                    : "A"}
               </div>
-              <div className="rounded-xl bg-muted/40 px-2 py-1.5">
-                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  A
-                </div>
-                <div className="mt-1 text-sm font-bold text-foreground">
-                  {item.away_probability
-                    ? `${Math.round(item.away_probability * 100)}%`
-                    : "N/A"}
-                </div>
+              <div className="text-[9px] text-muted-foreground">
+                {renderVerify(item.admin_verify_win)}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded-xl bg-muted/40 px-2 py-1.5">
-                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  O 2.5
-                </div>
-                <div className="mt-1 text-sm font-bold text-foreground">
-                  {item.over_2_5_probability
-                    ? `${Math.round(item.over_2_5_probability * 100)}%`
-                    : "—"}
-                </div>
+            {/* Over 2.5 prediction */}
+            <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
+              <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                O 2.5
               </div>
-              <div className="rounded-xl bg-muted/40 px-2 py-1.5">
-                <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                  BTTS
-                </div>
-                <div className="mt-1 text-sm font-bold text-foreground">
-                  {item.btts_probability
-                    ? `${Math.round(item.btts_probability * 100)}%`
-                    : "—"}
-                </div>
+              <div className="mt-0.5 text-sm font-bold text-foreground">
+                {item.over_2_5_probability != null &&
+                item.over_2_5_probability >= 0.5
+                  ? "O2.5"
+                  : "U2.5"}
+              </div>
+              <div className="text-[9px] text-muted-foreground">
+                {renderVerify(item.admin_verify_over_2_5)}
+              </div>
+            </div>
+
+            {/* BTTS prediction */}
+            <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
+              <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                BTTS
+              </div>
+              <div className="mt-0.5 text-sm font-bold text-foreground">
+                {item.btts_probability != null &&
+                item.btts_probability >= 0.5
+                  ? "GG"
+                  : "NG"}
+              </div>
+              <div className="text-[9px] text-muted-foreground">
+                {renderVerify(item.admin_verify_gg)}
               </div>
             </div>
 
@@ -201,6 +266,29 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
               AI-adjusted
             </div>
           )}
+
+          {matchPassed && (
+            <div className="mt-3 flex items-center gap-3 text-[10px]">
+              <span>Verified:</span>
+              <span title="BTTS">{renderVerify(item.admin_verify_gg)}</span>
+              <span title="Win">{renderVerify(item.admin_verify_win)}</span>
+              <span title="Over 2.5">{renderVerify(item.admin_verify_over_2_5)}</span>
+            </div>
+          )}
+          {item.admin_verify_gg !== null &&
+            item.admin_verify_gg !== undefined &&
+            item.admin_verify_win !== null &&
+            item.admin_verify_win !== undefined &&
+            item.admin_verify_over_2_5 !== null &&
+            item.admin_verify_over_2_5 !== undefined &&
+            !matchPassed && (
+              <div className="mt-3 flex items-center gap-3 text-[10px]">
+                <span>Verified:</span>
+                <span title="BTTS">{renderVerify(item.admin_verify_gg)}</span>
+                <span title="Win">{renderVerify(item.admin_verify_win)}</span>
+                <span title="Over 2.5">{renderVerify(item.admin_verify_over_2_5)}</span>
+              </div>
+            )}
         </div>
       </div>
     </Link>

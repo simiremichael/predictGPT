@@ -248,8 +248,8 @@ class FeatureBuilder:
         away_stats = match_input.away_team_stats
 
         # Use team stats to estimate league averages
-        home_gpg = home_stats.goals_per_game if home_stats and home_stats.goals_per_game else 1.5
-        away_gpg = away_stats.goals_per_game if away_stats and away_stats.goals_per_game else 1.0
+        home_gpg = home_stats.goals_per_game if home_stats and home_stats.goals_per_game else 1.45
+        away_gpg = away_stats.goals_per_game if away_stats and away_stats.goals_per_game else 1.25
 
         # Try to get more precise league averages from form
         home_scored = 0.0

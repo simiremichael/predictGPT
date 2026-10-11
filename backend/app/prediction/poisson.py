@@ -49,7 +49,7 @@ class PoissonModel:
     model_version = "poisson-v1.0.0"
     MAX_GOALS = 8
 
-    HOME_ADVANTAGE_MULTIPLIER = 1.10
+    HOME_ADVANTAGE_MULTIPLIER = 1.05
     HOME_FORM_WEIGHT = 0.15
     MIN_HOME_ADVANTAGE = 1.00
 
