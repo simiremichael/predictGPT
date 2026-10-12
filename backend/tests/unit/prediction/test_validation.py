@@ -11,6 +11,7 @@ Tests cover:
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -87,6 +88,15 @@ def model_result() -> ModelResult:
 
 class TestPredictionValidation:
     """Tests for prediction output validation."""
+
+    def test_rejects_prediction_after_kickoff(self, match_input: PredictionInput) -> None:
+        service = PredictionService()
+        past_kickoff = replace(
+            match_input, kickoff_at=datetime.utcnow() - timedelta(minutes=1)
+        )
+
+        with pytest.raises(PredictionValidationError, match="after kickoff"):
+            service._validate_match_eligibility(past_kickoff)
 
     def test_valid_prediction_passes_validation(self, model_result: ModelResult) -> None:
         """A valid prediction should pass all validation checks."""
@@ -171,13 +181,13 @@ class TestModelVersioning:
     def test_model_has_version(self) -> None:
         """PoissonModel should have a model_version."""
         model = PoissonModel()
-        assert model.model_version == "poisson-v1.0.0"
+        assert model.model_version == "poisson-v1.2.0"
 
     def test_model_version_in_result(self, match_input: PredictionInput) -> None:
         """Model result should include the model version."""
         model = PoissonModel()
         result = model.predict(match_input)
-        assert result.model_version == "poisson-v1.0.0"
+        assert result.model_version == "poisson-v1.2.0"
         assert result.model == "poisson"
 
     def test_model_parameters_stored_in_result(self, match_input: PredictionInput) -> None:
@@ -246,7 +256,6 @@ class TestModelConfidence:
         """Higher data quality should increase confidence."""
         service = PredictionService()
         matrix = ScoreMatrix.from_model_result(model_result)
-        top_4 = matrix.get_top_scorelines(n=4)
         hda = matrix.get_result_probabilities()
 
         features = MagicMock()
@@ -258,7 +267,7 @@ class TestModelConfidence:
         features.away_attack_strength = 0.9
         features.away_form_strength = 1.0
 
-        confidence = service._compute_model_confidence(0.9, top_4, hda)
+        confidence = service._compute_model_confidence(0.9, hda)
         assert 0.0 <= confidence <= 1.0
         assert confidence > 0.0
 
@@ -266,12 +275,21 @@ class TestModelConfidence:
         """Lower data quality should decrease confidence."""
         service = PredictionService()
         matrix = ScoreMatrix.from_model_result(model_result)
-        top_4 = matrix.get_top_scorelines(n=4)
         hda = matrix.get_result_probabilities()
 
-        confidence = service._compute_model_confidence(0.1, top_4, hda)
+        confidence = service._compute_model_confidence(0.1, hda)
         assert 0.0 <= confidence <= 1.0
         assert confidence < 0.5
+
+    def test_clearer_1x2_pick_increases_confidence(self) -> None:
+        service = PredictionService()
+        even = service._compute_model_confidence(
+            0.7, {"home": 0.34, "draw": 0.33, "away": 0.33}
+        )
+        clear = service._compute_model_confidence(
+            0.7, {"home": 0.70, "draw": 0.20, "away": 0.10}
+        )
+        assert clear > even
 
 
 class TestPredictionStability:

@@ -194,3 +194,24 @@ class TestAIFeatureBuilder:
         builder = AIFeatureBuilder()
         features = builder.build(research_result)
         assert "injury records" in features.evidence_summary or "sources" in features.evidence_summary
+
+    def test_historical_search_snippet_is_passed_with_source_and_warning(self) -> None:
+        result = MatchResearchResult(
+            match_id="test",
+            sources=[
+                ResearchSource(
+                    url="https://www.espn.com/football/results",
+                    title="Recent results",
+                    snippet="Arsenal won 2-0 in its last league fixture.",
+                    search_category="historical_scores",
+                    credibility_score=0.9,
+                )
+            ],
+        )
+
+        features = AIFeatureBuilder().build(result)
+
+        assert len(features.search_context) == 1
+        assert "Arsenal won 2-0" in features.evidence_text
+        assert "Unverified DuckDuckGo search material" in features.evidence_text
+        assert "https://www.espn.com/football/results" in features.evidence_text

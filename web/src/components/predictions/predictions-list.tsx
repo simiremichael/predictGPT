@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { TrendingUp, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { api } from "@/lib/api";
 import {
   LoadingState,
   EmptyState,
-  PaginationControls,
 } from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AIGeneratedBadge } from "@/components/ai-generated-badge";
 import type { PredictionHistoryItem } from "@/types/models";
 import { getConfidenceColor } from "@/lib/predictions";
 
 interface PredictionsListProps {
-  page: number;
   pageSize: number;
   matchId?: string;
   leagueId?: string;
@@ -23,62 +23,56 @@ interface PredictionsListProps {
 }
 
 export function PredictionsList({
-  page: initialPage,
   pageSize: initialPageSize,
   matchId,
   leagueId,
   teamId,
 }: PredictionsListProps) {
-  const [page, setPage] = useState(initialPage);
-  const [result, setResult] = useState<{
-    data: PredictionHistoryItem[];
-    meta: { total_pages?: number; total?: number };
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filterPlayed, setFilterPlayed] = useState<boolean | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const todayStr = new Date().toISOString().split("T")[0];
 
-  async function fetchPredictions(requestedPage: number = page) {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getPredictions({
+  const {
+    data: result,
+    error,
+    isPending: loading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: [
+      "predictions",
+      matchId,
+      leagueId,
+      teamId,
+      filterPlayed,
+      filterDate,
+      initialPageSize,
+    ],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      api.getPredictions({
         match_id: matchId || undefined,
         league_id: leagueId || undefined,
         team_id: teamId || undefined,
-        page: requestedPage,
+        page: pageParam,
         page_size: initialPageSize,
         played: filterPlayed ?? undefined,
         kickoff_date: filterDate ?? undefined,
-      });
-      setResult(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load predictions");
-    } finally {
-      setLoading(false);
-    }
-  }
+      }),
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.page < lastPage.meta.total_pages
+        ? lastPage.meta.page + 1
+        : undefined,
+  });
 
-  useEffect(() => {
-    void fetchPredictions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterPlayed, filterDate]);
+  const rows = result?.pages.flatMap((pageResult) => pageResult.data) ?? [];
 
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    const url = new URL(window.location.href);
-    url.searchParams.set("page", String(newPage));
-    window.history.pushState({}, "", url.toString());
-    void fetchPredictions(newPage);
-  };
-
-  if (error) {
+  if (error && !result) {
     return (
       <EmptyState
         title="Failed to load predictions"
-        description="Please try again later."
+        description={error.message || "Please try again later."}
       />
     );
   }
@@ -87,7 +81,7 @@ export function PredictionsList({
     return <LoadingState message="Loading predictions..." />;
   }
 
-  if (!result || result.data.length === 0) {
+  if (!result || rows.length === 0) {
     return (
       <EmptyState
         title="No predictions found"
@@ -106,20 +100,26 @@ export function PredictionsList({
         >
           Today
         </Button>
-        <Button
-          size="sm"
-          variant={filterPlayed === true ? "default" : "outline"}
-          onClick={() => setFilterPlayed(true)}
-        >
-          Played
-        </Button>
-        <Button
-          size="sm"
-          variant={filterPlayed === false ? "default" : "outline"}
-          onClick={() => setFilterPlayed(false)}
-        >
-          Not played
-        </Button>
+        <fieldset className="flex items-center gap-3 rounded-md border border-border px-3 py-1.5 text-sm">
+          <legend className="sr-only">Match status</legend>
+          {([
+            ["all", null, "All"],
+            ["played", true, "Played"],
+            ["unplayed", false, "Unplayed"],
+          ] as const).map(([value, played, label]) => (
+            <label key={value} className="flex cursor-pointer items-center gap-1.5">
+              <input
+                type="radio"
+                name="prediction-played-filter"
+                value={value}
+                checked={filterPlayed === played}
+                onChange={() => setFilterPlayed(played)}
+                className="accent-primary"
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
         <div className="relative">
           <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -142,14 +142,21 @@ export function PredictionsList({
           </Button>
         )}
       </div>
-      {result.data.map((item: PredictionHistoryItem) => (
+      {rows.map((item: PredictionHistoryItem) => (
         <PredictionItem key={item.prediction_id} item={item} />
       ))}
-      <PaginationControls
-        currentPage={page}
-        totalPages={result.meta.total_pages || 1}
-        onPageChange={handlePageChange}
-      />
+      {error && <p className="text-center text-sm text-destructive">{error.message}</p>}
+      {hasNextPage && (
+        <div className="flex justify-center py-2">
+          <Button
+            variant="outline"
+            onClick={() => void fetchNextPage()}
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? "Loading..." : "Load more"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -157,23 +164,21 @@ export function PredictionsList({
 function PredictionItem({ item }: { item: PredictionHistoryItem }) {
   const confidenceInfo = getConfidenceColor(item.model_confidence);
 
-  const matchPassed =
-    item.match_kickoff &&
-    new Date(item.match_kickoff).getTime() + 100 * 60 * 1000 < Date.now();
-
   const renderVerify = (
     checked: boolean | null | undefined,
   ) => {
     if (checked === true) {
-      return <span className="text-center text-green-600">✓</span>;
+      return (
+        <span className="text-center text-green-600" aria-label="Passed">
+          ✓
+        </span>
+      );
     }
-    if (matchPassed) {
-      return <span className="text-center text-red-600">✗</span>;
-    }
-    if (checked === false) {
-      return <span className="text-center text-red-600">✗</span>;
-    }
-    return null;
+    return (
+      <span className="text-center text-red-600" aria-label="Failed">
+        ✗
+      </span>
+    );
   };
 
   return (
@@ -182,11 +187,16 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className={confidenceInfo.bg}>
+              <Badge
+                variant="secondary"
+                className={confidenceInfo.bg}
+                title="Heuristic model confidence based on data quality and how clearly the 1X2 probabilities favor one outcome. It is not a guarantee."
+              >
                 <span className={confidenceInfo.text}>
                   {confidenceInfo.label}
                 </span>
               </Badge>
+              <AIGeneratedBadge />
               <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 {item.model_version}
               </span>
@@ -260,35 +270,6 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
             </div>
           </div>
 
-          {item.ai_adjustment_applied && (
-            <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px] font-semibold text-emerald-600">
-              <TrendingUp className="h-3 w-3" />
-              AI-adjusted
-            </div>
-          )}
-
-          {matchPassed && (
-            <div className="mt-3 flex items-center gap-3 text-[10px]">
-              <span>Verified:</span>
-              <span title="BTTS">{renderVerify(item.admin_verify_gg)}</span>
-              <span title="Win">{renderVerify(item.admin_verify_win)}</span>
-              <span title="Over 2.5">{renderVerify(item.admin_verify_over_2_5)}</span>
-            </div>
-          )}
-          {item.admin_verify_gg !== null &&
-            item.admin_verify_gg !== undefined &&
-            item.admin_verify_win !== null &&
-            item.admin_verify_win !== undefined &&
-            item.admin_verify_over_2_5 !== null &&
-            item.admin_verify_over_2_5 !== undefined &&
-            !matchPassed && (
-              <div className="mt-3 flex items-center gap-3 text-[10px]">
-                <span>Verified:</span>
-                <span title="BTTS">{renderVerify(item.admin_verify_gg)}</span>
-                <span title="Win">{renderVerify(item.admin_verify_win)}</span>
-                <span title="Over 2.5">{renderVerify(item.admin_verify_over_2_5)}</span>
-              </div>
-            )}
         </div>
       </div>
     </Link>

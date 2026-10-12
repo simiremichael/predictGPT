@@ -52,27 +52,45 @@ def deduplicate_sources(
     for source in sources:
         normalized_url = normalize_url(source.url)
 
+        def merge_categories(existing: ResearchSource) -> None:
+            categories = list(existing.search_categories)
+            if existing.search_category:
+                categories.append(existing.search_category)
+            categories.extend(source.search_categories)
+            if source.search_category:
+                categories.append(source.search_category)
+            categories = list(dict.fromkeys(categories))
+            existing.search_categories = categories
+            if existing.search_category is None and categories:
+                existing.search_category = categories[0]
+
         # Check URL match
         if normalized_url in seen_urls:
+            merge_categories(seen_urls[normalized_url])
             continue
 
         # Check content hash match
         if source.content:
             ch = content_hash(source.content)
             if ch in seen_hashes:
+                merge_categories(seen_hashes[ch])
                 continue
             seen_hashes[ch] = source
 
         # Check title similarity for likely syndicated articles
         is_duplicate_title = False
+        duplicate_source = None
         for existing in unique_sources:
             if source.publisher == existing.publisher:
                 sim = _title_similarity(source.title, existing.title)
                 if sim >= title_threshold:
                     is_duplicate_title = True
+                    duplicate_source = existing
                     break
 
         if is_duplicate_title:
+            if duplicate_source is not None:
+                merge_categories(duplicate_source)
             continue
 
         seen_urls[normalized_url] = source

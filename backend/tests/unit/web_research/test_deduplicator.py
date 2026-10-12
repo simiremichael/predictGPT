@@ -25,6 +25,27 @@ class TestDeduplicateSources:
         result = deduplicate_sources(sources)
         assert len(result) == 1
 
+    def test_duplicate_source_keeps_all_search_categories(self) -> None:
+        sources = [
+            ResearchSource(
+                url="https://example.com/article",
+                title="Test",
+                search_category="injury_news",
+                search_categories=["injury_news"],
+            ),
+            ResearchSource(
+                url="https://example.com/article",
+                title="Test",
+                search_category="historical_scores",
+                search_categories=["historical_scores"],
+            ),
+        ]
+
+        result = deduplicate_sources(sources)
+
+        assert len(result) == 1
+        assert set(result[0].search_categories) == {"injury_news", "historical_scores"}
+
     def test_different_urls_kept(self) -> None:
         sources = [
             ResearchSource(url="https://example.com/article1", title="Test 1", credibility_score=0.8, freshness_score=0.9),

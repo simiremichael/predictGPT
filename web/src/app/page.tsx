@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { MatchCard } from "@/components/match-card";
+import { AIGeneratedBadge } from "@/components/ai-generated-badge";
 import { EmptyState } from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -264,6 +265,7 @@ export default async function HomePage() {
                 >
                    <div className="flex items-center justify-between gap-3">
                      <div>
+                       <AIGeneratedBadge />
                        <p className="font-semibold text-foreground">
                          {item.match_home_team} vs {item.match_away_team}
                        </p>

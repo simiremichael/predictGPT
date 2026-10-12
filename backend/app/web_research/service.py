@@ -16,7 +16,7 @@ models only.
 """
 from __future__ import annotations
 
-import logging
+import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
@@ -24,7 +24,10 @@ from core.config import get_settings
 from core.logging import get_logger
 from web_research.base import WebSearchProvider
 from web_research.deduplicator import deduplicate_sources
-from web_research.exceptions import SearchProviderError, WebResearchError
+from web_research.exceptions import (
+    SearchRateLimitError,
+    WebResearchError,
+)
 from web_research.queries import MatchContext, MatchResearchQueryBuilder
 from web_research.schemas import (
     EvidenceConflict,
@@ -112,36 +115,88 @@ class MatchResearchService:
         # Generate queries
         queries = self._query_builder.build_match_queries(context)
 
-        # Collect sources from all queries
+        # Search in a small bounded batch. Sequential DDG requests made a
+        # complete evidence pass slow enough to exceed generation timeouts.
         sources: list[ResearchSource] = []
-        for query_name, query_str, priority in queries:
-            try:
-                provider = await self.get_search_provider()
-                raw_results = await provider.search(query_str, limit=5)
+        search_failures: list[dict[str, str]] = []
 
-                for raw in raw_results:
-                    source = normalize_search_result(
-                        title=raw.title,
-                        url=raw.url,
-                        snippet=raw.snippet,
-                        publisher=raw.publisher,
-                        published_at=raw.published_at,
-                        credibility_enabled=self._settings.source_credibility_enabled,
-                    )
-                    sources.append(source)
+        async def search_one(
+            query_name: str, query_str: str, priority: int
+        ) -> tuple[str, str, int, list[Any] | None, Exception | None]:
+            try:
+                async with search_semaphore:
+                    provider = await self.get_search_provider()
+                    results = await provider.search(query_str, limit=3)
+                return query_name, query_str, priority, results, None
             except Exception as exc:
-                logger.warning(
-                    "Search failed for query",
-                    extra={"query": query_str, "error": str(exc)},
+                return query_name, query_str, priority, None, exc
+
+        search_semaphore = asyncio.Semaphore(3)
+        search_responses = await asyncio.gather(
+            *(search_one(*query) for query in queries)
+        )
+        for query_name, query_str, _priority, raw_results, error in search_responses:
+            if error is not None:
+                search_failures.append(
+                    {
+                        "query_name": query_name,
+                        "query": query_str,
+                        "error_type": type(error).__name__,
+                        "error": str(error),
+                    }
                 )
+                if isinstance(error, SearchRateLimitError):
+                    logger.warning(
+                        "DuckDuckGo rate limited a match search",
+                        extra={"match_id": match_id, "query_name": query_name},
+                    )
                 continue
+
+            for raw in raw_results or []:
+                source = normalize_search_result(
+                    title=raw.title,
+                    url=raw.url,
+                    snippet=raw.snippet,
+                    publisher=raw.publisher,
+                    published_at=raw.published_at,
+                    credibility_enabled=self._settings.source_credibility_enabled,
+                )
+                source.search_category = query_name
+                source.search_categories = [query_name]
+                sources.append(source)
+
+        if search_failures:
+            # The console formatter prints only the log message, not `extra`
+            # fields. Include a compact summary here so operators can tell a
+            # DDG rate limit from a timeout or a provider/network failure.
+            failure_summary = "; ".join(
+                f"{failure['query_name']}={failure['error_type']}: "
+                f"{failure['error'][:160]}"
+                for failure in search_failures
+            )
+            logger.warning(
+                "Web research search requests failed for match %s (%s/%s): %s; "
+                "continuing with available sources",
+                match_id,
+                len(search_failures),
+                len(queries),
+                failure_summary,
+                extra={
+                    "match_id": match_id,
+                    "failed_queries": len(search_failures),
+                    "total_queries": len(queries),
+                    "errors": search_failures,
+                },
+            )
 
         # Deduplicate
         sources = deduplicate_sources(sources)
 
-        # Filter by cutoff for backtesting
-        if cutoff_datetime is not None:
-            sources = self._filter_by_cutoff(sources, cutoff_datetime)
+        # A match's kickoff is always the information cutoff. This prevents a
+        # stale scheduled fixture from using a post-match article as evidence.
+        research_cutoff = cutoff_datetime or kickoff_at
+        if research_cutoff is not None:
+            sources = self._filter_by_cutoff(sources, research_cutoff)
 
         # Calculate freshness
         for source in sources:
@@ -160,31 +215,49 @@ class MatchResearchService:
 
         if self._ai_service:
             for source in sources:
+                # Statistical search categories are passed to the adjustment
+                # model as clearly labeled source material. They do not need
+                # four separate injury/news extraction calls.
+                source_categories = set(source.search_categories)
+                if source.search_category:
+                    source_categories.add(source.search_category)
+                statistical_categories = {
+                    "recent_form",
+                    "historical_scores",
+                    "away_historical_scores",
+                    "league_standings",
+                    "head_to_head",
+                    "season_team_statistics",
+                    "fixture_congestion",
+                    "market_odds",
+                    "match_conditions",
+                }
+                if source_categories and source_categories.issubset(statistical_categories):
+                    continue
                 content = await self._retrieve_source_content(source)
                 if not content:
                     continue
 
                 try:
-                    inj = await self._ai_service.extract_injuries(
-                        content, source.url, home_team, away_team
-                    )
-                    injuries.extend(inj)
-
-                    susp = await self._ai_service.extract_suspensions(
-                        content, source.url, home_team, away_team
-                    )
-                    suspensions.extend(susp)
-
-                    lineup = await self._ai_service.extract_lineup(
-                        content, source.url, home_team, away_team
-                    )
-                    if lineup:
-                        lineups.append(lineup)
-
-                    news = await self._ai_service.extract_team_news(
-                        content, source.url, home_team, away_team
-                    )
-                    team_news.extend(news)
+                    categories = source_categories or {None}
+                    if categories & {None, "injury_news", "match_preview"}:
+                        injuries.extend(await self._ai_service.extract_injuries(
+                            content, source.url, home_team, away_team
+                        ))
+                    if categories & {None, "suspensions", "match_preview"}:
+                        suspensions.extend(await self._ai_service.extract_suspensions(
+                            content, source.url, home_team, away_team
+                        ))
+                    if categories & {None, "predicted_lineup"}:
+                        lineup = await self._ai_service.extract_lineup(
+                            content, source.url, home_team, away_team
+                        )
+                        if lineup:
+                            lineups.append(lineup)
+                    if categories & {None, "predicted_lineup", "match_preview"}:
+                        team_news.extend(await self._ai_service.extract_team_news(
+                            content, source.url, home_team, away_team
+                        ))
                 except Exception as exc:
                     logger.warning(
                         "Evidence extraction failed for source",
@@ -236,6 +309,14 @@ class MatchResearchService:
             source.content = content
             source.content_source = "retrieved_article_content"
             return content
+        if source.snippet:
+            # Search snippets are weaker than article text, but still provide
+            # some source-backed context when the publisher blocks retrieval.
+            content = sanitize_for_ai(source.snippet)
+            if content:
+                source.content = content
+                source.content_source = "search_result_snippet"
+                return content
         return None
 
     def _filter_by_cutoff(

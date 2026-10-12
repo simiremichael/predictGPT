@@ -37,7 +37,8 @@ INJURY_EXTRACTION_USER_PROMPT = (
     "---\n"
     "{content}\n"
     "---\n\n"
-    "Extract all mentioned injuries. Return a JSON array of injury objects with fields:\n"
+    "Extract all mentioned injuries. Return one JSON object with an 'injuries' "
+    "array containing injury objects with fields:\n"
     "- player: player name\n"
     "- team: team name (or null)\n"
     "- status: one of confirmed_out, likely_out, doubtful, questionable, available, returned, unknown\n"
@@ -47,7 +48,8 @@ INJURY_EXTRACTION_USER_PROMPT = (
     "- confidence: 0.0-1.0\n"
     "- source_ids: [\"{source_id}\"]\n\n"
     "IMPORTANT: Do not convert 'reported' to 'confirmed'. Do not invent injuries "
-    "not mentioned in the evidence. If no injuries are mentioned, return an empty array."
+    "not mentioned in the evidence. If no injuries are mentioned, return "
+    "{{\"injuries\": []}}."
 )
 
 SUSPENSION_EXTRACTION_USER_PROMPT = (
@@ -57,8 +59,8 @@ SUSPENSION_EXTRACTION_USER_PROMPT = (
     "---\n"
     "{content}\n"
     "---\n\n"
-    "Extract all mentioned suspensions/sidelined players. Return a JSON array of "
-    "suspension objects with fields:\n"
+    "Extract all mentioned suspensions/sidelined players. Return one JSON object "
+    "with a 'suspensions' array containing suspension objects with fields:\n"
     "- player: player name\n"
     "- team: team name (or null)\n"
     "- competition: competition name (or null)\n"
@@ -68,7 +70,8 @@ SUSPENSION_EXTRACTION_USER_PROMPT = (
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
     "- confidence: 0.0-1.0\n"
     "- source_ids: [\"{source_id}\"]\n\n"
-    "IMPORTANT: Only extract what is stated in the evidence. If none mentioned, return an empty array."
+    "IMPORTANT: Only extract what is stated in the evidence. If none mentioned, "
+    "return {{\"suspensions\": []}}."
 )
 
 LINEUP_EXTRACTION_USER_PROMPT = (
@@ -78,7 +81,8 @@ LINEUP_EXTRACTION_USER_PROMPT = (
     "---\n"
     "{content}\n"
     "---\n\n"
-    "Extract lineup information. Return a JSON object with:\n"
+    "Extract lineup information. Return a JSON object with a 'lineup' property "
+    "whose value is an object with:\n"
     "- team: team name\n"
     "- status: one of confirmed, predicted, probable, unknown\n"
     "- formation: formation string (e.g. '4-3-3') or null\n"
@@ -92,7 +96,7 @@ LINEUP_EXTRACTION_USER_PROMPT = (
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
     "- source_ids: [\"{source_id}\"]\n\n"
     "IMPORTANT: A 'predicted' lineup must NEVER be stored as confirmed. "
-    "If no lineup is mentioned, return a single object with status 'unknown'."
+    "If no lineup is mentioned, return {{\"lineup\": null}}."
 )
 
 TEAM_NEWS_EXTRACTION_USER_PROMPT = (
@@ -102,8 +106,8 @@ TEAM_NEWS_EXTRACTION_USER_PROMPT = (
     "---\n"
     "{content}\n"
     "---\n\n"
-    "Extract news items that affect team selection or tactics. Return a JSON "
-    "array of news objects with fields:\n"
+    "Extract news items that affect team selection or tactics. Return one JSON "
+    "object with a 'news' array containing news objects with fields:\n"
     "- team: team name\n"
     "- news_type: one of key_player_return, key_player_absence, formation_change, manager_change, rotation, fixture_congestion, new_signing, tactical_change, training_issue, unknown\n"
     "- summary: brief description\n"
@@ -113,7 +117,8 @@ TEAM_NEWS_EXTRACTION_USER_PROMPT = (
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
     "- confidence: 0.0-1.0\n"
     "- source_ids: [\"{source_id}\"]\n\n"
-    "IMPORTANT: Only extract what is stated in the evidence. If no relevant news, return an empty array."
+    "IMPORTANT: Only extract what is stated in the evidence. If no relevant news, "
+    "return {{\"news\": []}}."
 )
 
 
@@ -129,17 +134,18 @@ AI_ADJUSTMENT_SYSTEM_PROMPT = (
     "- NEVER output a final score or match result directly.\n"
     "- NEVER convert 'reported' evidence to 'confirmed'.\n"
     "- Every adjustment must reference source IDs from the provided evidence.\n"
-    "- If evidence is insufficient, return small, context-aware adjustments based on\n"
-    "  match context (team names, league, base lambdas). Each match MUST receive\n"
-    "  different adjustments so predictions vary meaningfully.\n"
+    "- Do NOT infer team quality, form, injuries, or reputation from team names.\n"
+    "- DuckDuckGo snippets are unverified leads, not confirmed facts. Use them only when the exact teams, competition, and pre-match date are clear.\n"
+    "- Do not treat search-result odds as team-performance evidence or copy them into goal adjustments.\n"
+    "- Do NOT invent adjustments to make different matches look different.\n"
+    "- If the evidence does not support a change, return zero adjustments.\n"
     "- Adjustments must be small and evidence-based.\n\n"
     "Respond with valid JSON only.\n\n"
     "Evidence weight mapping:\n"
-    "- No evidence: small context-based adjustment (team form/reputation inferred from names)\n"
     "- Speculative/unknown evidence: up to 30% of the configured cap\n"
     "- Reported/probable evidence: up to 50% of the configured cap\n"
     "- Confirmed evidence from official sources: up to 100% of the configured cap\n"
-    "- Even WITHOUT evidence: produce small non-zero adjustments unique to each match\n\n"
+    "- No actionable evidence: all adjustments must be zero\n\n"
     "Configured caps (you MUST NOT exceed these):\n"
     "- max_attack_adjustment: {max_attack_adjustment}\n"
     "- max_defense_adjustment: {max_defense_adjustment}\n\n"
@@ -152,11 +158,12 @@ AI_ADJUSTMENT_USER_PROMPT = (
     "- Away expected goals (lambda_away): {lambda_away}\n\n"
     "Extracted evidence:\n"
     "{evidence_text}\n\n"
-    "Based ONLY on the evidence above and the match context (team names, league),\n"
-    "produce small, match-specific adjustments to the model inputs.\n"
-    "Each match MUST receive different adjustments reflecting the unique matchup.\n"
-    "If no evidence affects the prediction, still produce small non-zero adjustments\n"
-    "based on the team names and league context.\n"
+    "Based ONLY on the extracted evidence above, produce small adjustments to the\n"
+    "model inputs when reliable, match-specific form, historical results, standings,\n"
+    "fixture congestion, or evidenced team news supports a change. Weak or ambiguous\n"
+    "search snippets should produce zero adjustment.\n"
+    "Team names and league are labels for identifying the teams, not evidence.\n"
+    "If no evidence affects the prediction, return zero adjustments.\n"
     "Remember: NEVER exceed the configured caps.\n\n"
     "Return JSON: {{\"home_attack_adjustment\": float, \"away_attack_adjustment\": float, "
     "\"home_defense_adjustment\": float, \"away_defense_adjustment\": float, "
@@ -219,7 +226,7 @@ CONFLICT_DETECTION_SYSTEM_PROMPT = (
     "- Do NOT resolve the conflict - just identify and report it\n"
     "- Each conflict must reference both source IDs\n"
     "- Be precise about WHAT is in conflict\n\n"
-    "Respond with valid JSON array of conflict objects."
+    "Respond with one valid JSON object containing a 'conflicts' array."
 )
 
 CONFLICT_DETECTION_USER_PROMPT = (
@@ -228,6 +235,7 @@ CONFLICT_DETECTION_USER_PROMPT = (
     "factual subjects.\n\n"
     "Evidence:\n"
     "{evidence_text}\n\n"
-    "Return a JSON array of conflicts with fields: subject, claim_a, claim_b, "
-    "source_a_id, source_b_id. If no conflicts found, return an empty array."
+    "Return a JSON object with a 'conflicts' array of objects with fields: "
+    "subject, claim_a, claim_b, source_a_id, source_b_id. "
+    "If no conflicts are found, return {{\"conflicts\": []}}."
 )

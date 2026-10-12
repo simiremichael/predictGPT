@@ -13,6 +13,7 @@ import {
 } from "@/lib/formatters";
 import type { MatchBrief } from "@/types/models";
 import { Badge } from "@/components/ui/badge";
+import { AIGeneratedBadge } from "@/components/ai-generated-badge";
 
 interface MatchCardProps {
   match: MatchBrief;
@@ -129,6 +130,7 @@ export function MatchCard({
 
         {showPrediction && prediction && !isFinished && (
           <div className="mt-4 border-t border-border/80 pt-3">
+            <AIGeneratedBadge />
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="rounded-xl bg-muted/40 px-2 py-2">
                 <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">

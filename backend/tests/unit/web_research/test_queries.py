@@ -56,6 +56,34 @@ class TestMatchResearchQueryBuilder:
         priorities = [q[2] for q in queries]
         assert priorities == sorted(priorities, reverse=True)
 
+    def test_match_search_covers_prediction_research_categories(self) -> None:
+        builder = MatchResearchQueryBuilder()
+        context = MatchContext(
+            match_id="m1",
+            home_team="Arsenal",
+            away_team="Chelsea",
+            competition="Premier League",
+            kickoff_at="2026-10-20",
+        )
+
+        queries = builder.build_match_queries(context)
+        names = {name for name, _, _ in queries}
+        all_queries = " ".join(query for _, query, _ in queries)
+
+        assert {
+            "historical_scores",
+            "away_historical_scores",
+            "season_team_statistics",
+            "league_standings",
+            "head_to_head",
+            "fixture_congestion",
+            "market_odds",
+            "match_conditions",
+        }.issubset(names)
+        assert "Arsenal" in all_queries
+        assert "Chelsea" in all_queries
+        assert "2026-10-20" in all_queries
+
     def test_build_team_queries(self) -> None:
         builder = MatchResearchQueryBuilder()
         queries = builder.build_team_queries("Arsenal")

@@ -130,6 +130,20 @@ class TestScoreMatrixConstruction:
         norm_total = sum(sum(row) for row in normalized)
         assert norm_total == pytest.approx(1.0, abs=1e-6)
 
+    def test_truncated_matrix_probabilities_are_normalized_for_predictions(self) -> None:
+        """H/D/A and exact-score probabilities must include truncated tail mass."""
+        model = PoissonModel()
+        distribution = [model._poisson_pmf(k, 8.0) for k in range(9)]
+        matrix = ScoreMatrix(distribution, distribution, max_goals=8)
+
+        assert matrix.get_total_probability() == pytest.approx(1.0, abs=1e-9)
+        assert sum(matrix.get_result_probabilities().values()) == pytest.approx(
+            1.0, abs=1e-9
+        )
+        assert matrix.get_top_scoreline().probability == pytest.approx(
+            max(max(row) for row in matrix.matrix)
+        )
+
 
 class TestTopScorelines:
     """Tests for top scoreline extraction."""

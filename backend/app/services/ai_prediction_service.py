@@ -17,7 +17,7 @@ The pipeline:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -154,10 +154,11 @@ class AIPredictionService:
         db_session: AsyncSession | None = None,
         limit: int = 10,
         include_research: bool = True,
+        kickoff_date: date | None = None,
     ) -> dict[str, Any]:
         """Fetch fixtures from DB and generate AI predictions for each.
 
-        Retrieves upcoming scheduled matches from the database, runs
+        Retrieves scheduled matches on the requested kickoff date, runs
         DuckDuckGo research + AI prediction for each, and saves results
         to the database.
         """
@@ -167,11 +168,11 @@ class AIPredictionService:
 
             async with AsyncSessionLocal() as session:
                 return await self._generate_predictions_batch(
-                    session, league_id, league_ids, limit, include_research
+                    session, league_id, league_ids, limit, include_research, kickoff_date
                 )
 
         return await self._generate_predictions_batch(
-            db, league_id, league_ids, limit, include_research
+            db, league_id, league_ids, limit, include_research, kickoff_date
         )
 
     async def _generate_predictions_batch(
@@ -181,20 +182,23 @@ class AIPredictionService:
         league_ids: list[str] | None,
         limit: int,
         include_research: bool,
+        kickoff_date: date | None = None,
     ) -> dict[str, Any]:
         from football_data.models import FixtureStatus
         from models.match import Match
 
         now = datetime.utcnow()
+        target_date = kickoff_date or now.date()
+        day_start = datetime.combine(target_date, time.min)
+        day_end = day_start + timedelta(days=1)
 
         stmt = (
             select(Match)
             .where(
-                Match.status.in_(
-                    [FixtureStatus.SCHEDULED.value, FixtureStatus.LIVE.value]
-                ),
+                Match.status == FixtureStatus.SCHEDULED.value,
                 Match.is_finished.is_(False),
-                Match.kickoff_at >= now,
+                Match.kickoff_at >= max(day_start, now),
+                Match.kickoff_at < day_end,
             )
             .order_by(Match.kickoff_at)
             .limit(limit)
@@ -244,6 +248,7 @@ class AIPredictionService:
             "meta": {
                 "league_id": league_id,
                 "limit": limit,
+                "kickoff_date": target_date.isoformat(),
                 "include_research": include_research,
                 "message": f"Generated {generated} predictions, {failed} failed",
             },

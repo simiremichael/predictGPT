@@ -28,6 +28,7 @@ class ScoreMatrix:
         self.away_distribution = away_distribution
         self.max_goals = max_goals
         self.matrix = self._build_matrix()
+        self.matrix = self.normalize()
 
     def _build_matrix(self) -> list[list[float]]:
         """Build the joint probability matrix via the outer product.
@@ -109,6 +110,35 @@ class ScoreMatrix:
                     away_prob += prob
 
         return {"home": home_prob, "draw": draw_prob, "away": away_prob}
+
+    def apply_result_probabilities(self, probabilities: dict[str, float]) -> None:
+        """Rescale scorelines within each result class to calibrated 1X2 mass.
+
+        Conditional scoreline probabilities within home wins, draws, and away
+        wins are preserved. This keeps the score matrix and all markets derived
+        from it consistent with calibrated result probabilities.
+        """
+        from prediction.calibration import normalize_probabilities
+
+        target = normalize_probabilities([
+            probabilities.get("home", 0.0),
+            probabilities.get("draw", 0.0),
+            probabilities.get("away", 0.0),
+        ])
+        current = self.get_result_probabilities()
+        current_values = [current["home"], current["draw"], current["away"]]
+        factors = [target_value / current_value if current_value > 0 else 0.0
+                   for target_value, current_value in zip(target, current_values, strict=True)]
+
+        adjusted: list[list[float]] = []
+        for home_goals, row in enumerate(self.matrix):
+            adjusted_row = []
+            for away_goals, probability in enumerate(row):
+                result_index = 0 if home_goals > away_goals else 1 if home_goals == away_goals else 2
+                adjusted_row.append(probability * factors[result_index])
+            adjusted.append(adjusted_row)
+        self.matrix = adjusted
+        self.matrix = self.normalize()
 
     def get_total_probability(self) -> float:
         """Sum all probabilities in the matrix."""

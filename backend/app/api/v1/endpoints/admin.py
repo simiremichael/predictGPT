@@ -20,7 +20,7 @@ DELETE /api/v1/admin/leagues/all       -- delete all leagues
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -60,6 +60,108 @@ from models.research import (
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/model-accuracy", response_model=dict[str, Any])
+async def get_model_accuracy(
+    _admin: str = Depends(verify_admin_api_key),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Measure saved 1X2 predictions against completed matches chronologically."""
+    import math
+    from collections import defaultdict
+    from prediction.calibration import CALIBRATED_PREDICTION_VERSION
+
+    stmt = (
+        select(
+            Prediction.match_id,
+            Prediction.model_version,
+            Prediction.prediction_version,
+            Prediction.generated_at,
+            Match.kickoff_at,
+            Prediction.home_probability,
+            Prediction.draw_probability,
+            Prediction.away_probability,
+            func.coalesce(PredictionResult.home_score, Match.home_score).label("home_score"),
+            func.coalesce(PredictionResult.away_score, Match.away_score).label("away_score"),
+        )
+        .join(Match, Match.id == Prediction.match_id)
+        .outerjoin(PredictionResult, PredictionResult.prediction_id == Prediction.id)
+        .where(
+            Match.kickoff_at.is_not(None),
+            Prediction.generated_at < Match.kickoff_at,
+            func.coalesce(PredictionResult.home_score, Match.home_score).is_not(None),
+            func.coalesce(PredictionResult.away_score, Match.away_score).is_not(None),
+        )
+        .order_by(Match.kickoff_at.asc(), Prediction.generated_at.asc())
+    )
+    result = await db.execute(stmt)
+
+    # A regenerated fixture contributes only its latest prediction per model.
+    latest: dict[tuple[str, str], Any] = {}
+    for row in result.all():
+        latest[(row.model_version, row.match_id)] = row
+
+    by_model: dict[str, list[tuple[datetime, list[float], int, str]]] = defaultdict(list)
+    for row in latest.values():
+        values = [row.home_probability, row.draw_probability, row.away_probability]
+        if any(value is None or not math.isfinite(float(value)) for value in values):
+            continue
+        values = [max(0.0, float(value)) for value in values]
+        total = sum(values)
+        if total <= 0:
+            continue
+        probabilities = [value / total for value in values]
+        actual = 0 if row.home_score > row.away_score else 1 if row.home_score == row.away_score else 2
+        by_model[row.model_version].append(
+            (row.kickoff_at, probabilities, actual, row.prediction_version)
+        )
+
+    def score(sample: list[tuple[datetime, list[float], int, str]]) -> dict[str, Any]:
+        if not sample:
+            return {"matches": 0, "accuracy": None, "multiclass_brier_score": None, "log_loss": None}
+        n = len(sample)
+        return {
+            "matches": n,
+            "accuracy": sum(max(range(3), key=lambda index: item[1][index]) == item[2] for item in sample) / n,
+            "multiclass_brier_score": sum(
+                sum((probability - (1.0 if index == item[2] else 0.0)) ** 2
+                    for index, probability in enumerate(item[1]))
+                for item in sample
+            ) / n,
+            "log_loss": sum(-math.log(max(1e-12, item[1][item[2]])) for item in sample) / n,
+        }
+
+    models = []
+    total_matches = 0
+    for version, records in sorted(by_model.items()):
+        records.sort(key=lambda record: record[0])
+        split = int(len(records) * 0.8)
+        models.append({
+            "model_version": version,
+            "date_start": records[0][0].isoformat(),
+            "date_end": records[-1][0].isoformat(),
+            "all": score(records),
+            "chronological_holdout": score(records[split:]),
+            "calibrated_matches": sum(
+                record[3] == CALIBRATED_PREDICTION_VERSION for record in records
+            ),
+        })
+        total_matches += len(records)
+
+    return {
+        "success": True,
+        "data": {
+            "eligible_matches": total_matches,
+            "models": models,
+            "note": (
+                "Accuracy is measured only for predictions generated before kickoff. "
+                "Log loss and multiclass Brier score measure probability quality; "
+                "temperature calibration does not change the predicted 1X2 pick."
+            ),
+        },
+        "meta": {"generated_at": datetime.utcnow().isoformat()},
+    }
 
 
 async def _delete_all_predictions(db: AsyncSession) -> list[str]:
@@ -257,14 +359,20 @@ async def trigger_batch_predictions(
         50,
         ge=1,
         le=500,
-        description="Maximum number of upcoming matches to generate predictions for",
+        description="Maximum number of matches on the selected kickoff date",
+    ),
+    kickoff_date: date | None = Query(
+        None,
+        description="Generate predictions only for fixtures kicking off on this date (YYYY-MM-DD)",
     ),
 ) -> dict[str, Any]:
     """Trigger batch prediction generation.
 
-    Queues a background prediction job for upcoming matches.
+    Queues a background prediction job for upcoming matches on one kickoff date.
     """
     from jobs.job_manager import create_job, update_job_status
+
+    target_date = kickoff_date or datetime.utcnow().date()
 
     job_id = await create_job(
         job_type="batch_prediction",
@@ -273,6 +381,8 @@ async def trigger_batch_predictions(
             "force_refresh": force_refresh,
             "clear_all": clear_all,
             "include_research": include_research,
+            "kickoff_date": target_date.isoformat(),
+            "limit": limit,
             "trigger": "admin_api",
         },
     )
@@ -292,6 +402,7 @@ async def trigger_batch_predictions(
                     league_ids=league_ids,
                     limit=limit,
                     include_research=include_research,
+                    kickoff_date=target_date,
                 )
 
                 all_predictions = result.get("data", {}).get("predictions", [])
@@ -307,6 +418,7 @@ async def trigger_batch_predictions(
                         "predictions": all_predictions,
                         "errors": all_errors,
                         "clear_all": clear_all,
+                        "kickoff_date": target_date.isoformat(),
                     },
                 )
         except Exception as exc:

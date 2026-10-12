@@ -12,4 +12,4 @@ It only consumes Normalized* models from football_data.models.
 from __future__ import annotations
 
 __version__ = "1.0.0"
-__model_version__ = "poisson-v1.0.0"
+__model_version__ = "poisson-v1.2.0"

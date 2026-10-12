@@ -72,6 +72,25 @@ async def test_batch_selection_targets_current_season_unplayed_matches() -> None
 
 
 @pytest.mark.asyncio
+async def test_team_statistics_are_scoped_to_match_league_and_season() -> None:
+    from services.prediction_data import PredictionDataService
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = None
+    database = AsyncMock()
+    database.execute = AsyncMock(return_value=result)
+    service = PredictionDataService(provider=MagicMock())
+
+    await service._load_latest_team_statistics(
+        database, "team-1", "league-1", "season-1"
+    )
+
+    query = str(database.execute.await_args.args[0])
+    assert "team_statistics.league_id =" in query
+    assert "team_statistics.season_id =" in query
+
+
+@pytest.mark.asyncio
 async def test_fixture_sync_refreshes_existing_blank_match_fields() -> None:
     from api.v1.endpoints import providers as provider_routes
 
@@ -129,13 +148,21 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
         home_probability=0.5,
         draw_probability=0.25,
         away_probability=0.25,
+        over_2_5_probability=0.55,
+        under_2_5_probability=0.45,
+        btts_probability=0.5,
         ai_adjustment_json={"applied": True},
         context_hash="context-hash",
+        admin_verify_gg=None,
+        admin_verify_win=None,
+        admin_verify_over_2_5=None,
     )
     count_result = MagicMock()
     count_result.scalar.return_value = 1
     rows_result = MagicMock()
-    rows_result.all.return_value = [(prediction, "Home FC", "Away FC")]
+    rows_result.all.return_value = [
+        (prediction, "Home FC", "Away FC", None, "scheduled")
+    ]
     database = AsyncMock()
     database.execute = AsyncMock(side_effect=[count_result, rows_result])
 
@@ -144,7 +171,19 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
         patch.object(prediction_routes, "set_cached", new=AsyncMock()),
     ):
         response = await prediction_routes.list_predictions(
-            request=MagicMock(), db=database, page=1, page_size=20
+            request=MagicMock(),
+            db=database,
+            page=1,
+            page_size=20,
+            match_id=None,
+            league_id=None,
+            team_id=None,
+            model_version=None,
+            date_from=None,
+            date_to=None,
+            kickoff_date=None,
+            played=None,
+            upcoming_only=False,
         )
 
     assert response["data"][0]["match_home_team"] == "Home FC"

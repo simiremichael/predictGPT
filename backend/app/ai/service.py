@@ -146,24 +146,19 @@ class AIService:
             if not raw_result:
                 return []
 
-            # The AI returns JSON; parse into model instances
             records: list[Any] = []
-            if isinstance(raw_result, list):
-                for item in raw_result:
-                    if isinstance(item, dict):
-                        try:
-                            records.append(result_model(**item))
-                        except Exception as exc:
-                            logger.warning(
-                                "Failed to parse evidence record: %s", exc,
-                                extra={"source_id": source_id},
-                            )
-            elif isinstance(raw_result, dict):
+            for item in self._normalize_evidence_items(raw_result, result_model):
+                if not isinstance(item, dict):
+                    continue
                 try:
-                    records.append(result_model(**raw_result))
+                    records.append(result_model(**item))
                 except Exception as exc:
-                    logger.warning(
-                        "Failed to parse evidence record: %s", exc,
+                    # Ignore malformed individual claims while retaining valid
+                    # evidence from the same response/source.
+                    logger.debug(
+                        "Skipping invalid evidence record (%s): %s",
+                        result_model.__name__,
+                        exc,
                         extra={"source_id": source_id},
                     )
 
@@ -181,6 +176,39 @@ class AIService:
                 f"AI extraction failed: {exc}",
                 details={"source_id": source_id},
             ) from exc
+
+    @staticmethod
+    def _normalize_evidence_items(raw_result: Any, result_model: type) -> list[Any]:
+        """Accept either model records or the object wrappers required by JSON mode."""
+        if raw_result is None:
+            return []
+        if isinstance(raw_result, list):
+            return raw_result
+        if not isinstance(raw_result, dict) or not raw_result:
+            return []
+
+        model_fields = set(getattr(result_model, "model_fields", {}))
+        # A lineup response is a single record. The other extractors use arrays.
+        if model_fields.intersection(raw_result):
+            return [raw_result]
+
+        model_name = result_model.__name__.lower()
+        wrapper_keys = {
+            "injuryevidence": ("injuries", "injury", "items", "results", "data"),
+            "suspensionevidence": ("suspensions", "suspension", "items", "results", "data"),
+            "lineupevidence": ("lineups", "lineup", "items", "results", "data"),
+            "teamnewsevidence": ("team_news", "news", "items", "results", "data"),
+        }.get(model_name, ("items", "results", "data"))
+
+        for key in wrapper_keys:
+            value = raw_result.get(key)
+            if value is None:
+                continue
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                return [value]
+        return []
 
     # ── Conflict detection ──────────────────────────────────────────── #
 
@@ -213,7 +241,10 @@ class AIService:
 
             if isinstance(raw_result, list):
                 return [item for item in raw_result if isinstance(item, dict)]
-
+            if isinstance(raw_result, dict):
+                conflicts = raw_result.get("conflicts", raw_result.get("items", []))
+                if isinstance(conflicts, list):
+                    return [item for item in conflicts if isinstance(item, dict)]
             return []
 
         except Exception as exc:

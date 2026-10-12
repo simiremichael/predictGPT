@@ -71,14 +71,10 @@ async def create_job(
 
 async def get_job(job_id: str) -> dict[str, Any] | None:
     """Retrieve job status/details."""
-    try:
-        data = await redis_client.get_json(_job_key(job_id))
-        if data is None:
-            return None
-        return data
-    except Exception as exc:
-        logger.warning("Redis unavailable, cannot retrieve job", extra={"job_id": job_id, "error": str(exc)})
+    data = await redis_client.get_json(_job_key(job_id))
+    if data is None:
         return None
+    return data
 
 
 async def update_job_status(job_id: str, status: str, **extra: Any) -> None:
@@ -106,18 +102,25 @@ async def set_job_progress(
     job_id: str, *, succeeded: int | None = None, failed: int | None = None, total: int | None = None
 ) -> None:
     """Update job progress counters."""
-    data = await redis_client.get_json(_job_key(job_id))
-    if data is None:
-        return
+    try:
+        data = await redis_client.get_json(_job_key(job_id))
+        if data is None:
+            return
 
-    if total is not None:
-        data["total"] = total
-    if succeeded is not None:
-        data["succeeded"] = succeeded
-    if failed is not None:
-        data["failed"] = failed
+        if total is not None:
+            data["total"] = total
+        if succeeded is not None:
+            data["succeeded"] = succeeded
+        if failed is not None:
+            data["failed"] = failed
 
-    await redis_client.set_json(_job_key(job_id), data, ttl=JOB_TTL)
+        await redis_client.set_json(_job_key(job_id), data, ttl=JOB_TTL)
+    except Exception as exc:
+        # Job tracking is auxiliary; Redis downtime must not stop predictions.
+        logger.warning(
+            "Redis unavailable, job progress update skipped",
+            extra={"job_id": job_id, "error": str(exc)},
+        )
 
 
 async def cancel_job(job_id: str) -> bool:

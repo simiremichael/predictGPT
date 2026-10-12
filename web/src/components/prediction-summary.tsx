@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { AIGeneratedBadge } from "@/components/ai-generated-badge";
 import type { PredictionDetail } from "@/types/models";
 import {
   getConfidenceColor,
@@ -91,7 +92,8 @@ export function PredictionSummary({
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between border-t border-border pt-2 text-xs">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-xs">
+        <AIGeneratedBadge />
         <Badge
           variant="outline"
           className={cn(
@@ -99,6 +101,7 @@ export function PredictionSummary({
             confidenceInfo.bg,
             confidenceInfo.text,
           )}
+          title="Heuristic model confidence based on data quality and how clearly the 1X2 probabilities favor one outcome. It is not a guarantee."
         >
           Confidence: {confidenceInfo.label}
         </Badge>

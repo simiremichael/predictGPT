@@ -150,6 +150,15 @@ class TestLeagueBaseline:
 class TestAttackDefenseStrength:
     """Tests for attack/defense strength calculation."""
 
+    def test_xg_features_are_mapped_for_both_teams(
+        self, match_with_stats: PredictionInput, league_baseline: LeagueBaseline
+    ) -> None:
+        features = FeatureBuilder().build(match_with_stats, league_baseline=league_baseline)
+        assert features.home_xg == pytest.approx(1.75)
+        assert features.home_xga == pytest.approx(1.0)
+        assert features.away_xg == pytest.approx(1.2)
+        assert features.away_xga == pytest.approx(1.4)
+
     def test_strong_team_has_higher_attack_strength(
         self, match_with_stats: PredictionInput, league_baseline: LeagueBaseline
     ) -> None:

@@ -122,6 +122,23 @@ class AIAdjustmentLayer:
                 explanation="No web research evidence available; using statistical model only.",
             )
 
+        # Research can complete successfully without finding actionable match
+        # evidence. In that case, keep the statistical prediction unchanged.
+        if not any((
+            ai_features.injuries,
+            ai_features.suspensions,
+            ai_features.lineups,
+            ai_features.team_news,
+            ai_features.search_context,
+        )):
+            return AIAdjustedPrediction(
+                base_model_result=base_result,
+                ai_adjustment=AIFeatureAdjustment(),
+                adjusted_model_result=base_result,
+                adjustment_applied=False,
+                explanation="No actionable research evidence available; using statistical model only.",
+            )
+
         # Always query AI when research is available so each match gets
         # context-aware adjustments (team names, league, base lambdas, evidence).
         evidence_text = ai_features.evidence_text or "No specific research evidence extracted."
@@ -263,41 +280,16 @@ class AIAdjustmentLayer:
             if result:
                 return AIFeatureAdjustment(**result)
             else:
-                return self._fallback_adjustment(match_input)
+                return AIFeatureAdjustment()
         except Exception as exc:
-            logger.warning("AI adjustment query failed; using fallback adjustment: %s", exc)
-            return self._fallback_adjustment(match_input)
+            logger.warning("AI adjustment query failed; using statistical prediction: %s", exc)
+            return AIFeatureAdjustment()
 
     def _fallback_adjustment(
         self, match_input: PredictionInput | None
     ) -> AIFeatureAdjustment:
-        """Generate a deterministic, match-specific fallback adjustment.
-
-        Used when the AI provider is unavailable (e.g. no credits).
-        Produces small, non-zero adjustments unique to each matchup
-        so that predictions vary meaningfully across different matches.
-        """
-        import hashlib
-
-        if match_input is None:
-            return AIFeatureAdjustment()
-
-        key = f"{match_input.home_team_name}|{match_input.away_team_name}|{match_input.league_id}"
-        h = int(hashlib.md5(key.encode()).hexdigest(), 16)
-
-        def _derive(value: int) -> float:
-            base = (value % 100) / 100.0
-            return round((base - 0.5) * 0.5, 4)
-
-        return AIFeatureAdjustment(
-            home_attack_adjustment=_derive(h >> 0),
-            away_attack_adjustment=_derive(h >> 8),
-            home_defense_adjustment=_derive(h >> 16),
-            away_defense_adjustment=_derive(h >> 24),
-            confidence=0.3,
-            reason_codes=["fallback_contextual"],
-            source_ids=["matchup_hash"],
-        )
+        """Return no adjustment when AI cannot make an evidence-based call."""
+        return AIFeatureAdjustment()
 
     def _enforce_caps(self, adjustment: AIFeatureAdjustment) -> AIFeatureAdjustment:
         """Enforce configured maximum adjustment caps."""

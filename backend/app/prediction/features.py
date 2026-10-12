@@ -94,6 +94,8 @@ class FeatureVector:
 
     # H2H signal
     h2h_signal: float | None = None
+    # Difference in season points per game (home minus away)
+    standing_signal: float | None = None
 
     # Data quality components
     data_quality: float = 0.0
@@ -154,6 +156,7 @@ class FeatureBuilder:
             match_input,
             match_input.home_team_stats,
             match_input.home_form,
+            match_input.home_recent_fixture,
             is_home=True,
             league_baseline=league_baseline,
         )
@@ -161,26 +164,36 @@ class FeatureBuilder:
             match_input,
             match_input.away_team_stats,
             match_input.away_form,
+            match_input.away_recent_fixture,
             is_home=False,
             league_baseline=league_baseline,
         )
 
         # Form strengths
         home_form_strength = self._compute_form_strength(
-            match_input.home_form, match_input.home_recent_fixture, is_home=True
+            match_input.home_form,
+            match_input.home_recent_fixture,
+            is_home=True,
+            team_id=match_input.home_team_id,
         )
         away_form_strength = self._compute_form_strength(
-            match_input.away_form, match_input.away_recent_fixture, is_home=False
+            match_input.away_form,
+            match_input.away_recent_fixture,
+            is_home=False,
+            team_id=match_input.away_team_id,
         )
 
         # xG
         home_xg = home_strength.get("xg") if home_strength else None
-        away_xg = away_strength.get("away_xg") if away_strength else None
+        away_xg = away_strength.get("xg") if away_strength else None
         home_xga = home_strength.get("xga") if home_strength else None
         away_xga = away_strength.get("away_xga") if away_strength else None
 
         # H2H signal
         h2h_signal = self._compute_h2h_signal(match_input.h2h)
+        standing_signal = self._compute_standing_signal(
+            match_input.home_team_stats, match_input.away_team_stats
+        )
 
         # Expected goal baselines (lambda priors)
         home_lambda_baseline = (
@@ -231,6 +244,7 @@ class FeatureBuilder:
             home_xga=home_xga,
             away_xga=away_xga,
             h2h_signal=h2h_signal,
+            standing_signal=standing_signal,
             data_quality=data_quality,
             home_sample=home_strength.get("sample", 0) if home_strength else 0,
             away_sample=away_strength.get("sample", 0) if away_strength else 0,
@@ -290,6 +304,7 @@ class FeatureBuilder:
         match_input: PredictionInput,
         stats: NormalizedTeamStatistics | None,
         form: NormalizedForm | None,
+        recent_fixtures: list[NormalizedFixture] | None,
         is_home: bool,
         league_baseline: LeagueBaseline,
     ) -> dict[str, float] | None:
@@ -298,7 +313,7 @@ class FeatureBuilder:
         Returns None if no stats available.  Uses sample-size protection
         to blend toward league average for small samples.
         """
-        if stats is None and form is None:
+        if stats is None and form is None and not recent_fixtures:
             return None
 
         # Gather goals data
@@ -343,8 +358,33 @@ class FeatureBuilder:
                 xg = form.average_xg
             if xga is None:
                 xga = form.average_xga
-            xg = form.average_xg
-            xga = form.average_xga
+
+        # If season/provider aggregates are missing, derive scoring rates
+        # from the completed historical fixtures loaded for recent form.
+        if recent_fixtures and (gpg is None or gpergame is None):
+            scored_total = conceded_total = fixture_count = 0
+            team_id = match_input.home_team_id if is_home else match_input.away_team_id
+            for fixture in recent_fixtures:
+                if (
+                    not fixture.is_finished
+                    or fixture.home_score is None
+                    or fixture.away_score is None
+                ):
+                    continue
+                team_is_home = is_home
+                if fixture.home_team_id == team_id:
+                    team_is_home = True
+                elif fixture.away_team_id == team_id:
+                    team_is_home = False
+                scored_total += fixture.home_score if team_is_home else fixture.away_score
+                conceded_total += fixture.away_score if team_is_home else fixture.home_score
+                fixture_count += 1
+            if fixture_count:
+                if gpg is None:
+                    gpg = scored_total / fixture_count
+                if gpergame is None:
+                    gpergame = conceded_total / fixture_count
+                games = max(games, fixture_count)
 
         if games == 0 and gpg is None:
             return None
@@ -398,6 +438,7 @@ class FeatureBuilder:
         form: NormalizedForm | None,
         recent_fixture: list[NormalizedFixture] | None,
         is_home: bool,
+        team_id: str | None = None,
     ) -> float:
         """Compute form strength from recent matches.
 
@@ -405,7 +446,7 @@ class FeatureBuilder:
         where 1.0 = neutral, >1 = positive form, <1 = negative form.
         """
         matches: list[NormalizedFixture] = []
-        if form is not None:
+        if form is not None and form.recent_matches:
             matches = form.recent_matches
         elif recent_fixture:
             matches = list(recent_fixture)
@@ -428,7 +469,13 @@ class FeatureBuilder:
             total_weight += recency_weight
 
             if fixture.is_finished and fixture.home_score is not None and fixture.away_score is not None:
-                if is_home:
+                team_is_home = is_home
+                if team_id and fixture.home_team_id == team_id:
+                    team_is_home = True
+                elif team_id and fixture.away_team_id == team_id:
+                    team_is_home = False
+
+                if team_is_home:
                     if fixture.home_score > fixture.away_score:
                         points = 3.0
                     elif fixture.home_score == fixture.away_score:
@@ -455,6 +502,22 @@ class FeatureBuilder:
         normalized = (weighted_ppg / baseline_ppg) * 0.4 + 0.6
 
         return max(0.5, min(1.5, normalized))
+
+    @staticmethod
+    def _compute_standing_signal(
+        home_stats: NormalizedTeamStatistics | None,
+        away_stats: NormalizedTeamStatistics | None,
+    ) -> float | None:
+        """Return the home-minus-away table points-per-game advantage."""
+        if not home_stats or not away_stats:
+            return None
+        if home_stats.points is None or away_stats.points is None:
+            return None
+        if not home_stats.games_played or not away_stats.games_played:
+            return None
+        return (home_stats.points / home_stats.games_played) - (
+            away_stats.points / away_stats.games_played
+        )
 
     def _compute_h2h_signal(
         self, h2h: NormalizedHeadToHead | None
@@ -559,4 +622,14 @@ class FeatureBuilder:
             },
             "home_strength": home_strength,
             "away_strength": away_strength,
+            "home_position": match_input.home_team_stats.position
+            if match_input.home_team_stats
+            else None,
+            "away_position": match_input.away_team_stats.position
+            if match_input.away_team_stats
+            else None,
+            "standing_signal": self._compute_standing_signal(
+                match_input.home_team_stats, match_input.away_team_stats
+            ),
+            "h2h_signal": self._compute_h2h_signal(match_input.h2h),
         }

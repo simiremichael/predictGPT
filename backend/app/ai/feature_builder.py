@@ -51,6 +51,7 @@ class AIFeatureVector:
     suspensions: list[dict[str, Any]] = field(default_factory=list)
     lineups: list[dict[str, Any]] = field(default_factory=list)
     team_news: list[dict[str, Any]] = field(default_factory=list)
+    search_context: list[dict[str, Any]] = field(default_factory=list)
     research_available: bool = False
     data_quality: float = 0.0
     research_run_id: str | None = None
@@ -90,6 +91,7 @@ class AIFeatureBuilder:
         self._process_suspensions(research_result.suspensions, vector)
         self._process_lineups(research_result.lineups, vector)
         self._process_team_news(research_result.team_news, vector)
+        vector.search_context = self._build_search_context(research_result.sources)
 
         vector.evidence_text = self._build_evidence_text(research_result, vector)
         vector.evidence_summary = self._build_evidence_summary(vector)
@@ -213,7 +215,74 @@ class AIFeatureBuilder:
                 f"evidence={news.get('evidence_status')}, summary={news.get('summary')}"
             )
 
+        for item in vector.search_context:
+            parts.append(
+                "Unverified DuckDuckGo search material "
+                f"(category={item['category']}, credibility={item['credibility']}, "
+                f"source={item['url']}): "
+                f"{item['text']}"
+            )
+
         return "\n".join(parts) if parts else "No evidence found."
+
+    @staticmethod
+    def _build_search_context(sources: list[Any]) -> list[dict[str, Any]]:
+        """Keep concise, attributable snippets for statistical search topics."""
+        relevant_categories = {
+            "recent_form",
+            "historical_scores",
+            "away_historical_scores",
+            "league_standings",
+            "head_to_head",
+            "season_team_statistics",
+            "fixture_congestion",
+            "market_odds",
+            "match_conditions",
+        }
+        relevant_sources = sorted(
+            (
+                source for source in sources
+                if relevant_categories.intersection(
+                    set(getattr(source, "search_categories", []) or [])
+                    | ({getattr(source, "search_category", None)}
+                       if getattr(source, "search_category", None) else set())
+                )
+                and (getattr(source, "snippet", None) or getattr(source, "content", None))
+            ),
+            key=lambda source: (
+                getattr(source, "credibility_score", 0.0),
+                getattr(source, "freshness_score", 0.0),
+            ),
+            reverse=True,
+        )
+        context: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+        for source in relevant_sources:
+            url = getattr(source, "url", "")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            categories = set(getattr(source, "search_categories", []) or [])
+            if getattr(source, "search_category", None):
+                categories.add(source.search_category)
+            category = sorted(categories.intersection(relevant_categories))[0]
+            text = " ".join(
+                (getattr(source, "snippet", None) or getattr(source, "content", None) or "").split()
+            )
+            if not text:
+                continue
+            title = getattr(source, "title", None)
+            if title:
+                text = f"{title}. {text}"
+            context.append({
+                "category": category,
+                "url": url,
+                "credibility": getattr(source, "credibility_score", 0.0),
+                "text": text[:500],
+            })
+            if len(context) >= 12:
+                break
+        return context
 
     def _build_evidence_summary(self, vector: AIFeatureVector) -> str:
         """Build a concise human-readable evidence summary."""

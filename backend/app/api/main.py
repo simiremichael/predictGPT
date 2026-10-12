@@ -257,7 +257,7 @@ def create_app() -> FastAPI:
         try:
             response: Response = await call_next(request)
         except Exception as exc:
-            get_logger(__name__).error(
+            get_logger(__name__).exception(
                 "Unhandled exception",
                 extra={"error": str(exc), "path": str(request.url.path)},
             )

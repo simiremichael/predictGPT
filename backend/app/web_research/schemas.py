@@ -38,6 +38,8 @@ class ResearchSource(BaseModel):
     freshness_score: float = 0.5
     content_source: str = "search_result_snippet"
     relevance: float | None = None
+    search_category: str | None = None
+    search_categories: list[str] = Field(default_factory=list)
 
 
 class EvidenceStatus(StrEnum):

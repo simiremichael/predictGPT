@@ -51,6 +51,16 @@ class TestPoissonPMF:
         prob = model._poisson_pmf(10, 100.0)
         assert 0.0 <= prob <= 1.0
 
+    def test_xg_factor_uses_both_rates_and_is_bounded(self) -> None:
+        model = PoissonModel()
+        baseline = model._compute_xg_factor(1.5, 1.5, 1.5)
+        stronger = model._compute_xg_factor(2.1, 1.8, 1.5)
+        extreme = model._compute_xg_factor(10.0, 10.0, 1.5)
+
+        assert baseline == pytest.approx(1.0)
+        assert stronger > baseline
+        assert extreme == pytest.approx(1.15)
+
     def test_poisson_pmf_all_k_sum_to_one(self) -> None:
         """Sum of PMF over all k should approach 1.
 

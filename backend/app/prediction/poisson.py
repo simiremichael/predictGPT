@@ -46,7 +46,7 @@ class PoissonModel:
     """
 
     model_name = "poisson"
-    model_version = "poisson-v1.0.0"
+    model_version = "poisson-v1.2.0"
     MAX_GOALS = 8
 
     HOME_ADVANTAGE_MULTIPLIER = 1.05
@@ -82,19 +82,31 @@ class PoissonModel:
         home_form_adj = features.home_form_strength
         away_form_adj = features.away_form_strength
 
-        # Optional xG adjustment
-        xg_factor = 1.0
-        if features.home_xg is not None and features.home_xga is not None:
-            # Blend xG into the lambda estimate
-            xg_factor = self._compute_xg_factor(
-                features.home_xg, features.home_xga,
-                league.avg_home_goals
+        # Use standings and head-to-head as small, bounded tie-breakers.
+        # Recent scoring and form remain the main signals so a short H2H run
+        # or an early-season table position cannot dominate the prediction.
+        standing_factor = 1.0
+        if features.standing_signal is not None:
+            standing_log_adjustment = max(
+                -0.05, min(0.05, features.standing_signal * 0.025)
             )
-        elif features.away_xg is not None and features.away_xga is not None:
-            xg_factor = self._compute_xg_factor(
-                features.away_xg, features.away_xga,
-                league.avg_away_goals
+            standing_factor = math.exp(standing_log_adjustment)
+
+        h2h_home_factor = 1.0
+        if features.h2h_signal is not None and features.h2h_signal > 0:
+            h2h_log_adjustment = max(
+                -0.04, min(0.04, math.log(features.h2h_signal) * 0.06)
             )
+            h2h_home_factor = math.exp(h2h_log_adjustment)
+
+        # Pair each team's attacking xG with its opponent's xGA. Keep these
+        # adjustments separate so one team's xG cannot move both goal rates.
+        home_xg_factor = self._compute_xg_factor(
+            features.home_xg, features.away_xga, league.avg_home_goals
+        )
+        away_xg_factor = self._compute_xg_factor(
+            features.away_xg, features.home_xga, league.avg_away_goals
+        )
 
         # Core Poisson lambda calculation
         # λ_home = league_avg_home_goals × home_attack × away_defense × home_advantage × form
@@ -104,7 +116,9 @@ class PoissonModel:
             * away_defense
             * self.HOME_ADVANTAGE_MULTIPLIER
             * home_form_adj
-            * xg_factor
+            * home_xg_factor
+            * standing_factor
+            * h2h_home_factor
         )
 
         # λ_away = league_avg_away_goals × away_attack × home_defense × form
@@ -113,6 +127,9 @@ class PoissonModel:
             * away_attack
             * home_defense
             * away_form_adj
+            * away_xg_factor
+            / standing_factor
+            / h2h_home_factor
         )
 
         # Apply sample-size protection (shrink toward league average)
@@ -151,6 +168,10 @@ class PoissonModel:
             "shrinkage_factor": self.SHRINKAGE_FACTOR,
             "league_avg_home_goals": league.avg_home_goals,
             "league_avg_away_goals": league.avg_away_goals,
+            "standing_signal_weight": 0.025,
+            "max_standing_log_adjustment": 0.05,
+            "h2h_signal_weight": 0.06,
+            "max_h2h_log_adjustment": 0.04,
         }
 
         feature_snapshot = {
@@ -163,6 +184,11 @@ class PoissonModel:
             "home_expected_goals_baseline": features.home_expected_goals_baseline,
             "away_expected_goals_baseline": features.away_expected_goals_baseline,
             "h2h_signal": features.h2h_signal,
+            "standing_signal": features.standing_signal,
+            "standing_factor": standing_factor,
+            "h2h_home_factor": h2h_home_factor,
+            "home_xg_factor": home_xg_factor,
+            "away_xg_factor": away_xg_factor,
             "data_quality": features.data_quality,
             "missing_features": features.missing_features,
             "home_sample": features.home_sample,
@@ -204,19 +230,20 @@ class PoissonModel:
             return 0.0
 
     def _compute_xg_factor(
-        self, xg: float, xga: float, league_avg: float
+        self, xg: float | None, xga: float | None, league_avg: float
     ) -> float:
-        """Compute a multiplier that adjusts lambda based on xG vs average.
-
-        When a team's xG is significantly above league average, we slightly
-        boost the expected goals.  This is a conservative adjustment.
-        """
-        if league_avg <= 0:
+        """Apply a bounded xG/xGA multiplier relative to the league average."""
+        if league_avg <= 0 or (xg is None and xga is None):
             return 1.0
 
-        # Blend xG into the model: 50% weight
-        xg_ratio = xg / league_avg if league_avg > 0 else 1.0
-        return 0.5 * xg_ratio + 0.5 * 1.0
+        available_rates = [rate for rate in (xg, xga) if rate is not None and rate >= 0]
+        if not available_rates:
+            return 1.0
+
+        xg_ratio = sum(available_rates) / (len(available_rates) * league_avg)
+        # xG complements the goal-based strengths; cap its influence so noisy
+        # or provider-specific estimates cannot dominate the prediction.
+        return max(0.85, min(1.15, 0.5 + 0.5 * xg_ratio))
 
     def explain_features(self, features: dict[str, Any]) -> list[str]:
         """Return deterministic feature explanations (no LLM)."""
@@ -288,6 +315,14 @@ class PoissonModel:
                 explanations.append(
                     f"Head-to-head favours away team (ratio {h2h:.2f})"
                 )
+
+        standing_signal = features.get("standing_signal")
+        if standing_signal is not None and abs(standing_signal) >= 0.25:
+            leading_team = "home" if standing_signal > 0 else "away"
+            explanations.append(
+                f"League points per game currently favour the {leading_team} team "
+                f"({abs(standing_signal):.2f} PPG difference)"
+            )
 
         if not explanations:
             explanations.append("Both teams show league-average characteristics")

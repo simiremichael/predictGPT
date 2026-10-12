@@ -2,18 +2,31 @@
 
 import { useState } from "react";
 import {
+  Check,
   CheckSquare,
   Calendar,
   RefreshCw,
   Search,
   Square,
   Trash2,
+  X,
 } from "lucide-react";
 import { useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useDebounce } from "@/lib/hooks/useDebounce";
-import { api, ApiError, type AdminLeague, type AdminTeam } from "@/lib/api";
+import {
+  api,
+  ApiError,
+  type AdminLeague,
+  type AdminTeam,
+  type ModelAccuracyReport,
+} from "@/lib/api";
 import type {
   PredictionHistoryItem,
   MatchBrief,
@@ -26,6 +39,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pagination } from "@/components/ui/pagination";
 
 const PAGE_SIZE = 25;
+const PREDICTIONS_PAGE_SIZE = 50;
 
 function errMsg(e: unknown): string {
   if (e instanceof ApiError) return e.message;
@@ -753,7 +767,6 @@ function FixturesTab() {
 /* ── Predictions ───────────────────────────────────────── */
 function AdminPredictions() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [actionId, setActionId] = useState<string | null>(null);
   const [forceRefresh, setForceRefresh] = useState(false);
@@ -766,23 +779,20 @@ function AdminPredictions() {
     Record<string, { gg: boolean; win: boolean; over_2_5: boolean }>
   >({});
 
-  const matchPassed = (kickoff?: string | null): boolean =>
-    !!kickoff && new Date(kickoff).getTime() + 100 * 60 * 1000 < Date.now();
-
   const renderMarketBox = (
     prediction: PredictionHistoryItem,
     key: "gg" | "win" | "over_2_5",
     label: string,
   ) => {
-    const v =
+    const verification =
       verifyStates[prediction.prediction_id]?.[key] ??
       (key === "gg"
         ? prediction.admin_verify_gg
         : key === "win"
           ? prediction.admin_verify_win
           : prediction.admin_verify_over_2_5) ??
-      false;
-    const passed = matchPassed(prediction.match_kickoff);
+      null;
+    const v = verification === true;
 
     let outcome = "";
     if (key === "gg") {
@@ -820,6 +830,7 @@ function AdminPredictions() {
           <input
             type="checkbox"
             checked={v}
+            aria-label={`${label}: ${v ? "passed" : "failed"}`}
             onChange={async (e) => {
               const val = e.target.checked;
               setVerifyStates((s) => ({
@@ -836,11 +847,9 @@ function AdminPredictions() {
             }}
           />
           {v ? (
-            <span className="text-green-600">✓</span>
+            <Check className="h-3.5 w-3.5 text-green-600" aria-hidden="true" />
           ) : (
-            <span className={passed ? "text-red-600" : "text-muted-foreground"}>
-              {passed ? "✗" : ""}
-            </span>
+            <X className="h-3.5 w-3.5 text-red-600" aria-hidden="true" />
           )}
           <span className="ml-1 font-mono text-xs">{outcome}</span>
           <span title={label} className="sr-only">
@@ -869,21 +878,28 @@ function AdminPredictions() {
     data: listResult,
     error,
     isPending: loading,
-  } = useQuery({
-    queryKey: ["admin-predictions", page, filterPlayed, filterDate],
-    queryFn: () =>
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["admin-predictions", filterPlayed, filterDate],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
       api.admin.listPredictions({
-        page,
-        page_size: PAGE_SIZE,
+        page: pageParam,
+        page_size: PREDICTIONS_PAGE_SIZE,
         upcoming_only: false,
         played: filterPlayed ?? undefined,
         kickoff_date: filterDate ?? undefined,
       }),
+    getNextPageParam: (lastPage) =>
+      lastPage.meta.page < lastPage.meta.total_pages
+        ? lastPage.meta.page + 1
+        : undefined,
   });
 
-  const rows = listResult?.data ?? [];
-  const total = listResult?.meta.total ?? 0;
-  const totalPages = listResult?.meta.total_pages ?? 1;
+  const rows = listResult?.pages.flatMap((pageResult) => pageResult.data) ?? [];
+  const total = listResult?.pages[0]?.meta.total ?? 0;
   const allSelected =
     rows.length > 0 && rows.every((p) => selected.has(p.prediction_id));
 
@@ -902,6 +918,7 @@ function AdminPredictions() {
       force_refresh?: boolean;
       league_ids?: string[];
       limit?: number;
+      kickoff_date?: string;
     }) =>
       api.admin.generatePredictions({
         clear_all: params?.clear_all,
@@ -909,6 +926,7 @@ function AdminPredictions() {
         force_refresh: params?.force_refresh,
         league_ids: params?.league_ids,
         limit: params?.limit,
+        kickoff_date: params?.kickoff_date,
       }),
     onSuccess: (r) => {
       const jobId = r.data.job_id;
@@ -932,16 +950,17 @@ function AdminPredictions() {
     queryKey: ["admin-job-status", currentJobId],
     queryFn: () => api.admin.getJobStatus(currentJobId!),
     enabled: !!currentJobId,
-    refetchInterval: 2000,
+    refetchInterval: (query) =>
+      ["completed", "failed"].includes(query.state.data?.data?.status ?? "")
+        ? false
+        : 2000,
   });
 
   useEffect(() => {
     if (jobStatus?.data?.status === "completed") {
-      setCurrentJobId(null);
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
       toast.success("Predictions generated successfully");
     } else if (jobStatus?.data?.status === "failed") {
-      setCurrentJobId(null);
       toast.error("Prediction generation failed");
     } else if (jobStatusError && currentJobId) {
       const timer = setTimeout(() => {
@@ -952,6 +971,10 @@ function AdminPredictions() {
       return () => clearTimeout(timer);
     }
   }, [jobStatus, jobStatusError, queryClient, currentJobId]);
+
+  const generationInProgress =
+    !!currentJobId &&
+    !["completed", "failed"].includes(jobStatus?.data?.status ?? "");
 
   async function remove(id: string) {
     if (!confirm(`Delete prediction ${id}?`)) return;
@@ -1035,26 +1058,33 @@ function AdminPredictions() {
               >
                 Today
               </Button>
-              <Button
-                size="sm"
-                variant={filterPlayed === true ? "default" : "outline"}
-                onClick={() => setFilterPlayed(true)}
-              >
-                Played
-              </Button>
-              <Button
-                size="sm"
-                variant={filterPlayed === false ? "default" : "outline"}
-                onClick={() => setFilterPlayed(false)}
-              >
-                Not played
-              </Button>
+              <fieldset className="flex items-center gap-3 rounded-md border border-border px-3 py-1.5 text-sm">
+                <legend className="sr-only">Match status</legend>
+                {([
+                  ["all", null, "All"],
+                  ["played", true, "Played"],
+                  ["unplayed", false, "Unplayed"],
+                ] as const).map(([value, played, label]) => (
+                  <label key={value} className="flex cursor-pointer items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="admin-prediction-played-filter"
+                      value={value}
+                      checked={filterPlayed === played}
+                      onChange={() => setFilterPlayed(played)}
+                      className="accent-primary"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </fieldset>
               <div className="relative">
                 <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="date"
                   value={filterDate ?? ""}
                   onChange={(e) => setFilterDate(e.target.value || null)}
+                  aria-label="Prediction filter and generation date"
                   className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
                 />
               </div>
@@ -1095,14 +1125,15 @@ function AdminPredictions() {
             void generateMutation.mutate({
               clear_all: clearAll,
               include_research: true,
-              limit: 50,
+              limit: 500,
+              kickoff_date: filterDate ?? todayStr,
             });
           }}
-          disabled={generateMutation.isPending || !!currentJobId}
+          disabled={generateMutation.isPending || generationInProgress}
         >
-          {generateMutation.isPending || currentJobId
+          {generateMutation.isPending || generationInProgress
             ? "Generating..."
-            : "Generate predictions"}
+            : `Generate predictions for ${filterDate ?? todayStr}`}
         </Button>
         <EmptyState title="No predictions found" />
       </div>
@@ -1123,26 +1154,33 @@ function AdminPredictions() {
             >
               Today
             </Button>
-            <Button
-              size="sm"
-              variant={filterPlayed === true ? "default" : "outline"}
-              onClick={() => setFilterPlayed(true)}
-            >
-              Played
-            </Button>
-            <Button
-              size="sm"
-              variant={filterPlayed === false ? "default" : "outline"}
-              onClick={() => setFilterPlayed(false)}
-            >
-              Not played
-            </Button>
+            <fieldset className="flex items-center gap-3 rounded-md border border-border px-3 py-1.5 text-sm">
+              <legend className="sr-only">Match status</legend>
+              {([
+                ["all", null, "All"],
+                ["played", true, "Played"],
+                ["unplayed", false, "Unplayed"],
+              ] as const).map(([value, played, label]) => (
+                <label key={value} className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="admin-prediction-played-filter"
+                    value={value}
+                    checked={filterPlayed === played}
+                    onChange={() => setFilterPlayed(played)}
+                    className="accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
             <div className="relative">
               <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="date"
                 value={filterDate ?? ""}
                 onChange={(e) => setFilterDate(e.target.value || null)}
+                aria-label="Prediction filter and generation date"
                 className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
               />
             </div>
@@ -1200,14 +1238,15 @@ function AdminPredictions() {
               void generateMutation.mutate({
                 clear_all: clearAll,
                 include_research: true,
-                limit: 50,
+                limit: 500,
+                kickoff_date: filterDate ?? todayStr,
               });
             }}
-            disabled={generateMutation.isPending || !!currentJobId}
+            disabled={generateMutation.isPending || generationInProgress}
           >
-            {generateMutation.isPending || currentJobId
+            {generateMutation.isPending || generationInProgress
               ? "Generating..."
-              : "Generate predictions"}
+              : `Generate predictions for ${filterDate ?? todayStr}`}
           </Button>
           <Button
             variant="outline"
@@ -1322,15 +1361,76 @@ function AdminPredictions() {
         </table>
       </div>
 
-      {rows.length > 0 && totalPages > 1 && (
-        <Pagination
-          page={page}
-          pageSize={PAGE_SIZE}
-          total={total}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          className="justify-center"
+      {hasNextPage && (
+        <div className="flex justify-center py-2">
+          <Button
+            variant="outline"
+            onClick={() => void fetchNextPage()}
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? "Loading..." : "Load more"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PredictionAccuracyTab() {
+  const { data, error, isPending } = useQuery({
+    queryKey: ["admin-model-accuracy"],
+    queryFn: api.admin.modelAccuracy,
+    staleTime: 60_000,
+  });
+
+  if (isPending) return <LoadingState message="Measuring completed predictions..." />;
+  if (error) {
+    return <EmptyState title="Failed to load prediction accuracy" description={errMsg(error)} />;
+  }
+
+  const accuracyPct = (value: number | null) =>
+    value == null ? "—" : `${(value * 100).toFixed(1)}%`;
+  const score = (
+    label: string,
+    result: ModelAccuracyReport["models"][number]["all"],
+  ) => (
+    <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-2 text-sm">1X2 accuracy: <strong>{accuracyPct(result.accuracy)}</strong></p>
+      <p className="mt-1 text-sm">Brier score: <strong>{result.multiclass_brier_score?.toFixed(4) ?? "—"}</strong></p>
+      <p className="mt-1 text-sm">Log loss: <strong>{result.log_loss?.toFixed(4) ?? "—"}</strong></p>
+      <p className="mt-1 text-xs text-muted-foreground">{result.matches} matches</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Uses the latest prediction per match and model, generated before kickoff. Lower Brier score and log loss are better.
+      </p>
+      {data.eligible_matches === 0 ? (
+        <EmptyState
+          title="No completed predictions to measure yet"
+          description="Accuracy and calibration will appear after predicted matches have final scores in the database."
         />
+      ) : (
+        data.models.map((model) => (
+          <section key={model.model_version} className="surface-card space-y-4 rounded-2xl p-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-bold">{model.model_version}</h2>
+              <p className="text-xs text-muted-foreground">
+                {new Date(model.date_start).toLocaleDateString()} – {new Date(model.date_end).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {score("All eligible matches", model.all)}
+              {score("Latest chronological 20%", model.chronological_holdout)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {model.calibrated_matches} calibrated predictions. Calibration adjusts probabilities; it does not change the 1X2 pick.
+            </p>
+          </section>
+        ))
       )}
     </div>
   );
@@ -1356,6 +1456,7 @@ export default function AdminPage() {
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
           <TabsTrigger value="predictions">Predictions</TabsTrigger>
+          <TabsTrigger value="accuracy">Accuracy</TabsTrigger>
         </TabsList>
         <TabsContent value="leagues">
           <AdminLeagues />
@@ -1368,6 +1469,9 @@ export default function AdminPage() {
         </TabsContent>
         <TabsContent value="predictions">
           <AdminPredictions />
+        </TabsContent>
+        <TabsContent value="accuracy">
+          <PredictionAccuracyTab />
         </TabsContent>
       </Tabs>
     </div>

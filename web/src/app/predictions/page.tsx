@@ -7,8 +7,6 @@ interface PredictionsPageProps {
     match_id?: string;
     league_id?: string;
     team_id?: string;
-    page?: string;
-    page_size?: string;
   }>;
 }
 
@@ -23,9 +21,6 @@ export default async function PredictionsPage({
   searchParams,
 }: PredictionsPageProps) {
   const params = await searchParams;
-  const page = parseInt(params.page || "1", 10);
-  const pageSize = parseInt(params.page_size || "20", 10);
-
   return (
     <div className="space-y-6">
       <section className="surface-card rounded-[1.75rem] p-5 sm:p-6">
@@ -51,8 +46,7 @@ export default async function PredictionsPage({
       </section>
 
       <PredictionsList
-        page={page}
-        pageSize={pageSize}
+        pageSize={50}
         matchId={params.match_id}
         leagueId={params.league_id}
         teamId={params.team_id}

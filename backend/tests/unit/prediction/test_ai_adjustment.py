@@ -191,3 +191,24 @@ class TestAIAdjustmentLayer:
 
             # Should fall back to base result
             assert result.adjustment_applied is False
+            assert result.ai_adjustment.home_attack_adjustment == 0.0
+            assert result.ai_adjustment.away_attack_adjustment == 0.0
+            assert result.ai_adjustment.home_defense_adjustment == 0.0
+            assert result.ai_adjustment.away_defense_adjustment == 0.0
+
+    @pytest.mark.asyncio
+    async def test_research_without_actionable_evidence_skips_ai_adjustment(
+        self, match_input: PredictionInput, base_result: Any
+    ) -> None:
+        layer = AIAdjustmentLayer(ai_provider=AsyncMock())
+        ai_features = AIFeatureVector(
+            research_available=True,
+            evidence_text="No evidence found.",
+        )
+
+        result = await layer.apply_adjustment(
+            match_input, base_result, MagicMock(), ai_features
+        )
+
+        assert result.adjustment_applied is False
+        layer._ai_provider.generate_structured.assert_not_awaited()

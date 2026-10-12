@@ -312,7 +312,13 @@ async def cancel_prediction_job(
     """Cancel a queued or running prediction job."""
     from jobs.job_manager import cancel_job
 
-    cancelled = await cancel_job(job_id)
+    try:
+        cancelled = await cancel_job(job_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Job store unavailable",
+        ) from exc
     if not cancelled:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

@@ -43,6 +43,7 @@ class PredictionInput:
     home_team_name: str
     away_team_name: str
     league_id: str
+    league_name: str | None = None
     season_id: str | None = None
     kickoff_at: datetime | None = None
 

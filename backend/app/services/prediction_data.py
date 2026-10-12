@@ -18,12 +18,14 @@ from typing import Any
 
 from core.config import get_settings
 from core.logging import get_logger
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from football_data.base import FootballDataProvider
 from football_data.factory import get_football_provider
 from football_data.models import (
+    FixtureStatus,
+    NormalizedFixture,
     NormalizedForm,
     NormalizedHeadToHead,
     NormalizedInjury,
@@ -33,7 +35,7 @@ from football_data.models import (
     NormalizedTeam,
     NormalizedTeamStatistics,
 )
-from models.league import ProviderLeague, ProviderTeam
+from models.league import League, ProviderLeague, ProviderTeam
 from models.match import (
     ConfirmedLineup,
     HeadToHead,
@@ -266,6 +268,12 @@ class PredictionDataService:
 
         if "fixture" in required_data:
             db_data["fixture"] = self._serialize_match(match)
+            if match.league_id:
+                league_result = await db_session.execute(
+                    select(League.name).where(League.id == match.league_id)
+                )
+                league_name = league_result.scalar_one_or_none()
+                db_data["league_name"] = {"name": league_name} if league_name else None
 
         if "teams" in required_data:
             db_data["teams"] = {
@@ -275,10 +283,16 @@ class PredictionDataService:
 
         if "statistics" in required_data:
             home_stats = await self._load_latest_team_statistics(
-                db_session, match.home_team_id, True
+                db_session,
+                match.home_team_id,
+                match.league_id,
+                match.season_id,
             )
             away_stats = await self._load_latest_team_statistics(
-                db_session, match.away_team_id, False
+                db_session,
+                match.away_team_id,
+                match.league_id,
+                match.season_id,
             )
             db_data["statistics"] = {
                 "home": self._serialize_team_statistics(home_stats) if home_stats else None,
@@ -296,12 +310,25 @@ class PredictionDataService:
                 "home": self._serialize_team_form(home_form) if home_form else None,
                 "away": self._serialize_team_form(away_form) if away_form else None,
             }
+            home_recent = await self._load_recent_team_fixtures(
+                db_session, match, match.home_team_id
+            )
+            away_recent = await self._load_recent_team_fixtures(
+                db_session, match, match.away_team_id
+            )
+            db_data["recent_fixtures"] = {
+                "home": [self._serialize_match(item) for item in home_recent],
+                "away": [self._serialize_match(item) for item in away_recent],
+            }
 
         if "h2h" in required_data:
             h2h = await self._load_head_to_head(
                 db_session, match.home_team_id, match.away_team_id
             )
-            db_data["h2h"] = self._serialize_head_to_head(h2h) if h2h else None
+            h2h_data = await self._load_recent_head_to_head(db_session, match)
+            db_data["h2h"] = h2h_data or (
+                self._serialize_head_to_head(h2h) if h2h else None
+            )
 
         if "injuries" in required_data:
             injuries = await self._load_injuries(db_session, match.id)
@@ -321,18 +348,114 @@ class PredictionDataService:
 
         return db_data
 
-    async def _load_latest_team_statistics(
-        self, db_session: AsyncSession, team_id: str | None, _is_home: bool
-    ) -> TeamStatistics | None:
-        """Load most recent team statistics."""
-        if team_id is None:
+    async def _load_recent_team_fixtures(
+        self,
+        db_session: AsyncSession,
+        match: Match,
+        team_id: str | None,
+    ) -> list[Match]:
+        """Load completed results for a team, strictly before this kickoff."""
+        if not team_id or not match.kickoff_at:
+            return []
+        limit = max(1, self._settings.sync_form_match_count)
+        stmt = (
+            select(Match)
+            .where(
+                Match.is_finished.is_(True),
+                Match.home_score.is_not(None),
+                Match.away_score.is_not(None),
+                Match.kickoff_at < match.kickoff_at,
+                or_(Match.home_team_id == team_id, Match.away_team_id == team_id),
+            )
+            .order_by(Match.kickoff_at.desc())
+            .limit(limit)
+        )
+        result = await db_session.execute(stmt)
+        return list(reversed(result.scalars().all()))
+
+    async def _load_recent_head_to_head(
+        self,
+        db_session: AsyncSession,
+        match: Match,
+    ) -> dict[str, Any] | None:
+        """Derive current home/away H2H counts from the latest 10 prior games."""
+        if not match.home_team_id or not match.away_team_id or not match.kickoff_at:
             return None
         stmt = (
-            select(TeamStatistics)
-            .where(TeamStatistics.internal_team_id == team_id)
-            .order_by(TeamStatistics.retrieved_at.desc())
-            .limit(1)
+            select(Match)
+            .where(
+                Match.is_finished.is_(True),
+                Match.home_score.is_not(None),
+                Match.away_score.is_not(None),
+                Match.kickoff_at < match.kickoff_at,
+                or_(
+                    and_(
+                        Match.home_team_id == match.home_team_id,
+                        Match.away_team_id == match.away_team_id,
+                    ),
+                    and_(
+                        Match.home_team_id == match.away_team_id,
+                        Match.away_team_id == match.home_team_id,
+                    ),
+                ),
+            )
+            .order_by(Match.kickoff_at.desc())
+            .limit(10)
         )
+        result = await db_session.execute(stmt)
+        history = result.scalars().all()
+        if not history:
+            return None
+
+        home_wins = away_wins = draws = 0
+        for previous in history:
+            if previous.home_score is None or previous.away_score is None:
+                continue
+            home_score = (
+                previous.home_score
+                if previous.home_team_id == match.home_team_id
+                else previous.away_score
+            )
+            away_score = (
+                previous.away_score
+                if previous.away_team_id == match.away_team_id
+                else previous.home_score
+            )
+            if home_score > away_score:
+                home_wins += 1
+            elif home_score < away_score:
+                away_wins += 1
+            else:
+                draws += 1
+
+        return {
+            "provider": match.provider_name,
+            "team_a_id": match.home_team_id,
+            "team_b_id": match.away_team_id,
+            "league_id": match.league_id,
+            "team_a_wins": home_wins,
+            "team_b_wins": away_wins,
+            "draws": draws,
+        }
+
+    async def _load_latest_team_statistics(
+        self,
+        db_session: AsyncSession,
+        team_id: str | None,
+        league_id: str | None,
+        season_id: str | None,
+    ) -> TeamStatistics | None:
+        """Load the team's most recent statistics for this match's competition."""
+        if team_id is None:
+            return None
+        filters = [TeamStatistics.internal_team_id == team_id]
+        if league_id is not None:
+            filters.append(TeamStatistics.league_id == league_id)
+        if season_id is not None:
+            filters.append(TeamStatistics.season_id == season_id)
+        stmt = select(TeamStatistics).where(*filters).order_by(
+            TeamStatistics.retrieved_at.desc()
+        ).limit(1)
         result = await db_session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -1179,6 +1302,8 @@ class PredictionDataService:
             "retrieved_at": match.retrieved_at.isoformat() if match.retrieved_at else None,
             "provider_name": match.provider_name,
             "provider_fixture_id": match.provider_fixture_id,
+            "league_id": match.league_id,
+            "season_id": match.season_id,
         }
 
     def _serialize_team(self, match: Match, is_home: bool) -> dict[str, Any] | None:
@@ -1359,10 +1484,13 @@ class PredictionDataService:
         """Compute hash of the complete prediction context."""
         hashable = {
             "fixture": context.fixture,
+            "league_name": context.league_name,
             "home_team": context.home_team,
             "away_team": context.away_team,
             "home_form": context.home_form,
             "away_form": context.away_form,
+            "home_recent_fixtures": context.home_recent_fixtures,
+            "away_recent_fixtures": context.away_recent_fixtures,
             "home_statistics": context.home_statistics,
             "away_statistics": context.away_statistics,
             "h2h": context.h2h,
@@ -1393,6 +1521,7 @@ class PredictionDataService:
         away_stats = db_data.get("statistics", {}).get("away")
         home_form = db_data.get("form", {}).get("home")
         away_form = db_data.get("form", {}).get("away")
+        recent_fixtures = db_data.get("recent_fixtures", {}) or {}
         h2h = db_data.get("h2h")
         injuries = db_data.get("injuries", []) or []
         suspensions = db_data.get("suspensions", []) or []
@@ -1401,12 +1530,15 @@ class PredictionDataService:
         return PredictionContext(
             match_id=match.id,
             fixture=db_data.get("fixture"),
+            league_name=(db_data.get("league_name") or {}).get("name"),
             home_team=home_team,
             away_team=away_team,
             home_statistics=home_stats,
             away_statistics=away_stats,
             home_form=home_form,
             away_form=away_form,
+            home_recent_fixtures=recent_fixtures.get("home", []),
+            away_recent_fixtures=recent_fixtures.get("away", []),
             h2h=h2h,
             injuries=injuries,
             suspensions=suspensions,
@@ -1430,6 +1562,8 @@ class PredictionContext:
         away_statistics: dict[str, Any] | None = None,
         home_form: dict[str, Any] | None = None,
         away_form: dict[str, Any] | None = None,
+        home_recent_fixtures: list[dict[str, Any]] | None = None,
+        away_recent_fixtures: list[dict[str, Any]] | None = None,
         h2h: dict[str, Any] | None = None,
         injuries: list[dict[str, Any]] | None = None,
         suspensions: list[dict[str, Any]] | None = None,
@@ -1437,8 +1571,9 @@ class PredictionContext:
         confirmed_lineup: dict[str, Any] | list[dict[str, Any]] | None = None,
         availability: DataAvailabilityResult | None = None,
         match: Match | None = None,
+        league_name: str | None = None,
         context_hash: str = "",
-        model_version: str = "poisson-v1.0.0",
+        model_version: str = "poisson-v1.2.0",
     ) -> None:
         self.match_id = match_id
         self.fixture = fixture
@@ -1448,6 +1583,8 @@ class PredictionContext:
         self.away_statistics = away_statistics
         self.home_form = home_form
         self.away_form = away_form
+        self.home_recent_fixtures = home_recent_fixtures or []
+        self.away_recent_fixtures = away_recent_fixtures or []
         self.h2h = h2h
         self.injuries = injuries or []
         self.suspensions = suspensions or []
@@ -1455,6 +1592,7 @@ class PredictionContext:
         self.confirmed_lineup = confirmed_lineup
         self.availability = availability
         self.match = match
+        self.league_name = league_name
         self.context_hash = context_hash
         self.model_version = model_version
 
@@ -1524,6 +1662,27 @@ class PredictionContext:
                 form_description=data.get("form_description"),
             )
 
+        def normalized_fixtures(items: list[dict[str, Any]]) -> list[NormalizedFixture]:
+            return [
+                NormalizedFixture(
+                    internal_id=item.get("id"),
+                    provider=item.get("provider_name", provider),
+                    provider_fixture_id=item.get("provider_fixture_id") or item.get("id", ""),
+                    league_id=item.get("league_id"),
+                    season_id=item.get("season_id"),
+                    home_team_id=item.get("home_team_id"),
+                    away_team_id=item.get("away_team_id"),
+                    home_team_name=item.get("home_team_name"),
+                    away_team_name=item.get("away_team_name"),
+                    kickoff_at=item.get("kickoff_at"),
+                    status=FixtureStatus.FINISHED,
+                    home_score=item.get("home_score"),
+                    away_score=item.get("away_score"),
+                    is_finished=True,
+                )
+                for item in items
+            ]
+
         def normalized_injury(data: dict[str, Any]) -> NormalizedInjury:
             return NormalizedInjury(
                 provider=data.get("provider", provider),
@@ -1589,6 +1748,7 @@ class PredictionContext:
             home_team_name=home_team_data.get("name", "") or "",
             away_team_name=away_team_data.get("name", "") or "",
             league_id=self.match.league_id if self.match else "",
+            league_name=self.league_name,
             season_id=self.match.season_id if self.match else None,
             kickoff_at=self.match.kickoff_at if self.match else None,
             home_team=normalized_team(home_team_data),
@@ -1597,6 +1757,8 @@ class PredictionContext:
             away_team_stats=normalized_statistics(away_stats_data),
             home_form=normalized_form(home_form_data),
             away_form=normalized_form(away_form_data),
+            home_recent_fixture=normalized_fixtures(self.home_recent_fixtures),
+            away_recent_fixture=normalized_fixtures(self.away_recent_fixtures),
             h2h=NormalizedHeadToHead(
                 provider=h2h_data.get("provider", provider),
                 team_a_id=h2h_data.get("team_a_id"),
@@ -1620,12 +1782,15 @@ class PredictionContext:
         return {
             "match_id": self.match_id,
             "fixture": self.fixture,
+            "league_name": self.league_name,
             "home_team": self.home_team,
             "away_team": self.away_team,
             "home_statistics": self.home_statistics,
             "away_statistics": self.away_statistics,
             "home_form": self.home_form,
             "away_form": self.away_form,
+            "home_recent_fixtures": self.home_recent_fixtures,
+            "away_recent_fixtures": self.away_recent_fixtures,
             "h2h": self.h2h,
             "injuries": self.injuries,
             "suspensions": self.suspensions,

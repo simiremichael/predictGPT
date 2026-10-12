@@ -20,6 +20,7 @@ to the Phase 3 statistical prediction.
 from __future__ import annotations
 
 import logging
+import math
 import uuid
 from datetime import datetime
 from typing import Any
@@ -28,12 +29,19 @@ from core.config import get_settings
 from core.exceptions import ProviderNotFoundError
 from football_data.models import (
     FixtureStatus,
+    NormalizedFixture,
     NormalizedHeadToHead,
     NormalizedTeam,
     NormalizedTeamStatistics,
 )
 from prediction.ai_adjustment import AIAdjustmentLayer
 from prediction.base import PredictionInput
+from prediction.calibration import (
+    CALIBRATED_PREDICTION_VERSION,
+    RAW_PREDICTION_VERSION,
+    apply_temperature,
+    fit_and_assess,
+)
 from prediction.exceptions import (
     PredictionConflictError,
     PredictionValidationError,
@@ -170,7 +178,7 @@ class PredictionService:
                         match_id=match_id,
                         home_team=match_input.home_team_name,
                         away_team=match_input.away_team_name,
-                        competition=match_input.league_id,
+                        competition=match_input.league_name or match_input.league_id,
                         kickoff_at=match_input.kickoff_at,
                     )
                     research_summary = self._build_research_summary(research_result)
@@ -229,6 +237,40 @@ class PredictionService:
             else:
                 model_result = base_model_result
 
+            prediction_version = RAW_PREDICTION_VERSION
+            assessment = await self._historical_calibration(
+                db_session,
+                match_input,
+                model_result.model_version,
+            )
+            if assessment and assessment.applied:
+                matrix.apply_result_probabilities(
+                    dict(zip(
+                        ("home", "draw", "away"),
+                        apply_temperature(
+                            [hda["home"], hda["draw"], hda["away"]],
+                            assessment.temperature,
+                        ),
+                        strict=True,
+                    ))
+                )
+                market_calc = MarketCalculator(matrix)
+                markets = market_calc.get_all_markets()
+                hda = matrix.get_result_probabilities()
+                top_4 = matrix.get_top_scorelines(n=4)
+                top_scoreline = matrix.get_top_scoreline()
+                prediction_version = CALIBRATED_PREDICTION_VERSION
+                logger.info(
+                    "Historical probability calibration applied",
+                    extra={
+                        "match_id": match_id,
+                        "model_version": model_result.model_version,
+                        "temperature": assessment.temperature,
+                        "training_samples": assessment.training_samples,
+                        "validation_samples": assessment.validation_samples,
+                    },
+                )
+
             self._validate_prediction(model_result, matrix, hda, top_4, markets)
 
             output = self._build_output(
@@ -244,6 +286,7 @@ class PredictionService:
                 ai_adjustment=ai_adjustment_schema,
                 ai_explanation=ai_explanation_text,
                 context_hash=context_hash,
+                prediction_version=prediction_version,
             )
 
             try:
@@ -426,11 +469,10 @@ class PredictionService:
         if prediction_context is not None and prediction_context.match_id == match_id:
             return prediction_context.to_prediction_input()
 
-        from sqlalchemy import select
+        from sqlalchemy import and_, or_, select
         from sqlalchemy.orm import selectinload
 
-        from models.league import Team
-        from models.match import Match, TeamStatistics
+        from models.match import HeadToHead, Match, TeamStatistics
 
         if db_session is None:
             raise ProviderNotFoundError("No database session available")
@@ -449,30 +491,171 @@ class PredictionService:
 
         if match is None:
             raise ProviderNotFoundError(f"Match {match_id} not found")
+        if match.kickoff_at is None:
+            raise PredictionValidationError("Cannot predict match without kickoff time")
+
+        home_stats_filters = [TeamStatistics.internal_team_id == match.home_team_id]
+        away_stats_filters = [TeamStatistics.internal_team_id == match.away_team_id]
+        if match.league_id:
+            home_stats_filters.append(TeamStatistics.league_id == match.league_id)
+            away_stats_filters.append(TeamStatistics.league_id == match.league_id)
+        if match.season_id:
+            home_stats_filters.append(TeamStatistics.season_id == match.season_id)
+            away_stats_filters.append(TeamStatistics.season_id == match.season_id)
 
         home_stats_stmt = (
             select(TeamStatistics)
-            .where(
-                TeamStatistics.internal_team_id == match.home_team_id,
-                TeamStatistics.is_home,
-            )
+            .where(*home_stats_filters, TeamStatistics.is_home.is_(True))
             .order_by(TeamStatistics.retrieved_at.desc())
             .limit(1)
         )
         home_stats_result = await db_session.execute(home_stats_stmt)
         home_stats = home_stats_result.scalar_one_or_none()
+        if home_stats is None:
+            home_stats_stmt = (
+                select(TeamStatistics)
+                .where(*home_stats_filters)
+                .order_by(TeamStatistics.retrieved_at.desc())
+                .limit(1)
+            )
+            home_stats_result = await db_session.execute(home_stats_stmt)
+            home_stats = home_stats_result.scalar_one_or_none()
 
         away_stats_stmt = (
             select(TeamStatistics)
-            .where(
-                TeamStatistics.internal_team_id == match.away_team_id,
-                not TeamStatistics.is_home,
-            )
+            .where(*away_stats_filters, TeamStatistics.is_home.is_(False))
             .order_by(TeamStatistics.retrieved_at.desc())
             .limit(1)
         )
         away_stats_result = await db_session.execute(away_stats_stmt)
         away_stats = away_stats_result.scalar_one_or_none()
+        if away_stats is None:
+            away_stats_stmt = (
+                select(TeamStatistics)
+                .where(*away_stats_filters)
+                .order_by(TeamStatistics.retrieved_at.desc())
+                .limit(1)
+            )
+            away_stats_result = await db_session.execute(away_stats_stmt)
+            away_stats = away_stats_result.scalar_one_or_none()
+
+        # Build form from completed matches before kickoff rather than relying
+        # on potentially stale form strings or cached provider fixture IDs.
+        history_window = self._feature_builder.history_window
+
+        async def recent_team_fixtures(team_id: str | None) -> list[NormalizedFixture]:
+            if not team_id:
+                return []
+            history_stmt = (
+                select(Match)
+                .where(
+                    Match.is_finished.is_(True),
+                    Match.home_score.is_not(None),
+                    Match.away_score.is_not(None),
+                    Match.kickoff_at < match.kickoff_at,
+                    or_(Match.home_team_id == team_id, Match.away_team_id == team_id),
+                )
+                .order_by(Match.kickoff_at.desc())
+                .limit(history_window)
+            )
+            history_result = await db_session.execute(history_stmt)
+            history = list(reversed(history_result.scalars().all()))
+            return [self._normalized_fixture(row) for row in history]
+
+        home_recent = await recent_team_fixtures(match.home_team_id)
+        away_recent = await recent_team_fixtures(match.away_team_id)
+
+        # Prefer a cached H2H row, normalized to the upcoming home/away order.
+        # If none exists, derive H2H from the teams' completed fixtures.
+        h2h_stmt = (
+            select(HeadToHead)
+            .where(
+                or_(
+                    and_(
+                        HeadToHead.team_a_internal_id == match.home_team_id,
+                        HeadToHead.team_b_internal_id == match.away_team_id,
+                    ),
+                    and_(
+                        HeadToHead.team_a_internal_id == match.away_team_id,
+                        HeadToHead.team_b_internal_id == match.home_team_id,
+                    ),
+                )
+            )
+            .order_by(HeadToHead.retrieved_at.desc())
+            .limit(1)
+        )
+        h2h_result = await db_session.execute(h2h_stmt)
+        h2h_row = h2h_result.scalar_one_or_none()
+        if h2h_row:
+            home_is_team_a = h2h_row.team_a_internal_id == match.home_team_id
+            h2h = NormalizedHeadToHead(
+                provider=h2h_row.provider_name,
+                team_a_id=match.home_team_id,
+                team_b_id=match.away_team_id,
+                league_id=match.league_id,
+                team_a_wins=(h2h_row.team_a_wins if home_is_team_a else h2h_row.team_b_wins) or 0,
+                team_b_wins=(h2h_row.team_b_wins if home_is_team_a else h2h_row.team_a_wins) or 0,
+                draws=h2h_row.draws or 0,
+                avg_goals_per_game=h2h_row.avg_goals_per_game,
+                retrieved_at=h2h_row.retrieved_at,
+            )
+        else:
+            h2h_history_stmt = (
+                select(Match)
+                .where(
+                    Match.is_finished.is_(True),
+                    Match.home_score.is_not(None),
+                    Match.away_score.is_not(None),
+                    Match.kickoff_at < match.kickoff_at,
+                    or_(
+                        and_(
+                            Match.home_team_id == match.home_team_id,
+                            Match.away_team_id == match.away_team_id,
+                        ),
+                        and_(
+                            Match.home_team_id == match.away_team_id,
+                            Match.away_team_id == match.home_team_id,
+                        ),
+                    ),
+                )
+                .order_by(Match.kickoff_at.desc())
+                .limit(10)
+            )
+            h2h_history_result = await db_session.execute(h2h_history_stmt)
+            h2h_history = h2h_history_result.scalars().all()
+            home_wins = away_wins = draws = 0
+            for prior in h2h_history:
+                if prior.home_score is None or prior.away_score is None:
+                    continue
+                home_score = (
+                    prior.home_score
+                    if prior.home_team_id == match.home_team_id
+                    else prior.away_score
+                )
+                away_score = (
+                    prior.away_score
+                    if prior.away_team_id == match.away_team_id
+                    else prior.home_score
+                )
+                if home_score > away_score:
+                    home_wins += 1
+                elif home_score < away_score:
+                    away_wins += 1
+                else:
+                    draws += 1
+            h2h = (
+                NormalizedHeadToHead(
+                    provider=match.provider_name,
+                    team_a_id=match.home_team_id,
+                    team_b_id=match.away_team_id,
+                    league_id=match.league_id,
+                    team_a_wins=home_wins,
+                    team_b_wins=away_wins,
+                    draws=draws,
+                )
+                if h2h_history
+                else None
+            )
 
         home_team = None
         away_team = None
@@ -498,19 +681,47 @@ class PredictionService:
             home_team_name=match.home_team_name or "",
             away_team_name=match.away_team_name or "",
             league_id=match.league_id or "",
+            league_name=match.league.name if match.league else None,
             season_id=match.season_id,
             kickoff_at=match.kickoff_at,
             home_team=home_team,
             away_team=away_team,
             home_team_stats=home_stats,
             away_team_stats=away_stats,
+            home_recent_fixture=home_recent,
+            away_recent_fixture=away_recent,
+            h2h=h2h,
             provider=match.provider_name,
+        )
+
+    @staticmethod
+    def _normalized_fixture(match: Any) -> NormalizedFixture:
+        """Convert a stored match row to the normalized form input model."""
+        return NormalizedFixture(
+            internal_id=match.id,
+            provider=match.provider_name,
+            provider_fixture_id=match.provider_fixture_id,
+            league_id=match.league_id,
+            season_id=match.season_id,
+            home_team_id=match.home_team_id,
+            away_team_id=match.away_team_id,
+            home_team_name=match.home_team_name,
+            away_team_name=match.away_team_name,
+            kickoff_at=match.kickoff_at,
+            status=FixtureStatus.FINISHED,
+            home_score=match.home_score,
+            away_score=match.away_score,
+            is_finished=True,
+            retrieved_at=match.retrieved_at,
         )
 
     def _validate_match_eligibility(self, match_input: PredictionInput) -> None:
         """Check that a match is eligible for prediction."""
         if match_input.kickoff_at is None:
             raise PredictionValidationError("Cannot predict match without kickoff time")
+        now = datetime.now(match_input.kickoff_at.tzinfo) if match_input.kickoff_at.tzinfo else datetime.utcnow()
+        if match_input.kickoff_at <= now:
+            raise PredictionValidationError("Cannot generate a pre-match prediction after kickoff")
 
     def _validate_prediction(
         self,
@@ -576,6 +787,7 @@ class PredictionService:
         ai_adjustment: AIAdjustmentSchema | None = None,
         ai_explanation: str | None = None,
         context_hash: str | None = None,
+        prediction_version: str = RAW_PREDICTION_VERSION,
     ) -> PredictionOutputSchema:
         """Build the PredictionOutputSchema from model results."""
         over_under_raw: dict[str, float] = {}
@@ -597,15 +809,6 @@ class PredictionService:
             home_or_draw=markets.get("home_or_draw", 0.0),
             draw_or_away=markets.get("draw_or_away", 0.0),
             home_or_away=markets.get("home_or_away", 0.0),
-        )
-
-        home_dist = GoalDistributionSchema(
-            probabilities=list(model_result.home_goal_distribution),
-            mean=model_result.lambda_home,
-        )
-        away_dist = GoalDistributionSchema(
-            probabilities=list(model_result.away_goal_distribution),
-            mean=model_result.lambda_away,
         )
 
         matrix_serialized: list[list[float]] = []
@@ -635,7 +838,7 @@ class PredictionService:
                 probability=round(top_scoreline.probability, 6),
             )
 
-        confidence = self._compute_model_confidence(features.data_quality, top_4, hda)
+        confidence = self._compute_model_confidence(features.data_quality, hda)
 
         stability = self._compute_stability(model_result, features)
 
@@ -655,10 +858,19 @@ class PredictionService:
             double_chance=double_chance,
         )
 
+        home_goal_probabilities = list(model_result.home_goal_distribution)
+        away_goal_probabilities = list(model_result.away_goal_distribution)
+        home_total = sum(home_goal_probabilities)
+        away_total = sum(away_goal_probabilities)
+        if home_total > 0:
+            home_goal_probabilities = [p / home_total for p in home_goal_probabilities]
+        if away_total > 0:
+            away_goal_probabilities = [p / away_total for p in away_goal_probabilities]
+
         return PredictionOutputSchema(
             model=model_result.model,
             model_version=model_result.model_version,
-            prediction_version="v1.0.0",
+            prediction_version=prediction_version,
             lambda_home=round(model_result.lambda_home, 6),
             lambda_away=round(model_result.lambda_away, 6),
             expected_goals=ExpectedGoalsSchema(
@@ -675,8 +887,14 @@ class PredictionService:
             top_4_scorelines=top_4_schemas,
             score_matrix=score_matrix_schema,
             goal_distributions=GoalDistributionsSchema(
-                home=home_dist,
-                away=away_dist,
+                home=GoalDistributionSchema(
+                    probabilities=[round(p, 6) for p in home_goal_probabilities],
+                    mean=model_result.lambda_home,
+                ),
+                away=GoalDistributionSchema(
+                    probabilities=[round(p, 6) for p in away_goal_probabilities],
+                    mean=model_result.lambda_away,
+                ),
             ),
             markets=markets_schema,
             data_quality=round(features.data_quality, 6),
@@ -699,34 +917,108 @@ class PredictionService:
             context_hash=context_hash,
         )
 
+    async def _historical_calibration(
+        self,
+        db_session: Any,
+        match_input: PredictionInput,
+        model_version: str,
+    ) -> Any | None:
+        """Assess calibration using prior finished matches for this model only."""
+        if db_session is None or match_input.kickoff_at is None:
+            return None
+
+        try:
+            from sqlalchemy import func, select
+
+            from models.match import Match, Prediction, PredictionResult
+
+            stmt = (
+                select(
+                    Match.id,
+                    Match.kickoff_at,
+                    func.coalesce(PredictionResult.home_score, Match.home_score).label("home_score"),
+                    func.coalesce(PredictionResult.away_score, Match.away_score).label("away_score"),
+                    Prediction.generated_at,
+                    Prediction.home_probability,
+                    Prediction.draw_probability,
+                    Prediction.away_probability,
+                )
+                .join(Prediction, Prediction.match_id == Match.id)
+                .outerjoin(PredictionResult, PredictionResult.prediction_id == Prediction.id)
+                .where(
+                    Prediction.model_version == model_version,
+                    Prediction.prediction_version == RAW_PREDICTION_VERSION,
+                    Match.kickoff_at.is_not(None),
+                    Match.kickoff_at < match_input.kickoff_at,
+                    Prediction.generated_at < Match.kickoff_at,
+                    func.coalesce(PredictionResult.home_score, Match.home_score).is_not(None),
+                    func.coalesce(PredictionResult.away_score, Match.away_score).is_not(None),
+                )
+                .order_by(Match.kickoff_at.asc(), Prediction.generated_at.asc())
+            )
+            result = await db_session.execute(stmt)
+            rows = result.all()
+
+            # Keep one final pre-match prediction per fixture. Reruns are
+            # deduplicated so reruns cannot overweight frequently regenerated
+            # fixtures in the calibration set.
+            per_match: dict[str, dict[str, Any]] = {}
+            for row in rows:
+                outcome = (
+                    0 if row.home_score > row.away_score
+                    else 1 if row.home_score == row.away_score
+                    else 2
+                )
+                per_match[row.id] = {
+                    "kickoff_at": row.kickoff_at,
+                    "generated_at": row.generated_at,
+                    "probabilities": [
+                        row.home_probability,
+                        row.draw_probability,
+                        row.away_probability,
+                    ],
+                    "outcome": outcome,
+                }
+            records = sorted(per_match.values(), key=lambda item: item["kickoff_at"])
+            return fit_and_assess(records)
+        except Exception as exc:
+            # Calibration is an optional historical correction. A query or
+            # data problem should not prevent the core prediction from running.
+            logger.warning(
+                "Historical calibration unavailable; keeping raw prediction",
+                extra={"match_id": match_input.match_id, "error": str(exc)},
+            )
+            return None
+
     def _compute_model_confidence(
         self,
         data_quality: float,
-        top_4: list[Any],
         hda: dict[str, float],
     ) -> float:
         """Compute model confidence (0-1).
 
-        NOT the same as highest probability.  Considers:
-            - data quality
-            - probability concentration
-            - top-1 vs top-4 spread
+        This is a heuristic based on input data quality and how clearly the
+        model separates its most likely 1X2 outcome from an even split. It is
+        not a historically calibrated probability of being correct.
         """
-        confidence = 0.0
+        quality = max(0.0, min(1.0, data_quality))
+        probabilities = [
+            float(probability)
+            for probability in hda.values()
+            if probability is not None
+            and math.isfinite(float(probability))
+            and float(probability) >= 0
+        ]
+        total = sum(probabilities)
+        if len(probabilities) < 3 or total <= 0:
+            return round(quality * 0.6, 6)
 
-        confidence += data_quality * 0.40
-
-        if top_4:
-            top_1_prob = top_4[0].probability
-            concentration = min(1.0, top_1_prob / 0.25)
-            confidence += concentration * 0.30
-
-        if len(top_4) >= 2:
-            spread = top_4[0].probability - top_4[-1].probability
-            spread_score = min(1.0, spread / 0.15)
-            confidence += spread_score * 0.30
-
-        return round(min(1.0, confidence), 6)
+        top_probability = max(probabilities) / total
+        # For 1X2, 1/3 is an even split (no directional signal) and 1 is
+        # an unambiguous model outcome. Blend this signal with data coverage.
+        outcome_signal = max(0.0, min(1.0, (top_probability - (1 / 3)) / (2 / 3)))
+        confidence = (quality * 0.6) + (outcome_signal * 0.4)
+        return round(max(0.0, min(1.0, confidence)), 6)
 
     def _compute_stability(
         self,
@@ -788,6 +1080,7 @@ class PredictionService:
             prediction = Prediction(
                 match_id=match_input.match_id,
                 model_version=model_result.model_version,
+                prediction_version=output.prediction_version,
                 provider_used=match_input.provider,
                 generated_at=datetime.utcnow(),
                 lambda_home=model_result.lambda_home,

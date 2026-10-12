@@ -147,6 +147,29 @@ export interface AdminTeam {
   match_count: number;
 }
 
+export interface ModelAccuracyReport {
+  eligible_matches: number;
+  models: {
+    model_version: string;
+    date_start: string;
+    date_end: string;
+    all: {
+      matches: number;
+      accuracy: number | null;
+      multiclass_brier_score: number | null;
+      log_loss: number | null;
+    };
+    chronological_holdout: {
+      matches: number;
+      accuracy: number | null;
+      multiclass_brier_score: number | null;
+      log_loss: number | null;
+    };
+    calibrated_matches: number;
+  }[];
+  note: string;
+}
+
 type QsValue = string | number | boolean | undefined | null;
 type QsRecord = Record<string, QsValue | QsValue[]>;
 
@@ -583,6 +606,10 @@ export const api = {
 
   // Admin — all calls send the X-Admin-Api-Key header.
   admin: {
+    modelAccuracy: () =>
+      request<ModelAccuracyReport>("/api/v1/admin/model-accuracy", {
+        headers: adminHeaders(),
+      }),
     listLeagues: (params?: {
       page?: number;
       page_size?: number;
@@ -707,6 +734,7 @@ export const api = {
       clear_all?: boolean;
       include_research?: boolean;
       limit?: number;
+      kickoff_date?: string;
     }) =>
       adminCall<{ job_id: string; status: string }>(
         `/api/v1/admin/predictions/generate${buildQs({
@@ -715,6 +743,7 @@ export const api = {
           clear_all: params?.clear_all,
           include_research: params?.include_research,
           limit: params?.limit,
+          kickoff_date: params?.kickoff_date,
         })}`,
           { method: "POST" },
       ),

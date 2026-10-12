@@ -172,8 +172,8 @@ async function PredictionDetailContent({
          source_ids: [],
        },
        ai_explanation: res.ai_explanation || null,
-       confidence: res.confidence || 0.5,
-       uncertainty: 1 - (res.confidence || 0.5),
+       confidence: res.confidence ?? 0,
+       uncertainty: 1 - (res.confidence ?? 0),
        source_ids: res.source_ids || [],
        admin_verify_gg: res.admin_verify_gg ?? null,
        admin_verify_win: res.admin_verify_win ?? null,
@@ -263,17 +263,6 @@ async function PredictionDetailContent({
           <div className="mt-4">
             <MarketsDisplay markets={prediction.markets} />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Feature Snapshot</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="text-xs overflow-x-auto">
-            {JSON.stringify(prediction.feature_snapshot, null, 2)}
-          </pre>
         </CardContent>
       </Card>
 

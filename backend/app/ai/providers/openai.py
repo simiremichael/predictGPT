@@ -58,33 +58,50 @@ class OpenAIProvider(AIProvider):
             else:
                 response_format = {"type": "json_object"}
 
-            response = await self._client.chat.completions.create(
-                model=self._model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                response_format=response_format,
-                temperature=0.3,
-                max_tokens=2000,
+            retry_prompt = (
+                "\n\nReturn a compact, complete JSON object only. Do not use markdown. "
+                "Use empty arrays for collections with no supported evidence."
             )
+            for attempt in range(2):
+                response = await self._client.chat.completions.create(
+                    model=self._model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {
+                            "role": "user",
+                            "content": user_prompt + (retry_prompt if attempt else ""),
+                        },
+                    ],
+                    response_format=response_format,
+                    temperature=0.3,
+                    max_tokens=3000,
+                )
 
-            content = response.choices[0].message.content
-            if content is None:
+                content = response.choices[0].message.content
+                if content is None:
+                    return {}
+
+                try:
+                    parsed = json.loads(content)
+                except json.JSONDecodeError as exc:
+                    finish_reason = response.choices[0].finish_reason
+                    if attempt == 0:
+                        logger.warning(
+                            "AI returned invalid structured JSON; retrying once",
+                            extra={"finish_reason": finish_reason, "error": str(exc)},
+                        )
+                        continue
+                    logger.warning(
+                        "AI returned invalid structured JSON after retry; ignoring response",
+                        extra={"finish_reason": finish_reason, "error": str(exc)},
+                    )
+                    return {}
+
+                if isinstance(parsed, (dict, list)):
+                    return parsed
+                logger.warning("AI structured response must be a JSON object or array")
                 return {}
 
-            # Parse JSON response
-            parsed = json.loads(content)
-
-            # If schema was provided, the response is already validated
-            # by the strict schema. For json_object, we validate manually.
-            if not schema and isinstance(parsed, dict):
-                return parsed
-
-            return parsed
-
-        except json.JSONDecodeError as exc:
-            logger.warning("Failed to parse AI JSON response: %s", exc)
             return {}
         except Exception as exc:
             logger.error("AI generation failed: %s", exc)
