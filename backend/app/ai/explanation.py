@@ -66,7 +66,7 @@ class AIExplanationService:
             home_team=prediction.match_home_team,
             away_team=prediction.match_away_team,
             competition=getattr(match_input, "league_id", "Unknown"),
-            kickoff=prediction.match_kickoff.isoformat() if prediction.match_kickoff else "TBD",
+            kickoff_at=prediction.match_kickoff.isoformat() if prediction.match_kickoff else "TBD",
             lambda_home=prediction.expected_goals.home,
             lambda_away=prediction.expected_goals.away,
             home_prob=prediction.result_probabilities.home,

@@ -250,6 +250,7 @@ class AIAdjustmentLayer:
                 "reason_codes",
                 "source_ids",
             ],
+            "additionalProperties": False,
         }
 
         try:

@@ -217,18 +217,6 @@ class PredictionService:
                         top_4 = matrix.get_top_scorelines(n=4)
                         top_scoreline = matrix.get_top_scoreline()
 
-                        # Generate explanation
-                        try:
-                            from ai.explanation import AIExplanationService
-
-                            explainer = AIExplanationService()
-                            ai_explanation_text = await explainer.generate_explanation(
-                                match_input, None, research_result, adjusted
-                            )
-                            await explainer.close()
-                        except Exception as exc:
-                            logger.warning("Explanation generation failed: %s", exc)
-
                         model_result = adjusted
                     else:
                         model_result = base_model_result
@@ -257,6 +245,18 @@ class PredictionService:
                 ai_explanation=ai_explanation_text,
                 context_hash=context_hash,
             )
+
+            try:
+                from ai.explanation import AIExplanationService
+
+                explainer = AIExplanationService()
+                ai_explanation_text = await explainer.generate_explanation(
+                    match_input, output, research_result, model_result
+                )
+                await explainer.close()
+                output.ai_explanation = ai_explanation_text
+            except Exception as exc:
+                logger.warning("Explanation generation failed: %s", exc)
 
             prediction_id = await self._save_prediction(
                 match_input,

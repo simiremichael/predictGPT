@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { CheckSquare, Calendar, RefreshCw, Search, Square, Trash2 } from "lucide-react";
+import {
+  CheckSquare,
+  Calendar,
+  RefreshCw,
+  Search,
+  Square,
+  Trash2,
+} from "lucide-react";
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -161,7 +168,9 @@ function AdminLeagues() {
   if (!listResult || rows.length === 0) {
     return (
       <EmptyState
-        title={searchInput ? "No leagues match your search" : "No leagues found"}
+        title={
+          searchInput ? "No leagues match your search" : "No leagues found"
+        }
       />
     );
   }
@@ -642,14 +651,14 @@ function FixturesTab() {
           <label className="mb-1 block text-sm font-medium">
             League ID (optional provider id)
           </label>
-           <Input
+          <Input
             placeholder="e.g. 85"
             value={leagueInput}
             onChange={(e) => {
               setLeagueInput(e.target.value);
               setMatchPage(1);
             }}
-           />
+          />
         </div>
         <div className="flex items-end gap-2">
           <Button
@@ -758,39 +767,50 @@ function AdminPredictions() {
   >({});
 
   const matchPassed = (kickoff?: string | null): boolean =>
-    !!kickoff &&
-    new Date(kickoff).getTime() + 100 * 60 * 1000 < Date.now();
+    !!kickoff && new Date(kickoff).getTime() + 100 * 60 * 1000 < Date.now();
 
   const renderMarketBox = (
     prediction: PredictionHistoryItem,
     key: "gg" | "win" | "over_2_5",
     label: string,
   ) => {
-    const v = verifyStates[prediction.prediction_id]?.[key] ??
-      (key === "gg" ? prediction.admin_verify_gg :
-       key === "win" ? prediction.admin_verify_win :
-       prediction.admin_verify_over_2_5) ?? false;
+    const v =
+      verifyStates[prediction.prediction_id]?.[key] ??
+      (key === "gg"
+        ? prediction.admin_verify_gg
+        : key === "win"
+          ? prediction.admin_verify_win
+          : prediction.admin_verify_over_2_5) ??
+      false;
     const passed = matchPassed(prediction.match_kickoff);
 
     let outcome = "";
     if (key === "gg") {
       outcome = prediction.btts_probability
-        ? (prediction.btts_probability >= 0.5 ? "GG" : "NG")
+        ? prediction.btts_probability >= 0.5
+          ? "GG"
+          : "NG"
         : "";
     } else if (key === "win") {
-      if (prediction.home_probability &&
-          prediction.home_probability >= (prediction.draw_probability ?? 0) &&
-          prediction.home_probability >= (prediction.away_probability ?? 0)) {
+      if (
+        prediction.home_probability &&
+        prediction.home_probability >= (prediction.draw_probability ?? 0) &&
+        prediction.home_probability >= (prediction.away_probability ?? 0)
+      ) {
         outcome = "H";
-      } else if (prediction.draw_probability &&
-                 prediction.draw_probability >= (prediction.away_probability ?? 0)) {
+      } else if (
+        prediction.draw_probability &&
+        prediction.draw_probability >= (prediction.away_probability ?? 0)
+      ) {
         outcome = "D";
       } else if (prediction.away_probability) {
         outcome = "A";
       }
     } else if (key === "over_2_5") {
       outcome = prediction.over_2_5_probability
-        ? (prediction.over_2_5_probability >= 0.5 ? "O2.5" : "U2.5")
+        ? prediction.over_2_5_probability >= 0.5
+          ? "O2.5"
+          : "U2.5"
         : "";
     }
 
@@ -804,9 +824,15 @@ function AdminPredictions() {
               const val = e.target.checked;
               setVerifyStates((s) => ({
                 ...s,
-                [prediction.prediction_id]: { ...s[prediction.prediction_id], [key]: val },
+                [prediction.prediction_id]: {
+                  ...s[prediction.prediction_id],
+                  [key]: val,
+                },
               }));
-              await verifyMutation.mutateAsync({ id: prediction.prediction_id, data: { [key]: val } });
+              await verifyMutation.mutateAsync({
+                id: prediction.prediction_id,
+                data: { [key]: val },
+              });
             }}
           />
           {v ? (
@@ -816,17 +842,20 @@ function AdminPredictions() {
               {passed ? "✗" : ""}
             </span>
           )}
-          <span className="ml-1 font-mono text-xs">
-            {outcome}
+          <span className="ml-1 font-mono text-xs">{outcome}</span>
+          <span title={label} className="sr-only">
+            {label}
           </span>
-          <span title={label} className="sr-only">{label}</span>
         </label>
       </td>
     );
   };
 
   const verifyMutation = useMutation({
-    mutationFn: ({ id, data }: {
+    mutationFn: ({
+      id,
+      data,
+    }: {
       id: string;
       data: { gg?: boolean; win?: boolean; over_2_5?: boolean };
     }) => api.admin.verifyPrediction(id, data),
@@ -991,9 +1020,95 @@ function AdminPredictions() {
   if (loading && !listResult)
     return <LoadingState message="Loading predictions..." />;
   if (!listResult || rows.length === 0)
-    return <EmptyState title="No predictions found" />;
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm text-muted-foreground">
+            {total} predictions
+          </span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant={filterDate === todayStr ? "default" : "outline"}
+                onClick={() => setFilterDate(todayStr)}
+              >
+                Today
+              </Button>
+              <Button
+                size="sm"
+                variant={filterPlayed === true ? "default" : "outline"}
+                onClick={() => setFilterPlayed(true)}
+              >
+                Played
+              </Button>
+              <Button
+                size="sm"
+                variant={filterPlayed === false ? "default" : "outline"}
+                onClick={() => setFilterPlayed(false)}
+              >
+                Not played
+              </Button>
+              <div className="relative">
+                <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="date"
+                  value={filterDate ?? ""}
+                  onChange={(e) => setFilterDate(e.target.value || null)}
+                  className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
+                />
+              </div>
+              {(filterPlayed !== null || filterDate) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setFilterPlayed(null);
+                    setFilterDate(null);
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={forceRefresh}
+                onChange={(e) => setForceRefresh(e.target.checked)}
+              />
+              Force refresh
+            </label>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => {
+            if (
+              clearAll &&
+              !confirm(
+                "WARNING: This will delete ALL existing predictions.\n\nClick OK to proceed, Cancel to keep existing predictions.",
+              )
+            ) {
+              return;
+            }
+            void generateMutation.mutate({
+              clear_all: clearAll,
+              include_research: true,
+              limit: 50,
+            });
+          }}
+          disabled={generateMutation.isPending || !!currentJobId}
+        >
+          {generateMutation.isPending || currentJobId
+            ? "Generating..."
+            : "Generate predictions"}
+        </Button>
+        <EmptyState title="No predictions found" />
+      </div>
+    );
 
-   return (
+  return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-sm text-muted-foreground">
@@ -1058,7 +1173,11 @@ function AdminPredictions() {
               checked={clearAll}
               onChange={(e) => {
                 if (e.target.checked) {
-                  if (!confirm("Clear ALL existing predictions before generating new ones?")) {
+                  if (
+                    !confirm(
+                      "Clear ALL existing predictions before generating new ones?",
+                    )
+                  ) {
                     return;
                   }
                 }
@@ -1067,12 +1186,15 @@ function AdminPredictions() {
             />
             Clear all existing predictions
           </label>
-           <Button
+          <Button
             variant="outline"
             onClick={() => {
-              if (clearAll && !confirm(
-                "WARNING: This will delete ALL existing predictions.\n\nClick OK to proceed, Cancel to keep existing predictions.",
-              )) {
+              if (
+                clearAll &&
+                !confirm(
+                  "WARNING: This will delete ALL existing predictions.\n\nClick OK to proceed, Cancel to keep existing predictions.",
+                )
+              ) {
                 return;
               }
               void generateMutation.mutate({
@@ -1120,12 +1242,12 @@ function AdminPredictions() {
               <th className="px-3 py-2 font-medium">A</th>
               <th className="px-3 py-2 font-medium">Top 4 Scorelines</th>
               <th className="px-3 py-2 font-medium">Research</th>
-               <th className="px-3 py-2 font-medium">AI Adj.</th>
-               <th className="px-3 py-2 font-medium">Match Date</th>
-                <th className="px-3 py-2 font-medium">BTTS</th>
-                <th className="px-3 py-2 font-medium">Win</th>
-                <th className="px-3 py-2 font-medium">O 2.5</th>
-             </tr>
+              <th className="px-3 py-2 font-medium">AI Adj.</th>
+              <th className="px-3 py-2 font-medium">Match Date</th>
+              <th className="px-3 py-2 font-medium">BTTS</th>
+              <th className="px-3 py-2 font-medium">Win</th>
+              <th className="px-3 py-2 font-medium">O 2.5</th>
+            </tr>
           </thead>
           <tbody>
             {rows.map((p: PredictionHistoryItem) => (
@@ -1172,15 +1294,15 @@ function AdminPredictions() {
                     <span className="text-xs text-muted-foreground">Base</span>
                   )}
                 </td>
-                 <td className="px-3 py-2">
-                   {p.match_kickoff
-                     ? new Date(p.match_kickoff).toLocaleString()
-                     : "—"}
-                 </td>
-                 {renderMarketBox(p, "gg", "BTTS")}
-                 {renderMarketBox(p, "win", "Win")}
-                 {renderMarketBox(p, "over_2_5", "Over 2.5")}
-                 <td className="px-3 py-2 text-right">
+                <td className="px-3 py-2">
+                  {p.match_kickoff
+                    ? new Date(p.match_kickoff).toLocaleString()
+                    : "—"}
+                </td>
+                {renderMarketBox(p, "gg", "BTTS")}
+                {renderMarketBox(p, "win", "Win")}
+                {renderMarketBox(p, "over_2_5", "Over 2.5")}
+                <td className="px-3 py-2 text-right">
                   <Button
                     variant="destructive"
                     size="sm"
