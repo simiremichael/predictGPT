@@ -22,7 +22,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -41,7 +41,13 @@ from core.pagination import get_page, get_page_size
 from core.security import verify_admin_api_key
 from db.database import get_db
 from jobs.job_manager import create_job, get_job
-from models.match import Match, Prediction, PredictionRun, PredictionScoreline
+from models.match import (
+    Match,
+    Prediction,
+    PredictionResult,
+    PredictionRun,
+    PredictionScoreline,
+)
 from schemas.api import PredictionHistoryItem
 from services.prediction_data import PredictionDataService
 from services.prediction_orchestrator import PredictionOrchestrator
@@ -349,6 +355,18 @@ async def list_predictions(
         None,
         description="Filter by match played status. True for played, False for not played.",
     ),
+    min_elapsed_minutes: int | None = Query(
+        None,
+        ge=0,
+        le=10080,
+        description="Only include matches whose kickoff was at least this many minutes ago.",
+    ),
+    max_elapsed_minutes: int | None = Query(
+        None,
+        ge=0,
+        le=10080,
+        description="Only include matches whose kickoff was no more than this many minutes ago.",
+    ),
     kickoff_date: date | None = Query(
         None,
         description="Filter by match kickoff date (YYYY-MM-DD).",
@@ -360,6 +378,7 @@ async def list_predictions(
     page_num = get_page(page)
     ps = get_page_size(page_size)
     offset = (page_num - 1) * ps
+    now = datetime.utcnow()
 
     cache_key = cache_predictions_list_key(
         match_id=match_id,
@@ -370,7 +389,14 @@ async def list_predictions(
         date_to=date_to,
         upcoming_only=upcoming_only,
         played=played,
+        min_elapsed_minutes=min_elapsed_minutes,
+        max_elapsed_minutes=max_elapsed_minutes,
         kickoff_date=str(kickoff_date) if kickoff_date else None,
+        elapsed_minute_bucket=(
+            int(now.timestamp() // 60)
+            if min_elapsed_minutes is not None or max_elapsed_minutes is not None
+            else None
+        ),
         page=page_num,
         page_size=ps,
     )
@@ -393,8 +419,11 @@ async def list_predictions(
             func.coalesce(Match.away_team_name, away_team.name, "Away team"),
             Match.kickoff_at,
             Match.status,
+            func.coalesce(PredictionResult.home_score, Match.home_score),
+            func.coalesce(PredictionResult.away_score, Match.away_score),
         )
         .join(Match, Match.id == Prediction.match_id)
+        .outerjoin(PredictionResult, PredictionResult.prediction_id == Prediction.id)
         .outerjoin(home_team, Match.home_team_id == home_team.id)
         .outerjoin(away_team, Match.away_team_id == away_team.id)
     )
@@ -411,10 +440,28 @@ async def list_predictions(
     if date_to:
         stmt = stmt.where(Prediction.generated_at <= date_to)
     if upcoming_only:
-        now = datetime.utcnow()
         stmt = stmt.where(Match.kickoff_at >= now).where(Match.is_finished.is_(False))
-    if played is not None:
-        stmt = stmt.where(Match.is_finished.is_(played))
+    completed_match = or_(
+        Match.is_finished.is_(True),
+        func.lower(Match.status) == "finished",
+    )
+    if played is True:
+        # The results page classifies fixtures by elapsed time. Providers can
+        # leave a finished match marked as live/scheduled, so once an elapsed
+        # threshold is requested, use that threshold instead of trusting the
+        # provider's completion flag.
+        if min_elapsed_minutes is None:
+            stmt = stmt.where(completed_match)
+    elif played is False:
+        stmt = stmt.where(not_(completed_match))
+    if min_elapsed_minutes is not None:
+        stmt = stmt.where(
+            Match.kickoff_at <= now - timedelta(minutes=min_elapsed_minutes)
+        )
+    if max_elapsed_minutes is not None:
+        stmt = stmt.where(
+            Match.kickoff_at >= now - timedelta(minutes=max_elapsed_minutes)
+        )
     if kickoff_date:
         start = datetime.combine(kickoff_date, datetime.min.time())
         end = start + timedelta(days=1)
@@ -438,6 +485,8 @@ async def list_predictions(
             match_away_team=away_name,
             match_kickoff=match_kickoff,
             match_status=match_status,
+            home_score=home_score,
+            away_score=away_score,
             model_version=p.model_version,
             prediction_version=p.prediction_version,
             generated_at=p.generated_at,
@@ -457,7 +506,15 @@ async def list_predictions(
             admin_verify_win=p.admin_verify_win,
             admin_verify_over_2_5=p.admin_verify_over_2_5,
         )
-        for p, home_name, away_name, match_kickoff, match_status in predictions
+        for (
+            p,
+            home_name,
+            away_name,
+            match_kickoff,
+            match_status,
+            home_score,
+            away_score,
+        ) in predictions
     ]
 
     response = {
@@ -473,7 +530,14 @@ async def list_predictions(
     }
 
     try:
-        await set_cached(cache_key, response, ttl=get_settings().cache_ttl_predictions)
+        # Prediction lists change during batch generation. Keep their cache
+        # brief so active pages pick up newly saved records promptly, even if
+        # an invalidation event is missed.
+        await set_cached(
+            cache_key,
+            response,
+            ttl=min(get_settings().cache_ttl_predictions, 5),
+        )
     except Exception:
         pass
 

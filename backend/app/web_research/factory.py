@@ -7,7 +7,7 @@ from web_research.base import WebSearchProvider
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_SEARCH_PROVIDERS = ("duckduckgo", "brave")
+SUPPORTED_SEARCH_PROVIDERS = ("duckduckgo", "tavily")
 
 
 def get_search_provider() -> WebSearchProvider:
@@ -29,6 +29,21 @@ def get_search_provider() -> WebSearchProvider:
         provider = DuckDuckGoSearchProvider(
             base_url=settings.web_search_base_url,
         )
+    elif provider_name == "tavily":
+        from web_research.search import DuckDuckGoSearchProvider
+        from web_research.tavily import TavilySearchProvider
+
+        fallback = DuckDuckGoSearchProvider(
+            base_url=settings.web_search_base_url,
+        )
+        if not settings.tavily_api_key:
+            logger.warning("TAVILY_API_KEY is missing; using DuckDuckGo search fallback")
+            provider = fallback
+        else:
+            provider = TavilySearchProvider(
+                api_key=settings.tavily_api_key,
+                fallback_provider=fallback,
+            )
     else:
         raise ValueError(f"Unknown search provider '{provider_name}'")
 

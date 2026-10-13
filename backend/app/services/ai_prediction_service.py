@@ -236,6 +236,11 @@ class AIPredictionService:
                     extra={"match_id": match.id, "error": str(exc)},
                 )
 
+        if generated:
+            from core.cache import invalidate_prediction_list_caches
+
+            await invalidate_prediction_list_caches()
+
         return {
             "success": True,
             "data": {

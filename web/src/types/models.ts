@@ -258,6 +258,8 @@ export interface PredictionDetail {
   match_away_team: string;
   match_kickoff?: string | null;
   match_status?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
   model_version: string;
   prediction_version: string;
   generated_at: string;

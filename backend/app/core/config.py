@@ -145,7 +145,7 @@ class Settings(BaseSettings):
     # Database
     # ------------------------------------------------------------------ #
     database_url: str = Field(
-        default="postgresql+asyncpg://neondb_owner:npg_UlzWti9uqGm0@ep-square-grass-za4glnjc-pooler.c-2.eu-west-2.aws.neon.tech/neondb?ssl=require",
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/football_ai",
         validation_alias=AliasChoices("DATABASE_URL", "database_url"),
     )
 
@@ -178,8 +178,12 @@ class Settings(BaseSettings):
     # Web Search / Research
     # ------------------------------------------------------------------ #
     web_search_provider: str = Field(
-        default="duckduckgo",
+        default="tavily",
         validation_alias=AliasChoices("WEB_SEARCH_PROVIDER", "web_search_provider"),
+    )
+    tavily_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TAVILY_API_KEY", "tavily_api_key"),
     )
     web_search_api_key: str | None = Field(
         default=None,

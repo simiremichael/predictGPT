@@ -15,7 +15,7 @@ const navItems = [
   { href: "/predictions", label: "Predictions" },
   { href: "/leagues", label: "Leagues" },
   { href: "/teams", label: "Teams" },
-  { href: "/performance", label: "Performance" },
+  { href: "/results", label: "Results" },
   // { href: "/admin", label: "Admin" },
 ];
 

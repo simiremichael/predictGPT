@@ -892,6 +892,7 @@ function AdminPredictions() {
         played: filterPlayed ?? undefined,
         kickoff_date: filterDate ?? undefined,
       }),
+    refetchInterval: currentJobId ? 5_000 : false,
     getNextPageParam: (lastPage) =>
       lastPage.meta.page < lastPage.meta.total_pages
         ? lastPage.meta.page + 1
@@ -933,6 +934,7 @@ function AdminPredictions() {
       setCurrentJobId(jobId);
       toast.success(`Prediction generation started (job ${jobId})`);
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
+      queryClient.invalidateQueries({ queryKey: ["predictions"] });
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -957,11 +959,14 @@ function AdminPredictions() {
   });
 
   useEffect(() => {
-    if (jobStatus?.data?.status === "completed") {
+    if (currentJobId && jobStatus?.data?.status === "completed") {
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
+      queryClient.invalidateQueries({ queryKey: ["predictions"] });
       toast.success("Predictions generated successfully");
-    } else if (jobStatus?.data?.status === "failed") {
+      setCurrentJobId(null);
+    } else if (currentJobId && jobStatus?.data?.status === "failed") {
       toast.error("Prediction generation failed");
+      setCurrentJobId(null);
     } else if (jobStatusError && currentJobId) {
       const timer = setTimeout(() => {
         setCurrentJobId(null);

@@ -1,13 +1,16 @@
-"""DuckDuckGo search provider (no API key required).
+"""DuckDuckGo Instant Answer API provider.
 
-Uses the DuckDuckGo Instant Answer API for simple queries and falls back
-to HTML scraping for search result snippets. This provider is used as the
-default when no dedicated search API key is configured.
+DuckDuckGo documents its Instant Answer API, but does not provide a general
+web-results API for third-party applications. This provider uses only the
+documented Instant Answer endpoint; it does not scrape DuckDuckGo's HTML
+search pages.
 """
 from __future__ import annotations
 
-from html.parser import HTMLParser
-from urllib.parse import parse_qs, urlparse
+import asyncio
+import threading
+import time
+from typing import Any
 
 import httpx
 
@@ -15,61 +18,27 @@ from core.config import get_settings
 from web_research.base import SearchResult, WebSearchProvider
 from web_research.exceptions import SearchProviderError, SearchRateLimitError
 
-class _DuckDuckGoHTMLParser(HTMLParser):
-    """Extract linked results and snippets from DuckDuckGo's HTML page."""
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.results: list[dict[str, str]] = []
-        self._current_result: dict[str, str] | None = None
-        self._in_title = False
-        self._in_snippet = False
-        self._title_parts: list[str] = []
-        self._snippet_parts: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        attributes = dict(attrs)
-        classes = set((attributes.get("class") or "").split())
-        if tag == "a" and "result__a" in classes:
-            self._current_result = {"url": attributes.get("href") or "", "title": ""}
-            self._title_parts = []
-            self._in_title = True
-        elif tag in {"a", "div", "td"} and "result__snippet" in classes:
-            self._snippet_parts = []
-            self._in_snippet = True
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "a" and self._in_title:
-            if self._current_result is not None:
-                self._current_result["title"] = " ".join(self._title_parts).strip()
-                self.results.append(self._current_result)
-            self._current_result = None
-            self._in_title = False
-        elif tag in {"a", "div", "td"} and self._in_snippet:
-            snippet = " ".join(self._snippet_parts).strip()
-            if snippet and self.results:
-                self.results[-1]["snippet"] = snippet
-            self._in_snippet = False
-
-    def handle_data(self, data: str) -> None:
-        text = data.strip()
-        if not text:
-            return
-        if self._in_title:
-            self._title_parts.append(text)
-        if self._in_snippet:
-            self._snippet_parts.append(text)
+_MIN_REQUEST_INTERVAL_SECONDS = 5.0
+_rate_limit_lock = threading.Lock()
+_next_request_at = 0.0
 
 
-def _unwrap_duckduckgo_url(url: str) -> str:
-    """Resolve DuckDuckGo's redirect links to their destination URL."""
-    parsed = urlparse(url)
-    target = parse_qs(parsed.query).get("uddg", [None])[0]
-    return target if target else url
+async def _wait_for_duckduckgo_slot() -> None:
+    """Reserve a process-wide request slot for DuckDuckGo."""
+    global _next_request_at
+
+    with _rate_limit_lock:
+        now = time.monotonic()
+        request_at = max(now, _next_request_at)
+        _next_request_at = request_at + _MIN_REQUEST_INTERVAL_SECONDS
+
+    delay = request_at - now
+    if delay > 0:
+        await asyncio.sleep(delay)
 
 
 class DuckDuckGoSearchProvider(WebSearchProvider):
-    """Search DuckDuckGo web results with Instant Answers as a fallback."""
+    """Query DuckDuckGo's documented Instant Answer API at a paced rate."""
 
     provider_name = "duckduckgo"
 
@@ -84,53 +53,15 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self._timeout),
                 headers={
-                    "User-Agent": "FootballAI/1.0 (research; contact@example.com)"
+                    "User-Agent": "predictGPT/1.0 (football match research)",
+                    "Accept": "application/json",
                 },
             )
         return self._client
 
     async def search(self, query: str, limit: int = 10) -> list[SearchResult]:
-        """Search linked DuckDuckGo web results, with Instant Answers as fallback."""
-        web_search_error: Exception | None = None
-        try:
-            client = await self._get_client()
-            response = await client.get(
-                "https://html.duckduckgo.com/html/",
-                params={"q": query},
-            )
-            if response.status_code == 429:
-                raise SearchRateLimitError("DuckDuckGo rate limit exceeded")
-            if response.status_code != 200:
-                raise SearchProviderError(
-                    f"DuckDuckGo web search returned {response.status_code}",
-                    details={"query": query},
-                )
-
-            parser = _DuckDuckGoHTMLParser()
-            parser.feed(response.text)
-            web_results: list[SearchResult] = []
-            for item in parser.results:
-                url = _unwrap_duckduckgo_url(item.get("url", ""))
-                if url.startswith(("http://", "https://")):
-                    web_results.append(
-                        SearchResult(
-                            title=item.get("title") or None,
-                            url=url,
-                            snippet=item.get("snippet") or None,
-                            source_type="search_result",
-                        )
-                    )
-                    if len(web_results) >= limit:
-                        break
-            if web_results:
-                return web_results
-        except SearchRateLimitError:
-            raise
-        except Exception as exc:
-            web_search_error = exc
-
-        # The Instant Answer API is useful for a few known topics, but it is
-        # not a general web search API and is commonly empty for match queries.
+        """Return Instant Answer API matches, or an empty list for no answer."""
+        await _wait_for_duckduckgo_slot()
         try:
             client = await self._get_client()
             response = await client.get(
@@ -141,62 +72,74 @@ class DuckDuckGoSearchProvider(WebSearchProvider):
                     "no_redirect": "1",
                     "no_html": "1",
                     "skip_disambig": "1",
+                    # DuckDuckGo asks API clients to identify their application.
+                    "t": "predictgpt",
                 },
             )
-            if response.status_code == 429:
-                raise SearchRateLimitError("DuckDuckGo rate limit exceeded")
-            if response.status_code != 200:
-                raise SearchProviderError(
-                    f"DuckDuckGo Instant Answer API returned {response.status_code}",
-                    details={"query": query},
-                )
+        except httpx.TimeoutException as exc:
+            raise SearchProviderError(
+                "DuckDuckGo Instant Answer API request timed out",
+                details={"query": query},
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise SearchProviderError(
+                f"DuckDuckGo Instant Answer API request failed: {exc}",
+                details={"query": query},
+            ) from exc
 
-            data = response.json()
-            if not isinstance(data, dict):
-                raise SearchProviderError(
-                    "DuckDuckGo Instant Answer API returned an unexpected response",
-                    details={"query": query},
+        if response.status_code in {202, 429}:
+            raise SearchRateLimitError(
+                f"DuckDuckGo Instant Answer API deferred or limited the query "
+                f"(HTTP {response.status_code})",
+                details={"query": query, "status_code": response.status_code},
+            )
+        if response.status_code != 200:
+            raise SearchProviderError(
+                f"DuckDuckGo Instant Answer API returned {response.status_code}",
+                details={"query": query, "status_code": response.status_code},
+            )
+
+        try:
+            data: Any = response.json()
+        except ValueError as exc:
+            raise SearchProviderError(
+                "DuckDuckGo Instant Answer API returned invalid JSON",
+                details={"query": query},
+            ) from exc
+        if not isinstance(data, dict):
+            raise SearchProviderError(
+                "DuckDuckGo Instant Answer API returned an unexpected response",
+                details={"query": query},
+            )
+
+        results: list[SearchResult] = []
+        abstract_text = data.get("AbstractText")
+        abstract_url = data.get("AbstractURL")
+        if abstract_text and abstract_url:
+            results.append(
+                SearchResult(
+                    title=data.get("Heading") or data.get("AbstractSource") or None,
+                    url=abstract_url,
+                    snippet=abstract_text,
+                    source_type="search_result",
+                    publisher=data.get("AbstractSource"),
                 )
-            results: list[SearchResult] = []
-            if data.get("AbstractText") and data.get("AbstractURL"):
+            )
+
+        for topic in data.get("RelatedTopics", []):
+            if isinstance(topic, dict) and topic.get("Text") and topic.get("FirstURL"):
                 results.append(
                     SearchResult(
-                        title=data.get("AbstractText")[:200],
-                        url=data["AbstractURL"],
-                        snippet=data.get("AbstractText"),
+                        title=topic["Text"][:200],
+                        url=topic["FirstURL"],
+                        snippet=topic["Text"],
                         source_type="search_result",
-                        publisher=data.get("AbstractSource"),
                     )
                 )
-            for topic in data.get("RelatedTopics", [])[:limit]:
-                if isinstance(topic, dict) and topic.get("Text") and topic.get("FirstURL"):
-                    results.append(
-                        SearchResult(
-                            title=topic.get("Text")[:200],
-                            url=topic["FirstURL"],
-                            snippet=topic.get("Text"),
-                            source_type="search_result",
-                        )
-                    )
-            if results:
-                return results[:limit]
-            return []
-        except SearchRateLimitError:
-            raise
-        except SearchProviderError as exc:
-            api_error = exc
-        except Exception as exc:
-            api_error = exc
-        if web_search_error:
-            raise SearchProviderError(
-                f"DuckDuckGo search failed: web results: {web_search_error}; "
-                f"instant answers: {api_error}",
-                details={"query": query},
-            ) from api_error
-        raise SearchProviderError(
-            f"DuckDuckGo Instant Answer search failed: {api_error}",
-            details={"query": query},
-        ) from api_error
+                if len(results) >= limit:
+                    break
+
+        return results[:limit]
 
     async def close(self) -> None:
         if self._client:

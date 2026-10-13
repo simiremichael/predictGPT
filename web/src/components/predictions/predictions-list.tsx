@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Calendar } from "lucide-react";
@@ -17,6 +17,10 @@ import { getConfidenceColor } from "@/lib/predictions";
 
 interface PredictionsListProps {
   pageSize: number;
+  played: boolean;
+  minElapsedMinutes?: number;
+  maxElapsedMinutes?: number;
+  showDateFilter?: boolean;
   matchId?: string;
   leagueId?: string;
   teamId?: string;
@@ -24,13 +28,22 @@ interface PredictionsListProps {
 
 export function PredictionsList({
   pageSize: initialPageSize,
+  played,
+  minElapsedMinutes,
+  maxElapsedMinutes,
+  showDateFilter = true,
   matchId,
   leagueId,
   teamId,
 }: PredictionsListProps) {
-  const [filterPlayed, setFilterPlayed] = useState<boolean | null>(null);
   const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const todayStr = new Date().toISOString().split("T")[0];
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const {
     data: result,
@@ -45,7 +58,9 @@ export function PredictionsList({
       matchId,
       leagueId,
       teamId,
-      filterPlayed,
+      played,
+      minElapsedMinutes,
+      maxElapsedMinutes,
       filterDate,
       initialPageSize,
     ],
@@ -57,9 +72,13 @@ export function PredictionsList({
         team_id: teamId || undefined,
         page: pageParam,
         page_size: initialPageSize,
-        played: filterPlayed ?? undefined,
+        played,
+        min_elapsed_minutes: minElapsedMinutes,
+        max_elapsed_minutes: maxElapsedMinutes,
         kickoff_date: filterDate ?? undefined,
       }),
+    refetchInterval: 10_000,
+    refetchOnWindowFocus: true,
     getNextPageParam: (lastPage) =>
       lastPage.meta.page < lastPage.meta.total_pages
         ? lastPage.meta.page + 1
@@ -85,14 +104,18 @@ export function PredictionsList({
     return (
       <EmptyState
         title="No predictions found"
-        description="Predictions will appear once generated for upcoming matches."
+        description={
+          played
+            ? "Completed match results will appear here."
+            : "Predictions for unfinished matches will appear here."
+        }
       />
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      {showDateFilter && <div className="flex flex-wrap items-center gap-3">
         <Button
           size="sm"
           variant={filterDate === todayStr ? "default" : "outline"}
@@ -100,26 +123,6 @@ export function PredictionsList({
         >
           Today
         </Button>
-        <fieldset className="flex items-center gap-3 rounded-md border border-border px-3 py-1.5 text-sm">
-          <legend className="sr-only">Match status</legend>
-          {([
-            ["all", null, "All"],
-            ["played", true, "Played"],
-            ["unplayed", false, "Unplayed"],
-          ] as const).map(([value, played, label]) => (
-            <label key={value} className="flex cursor-pointer items-center gap-1.5">
-              <input
-                type="radio"
-                name="prediction-played-filter"
-                value={value}
-                checked={filterPlayed === played}
-                onChange={() => setFilterPlayed(played)}
-                className="accent-primary"
-              />
-              {label}
-            </label>
-          ))}
-        </fieldset>
         <div className="relative">
           <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -129,21 +132,20 @@ export function PredictionsList({
             className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
           />
         </div>
-        {(filterPlayed !== null || filterDate) && (
+        {filterDate && (
           <Button
             size="sm"
             variant="ghost"
             onClick={() => {
-              setFilterPlayed(null);
               setFilterDate(null);
             }}
           >
             Clear
           </Button>
         )}
-      </div>
+      </div>}
       {rows.map((item: PredictionHistoryItem) => (
-        <PredictionItem key={item.prediction_id} item={item} />
+        <PredictionItem key={item.prediction_id} item={item} played={played} nowMs={nowMs} />
       ))}
       {error && <p className="text-center text-sm text-destructive">{error.message}</p>}
       {hasNextPage && (
@@ -161,7 +163,15 @@ export function PredictionsList({
   );
 }
 
-function PredictionItem({ item }: { item: PredictionHistoryItem }) {
+function PredictionItem({
+  item,
+  played,
+  nowMs,
+}: {
+  item: PredictionHistoryItem;
+  played: boolean;
+  nowMs: number;
+}) {
   const confidenceInfo = getConfidenceColor(item.model_confidence);
 
   const renderVerify = (
@@ -197,6 +207,7 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
                 </span>
               </Badge>
               <AIGeneratedBadge />
+              <MatchStateBadge kickoffAt={item.match_kickoff} played={played} nowMs={nowMs} />
               <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                 {item.model_version}
               </span>
@@ -210,6 +221,16 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
           </div>
 
           <div className="flex items-center gap-3 text-right">
+            {played && item.home_score != null && item.away_score != null && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5 text-center">
+                <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Full time
+                </div>
+                <div className="mt-0.5 text-sm font-bold text-foreground">
+                  {item.home_score} - {item.away_score}
+                </div>
+              </div>
+            )}
             {/* Win prediction */}
             <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
               <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -275,4 +296,38 @@ function PredictionItem({ item }: { item: PredictionHistoryItem }) {
     </Link>
     );
   }
+
+function MatchStateBadge({
+  kickoffAt,
+  played,
+  nowMs,
+}: {
+  kickoffAt?: string | null;
+  played: boolean;
+  nowMs: number;
+}) {
+  const kickoffMs = kickoffAt ? new Date(kickoffAt).getTime() : Number.NaN;
+  const elapsedMinutes = Number.isFinite(kickoffMs)
+    ? (nowMs - kickoffMs) / 60_000
+    : null;
+  const isInPlay =
+    !played &&
+    elapsedMinutes !== null &&
+    elapsedMinutes >= 0 &&
+    elapsedMinutes <= 100;
+  const label = played ? "Played" : isInPlay ? "In-play" : "Upcoming";
+
+  return (
+    <Badge
+      variant="outline"
+      className={
+        isInPlay && !played
+          ? "border-amber-500/40 bg-amber-500/10 text-amber-700"
+          : "border-border bg-background/70 text-muted-foreground"
+      }
+    >
+      {label}
+    </Badge>
+  );
+}
 

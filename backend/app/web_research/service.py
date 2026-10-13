@@ -16,7 +16,6 @@ models only.
 """
 from __future__ import annotations
 
-import asyncio
 from datetime import datetime, timezone
 from typing import Any
 
@@ -65,9 +64,9 @@ class MatchResearchService:
     async def get_search_provider(self) -> WebSearchProvider:
         """Get or lazily initialize the search provider."""
         if self._search_provider is None:
-            from web_research.search import DuckDuckGoSearchProvider
+            from web_research.factory import get_search_provider
 
-            self._search_provider = DuckDuckGoSearchProvider()
+            self._search_provider = get_search_provider()
         return self._search_provider
 
     async def research_match(
@@ -115,28 +114,19 @@ class MatchResearchService:
         # Generate queries
         queries = self._query_builder.build_match_queries(context)
 
-        # Search in a small bounded batch. Sequential DDG requests made a
-        # complete evidence pass slow enough to exceed generation timeouts.
+        # DuckDuckGo can defer/challenge a burst of match queries with HTTP
+        # 202. Pace requests and stop after a rate-limit response; evidence
+        # already collected remains usable and the prediction can fall back
+        # to the structured match data.
         sources: list[ResearchSource] = []
         search_failures: list[dict[str, str]] = []
-
-        async def search_one(
-            query_name: str, query_str: str, priority: int
-        ) -> tuple[str, str, int, list[Any] | None, Exception | None]:
+        searched_queries = 0
+        for query_name, query_str, _priority in queries:
+            searched_queries += 1
             try:
-                async with search_semaphore:
-                    provider = await self.get_search_provider()
-                    results = await provider.search(query_str, limit=3)
-                return query_name, query_str, priority, results, None
-            except Exception as exc:
-                return query_name, query_str, priority, None, exc
-
-        search_semaphore = asyncio.Semaphore(3)
-        search_responses = await asyncio.gather(
-            *(search_one(*query) for query in queries)
-        )
-        for query_name, query_str, _priority, raw_results, error in search_responses:
-            if error is not None:
+                provider = await self.get_search_provider()
+                raw_results = await provider.search(query_str, limit=3)
+            except Exception as error:
                 search_failures.append(
                     {
                         "query_name": query_name,
@@ -147,9 +137,14 @@ class MatchResearchService:
                 )
                 if isinstance(error, SearchRateLimitError):
                     logger.warning(
-                        "DuckDuckGo rate limited a match search",
-                        extra={"match_id": match_id, "query_name": query_name},
+                        "DuckDuckGo deferred match research; stopping further searches",
+                        extra={
+                            "match_id": match_id,
+                            "query_name": query_name,
+                            "queries_skipped": len(queries) - searched_queries,
+                        },
                     )
+                    break
                 continue
 
             for raw in raw_results or []:
@@ -244,7 +239,7 @@ class MatchResearchService:
                         injuries.extend(await self._ai_service.extract_injuries(
                             content, source.url, home_team, away_team
                         ))
-                    if categories & {None, "suspensions", "match_preview"}:
+                    if categories & {None, "injury_news", "suspensions", "match_preview"}:
                         suspensions.extend(await self._ai_service.extract_suspensions(
                             content, source.url, home_team, away_team
                         ))

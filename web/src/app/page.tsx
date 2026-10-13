@@ -47,7 +47,7 @@ export default async function HomePage() {
     await Promise.allSettled([
       api.listLeagues({ is_active: true, page_size: 6 }),
       api.getUpcomingMatches({ days: 7, page_size: 6 }),
-      api.getPredictions({ page_size: 6 }),
+      api.getPredictions({ page_size: 6, played: false }),
       api.listTeams({ is_active: true, page_size: 6 }),
     ]);
 

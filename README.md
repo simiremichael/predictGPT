@@ -67,36 +67,32 @@ No prediction-engine, route, database, or frontend code changes are needed.
 
 ## Prerequisites
 
-- Docker / Docker Compose
-- Python 3.12+ (for local development without Docker)
-- PostgreSQL 16+ (if running without Docker)
-- Redis 7+ (if running without Docker)
+- Python 3.12+ (for local development)
+- PostgreSQL and Redis services
 - API keys for at least one football data provider:
   - [API-Football (api-sports)](https://api-sports.io/market/football-api)
   - [Sportmonks Football](https://docs.sportmonks.com/football/)
 
 ---
 
-## Quick Start (Docker)
+## Deploy the backend to Render
 
-```bash
-# 1. Copy the example environment file
-cp .env.example .env
+The root `render.yaml` defines a native Python web service. Render installs
+`backend/requirements.txt`, applies Alembic migrations, starts Uvicorn, and
+checks `/health`. No Docker runtime is used.
 
-# 2. Edit .env and add your API keys
-#    FOOTBALL_DATA_PROVIDER=api_football
-#    API_FOOTBALL_KEY=your_key_here
+1. Push this repository to a Git provider connected to Render.
+2. In Render, create a new Blueprint and select this repository. Render reads
+   `render.yaml` and creates the backend service.
+3. Provide the prompted secret environment values: `DATABASE_URL`, `REDIS_URL`,
+   `SPORTMONKS_API_TOKEN`, `OPENAI_API_KEY`, `TAVILY_API_KEY`, and `ADMIN_API_KEY`.
+4. Deploy and check the service's `/health` endpoint and `/docs` API page.
 
-# 3. Start all services
-docker compose up
+Use external PostgreSQL and Redis URLs from your database providers. The
+database URL should use SQLAlchemy's async driver form, such as
+`postgresql+asyncpg://...`.
 
-# The backend API will be available at http://localhost:8000
-# API docs at http://localhost:8000/docs
-```
-
----
-
-## Quick Start (Local / No Docker)
+## Quick Start (Local)
 
 ```bash
 # 1. Start PostgreSQL and Redis (using your preferred method)
@@ -109,8 +105,8 @@ cp .env.example .env
 cd backend
 python -m alembic upgrade head
 
-# 4. Start the API server
-python -m uvicorn api.main:app --reload --port 8000
+# 4. Start the API server from the backend directory
+python -m uvicorn asgi:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ---
@@ -146,11 +142,10 @@ football-ai/
 │   │   └── utils/
 │   ├── alembic/         # Database migrations
 │   ├── tests/           # Unit, integration, and contract tests
-│   ├── Dockerfile
 │   └── requirements.txt
 ├── packages/
 │   └── shared-types/    # Shared TypeScript types
-├── docker-compose.yml
+├── render.yaml          # Native Render backend service
 ├── .env.example
 └── README.md
 ```

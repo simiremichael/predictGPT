@@ -71,18 +71,18 @@ class TestMatchResearchQueryBuilder:
         all_queries = " ".join(query for _, query, _ in queries)
 
         assert {
-            "historical_scores",
-            "away_historical_scores",
-            "season_team_statistics",
-            "league_standings",
-            "head_to_head",
-            "fixture_congestion",
-            "market_odds",
-            "match_conditions",
-        }.issubset(names)
+            "injury_news",
+            "predicted_lineup",
+            "match_preview",
+            "recent_form",
+        } == names
+        assert len(queries) == 4
         assert "Arsenal" in all_queries
         assert "Chelsea" in all_queries
         assert "2026-10-20" in all_queries
+        assert "suspensions" in all_queries
+        assert "head to head" in all_queries
+        assert "league standings" in all_queries
 
     def test_build_team_queries(self) -> None:
         builder = MatchResearchQueryBuilder()

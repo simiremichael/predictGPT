@@ -159,8 +159,8 @@ class PredictionOrchestrator:
         from core.cache import (
             cache_match_key,
             cache_match_prediction_key,
-            cache_predictions_list_key,
             invalidate_cache_keys,
+            invalidate_prediction_list_caches,
         )
         from prediction.service import PredictionService
 
@@ -191,8 +191,8 @@ class PredictionOrchestrator:
         await invalidate_cache_keys(
             cache_match_key(match_id),
             cache_match_prediction_key(match_id),
-            cache_predictions_list_key(page=1, page_size=20),
         )
+        await invalidate_prediction_list_caches()
         logger.info(
             "Prediction pipeline completed",
             extra={

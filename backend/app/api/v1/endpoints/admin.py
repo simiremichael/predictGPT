@@ -394,6 +394,9 @@ async def trigger_batch_predictions(
                 if clear_all:
                     deleted_count = await _delete_all_predictions(db)
                     logger.info("Cleared all predictions", extra={"deleted": len(deleted_count)})
+                    from core.cache import invalidate_prediction_list_caches
+
+                    await invalidate_prediction_list_caches()
 
                 from services.ai_prediction_service import AIPredictionService
 

@@ -21,5 +21,4 @@ htmlcov/
 .ruff_cache/
 *.ruff-cache/
 
-# Docker
 *.pid

@@ -35,14 +35,8 @@ class QueryTemplate:
 DEFAULT_QUERY_TEMPLATES: list[QueryTemplate] = [
     QueryTemplate(
         name="injury_news",
-        template="{home_team} {away_team} {competition} injury news unavailable players",
+        template="{home_team} {away_team} {competition} injuries unavailable players suspensions bans",
         category="injury",
-        priority=10,
-    ),
-    QueryTemplate(
-        name="suspensions",
-        template="{home_team} {away_team} {competition} suspensions",
-        category="suspension",
         priority=10,
     ),
     QueryTemplate(
@@ -59,57 +53,12 @@ DEFAULT_QUERY_TEMPLATES: list[QueryTemplate] = [
     ),
     QueryTemplate(
         name="recent_form",
-        template="{home_team} {away_team} {competition} recent form last results",
+        template=(
+            "{home_team} {away_team} {competition} recent form last results "
+            "league standings season goals scored conceded xG before {kickoff_at}"
+        ),
         category="form",
         priority=8,
-    ),
-    QueryTemplate(
-        name="historical_scores",
-        template="{home_team} last 5 match results scores before {kickoff_at}",
-        category="historical_results",
-        priority=9,
-    ),
-    QueryTemplate(
-        name="away_historical_scores",
-        template="{away_team} last 5 match results scores before {kickoff_at}",
-        category="historical_results",
-        priority=9,
-    ),
-    QueryTemplate(
-        name="season_team_statistics",
-        template="{home_team} {away_team} {competition} season goals scored conceded xG statistics",
-        category="team_statistics",
-        priority=8,
-    ),
-    QueryTemplate(
-        name="league_standings",
-        template="{competition} league table standings {home_team} {away_team}",
-        category="standings",
-        priority=7,
-    ),
-    QueryTemplate(
-        name="head_to_head",
-        template="{home_team} vs {away_team} {competition} head to head results history",
-        category="h2h",
-        priority=7,
-    ),
-    QueryTemplate(
-        name="fixture_congestion",
-        template="{home_team} {away_team} fixtures schedule rest days before {kickoff_at}",
-        category="schedule",
-        priority=6,
-    ),
-    QueryTemplate(
-        name="market_odds",
-        template="{home_team} vs {away_team} {competition} 1X2 odds match winner",
-        category="odds",
-        priority=6,
-    ),
-    QueryTemplate(
-        name="match_conditions",
-        template="{competition} {home_team} vs {away_team} venue weather forecast {kickoff_at}",
-        category="conditions",
-        priority=4,
     ),
 ]
 

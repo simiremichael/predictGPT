@@ -119,6 +119,22 @@ async def invalidate_cache_keys(*keys: str) -> int:
         return 0
 
 
+async def invalidate_prediction_list_caches() -> int:
+    """Delete cached prediction-list responses for every filter/page variant."""
+    deleted = 0
+    try:
+        async for key in redis_client.client.scan_iter(
+            match="predictions:list:*", count=500
+        ):
+            deleted += await redis_client.client.delete(key)
+    except Exception as exc:
+        logger.warning(
+            "Prediction list cache invalidation failed",
+            extra={"deleted": deleted, "error": str(exc)},
+        )
+    return deleted
+
+
 async def get_cached(key: str) -> Any:
     """Retrieve and deserialize a cached JSON value."""
     try:

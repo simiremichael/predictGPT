@@ -512,6 +512,8 @@ export const api = {
     date_to?: string;
     upcoming_only?: boolean;
     played?: boolean;
+    min_elapsed_minutes?: number;
+    max_elapsed_minutes?: number;
     kickoff_date?: string;
     page?: number;
     page_size?: number;
