@@ -371,6 +371,10 @@ async def list_predictions(
         None,
         description="Filter by match kickoff date (YYYY-MM-DD).",
     ),
+    newest_first: bool = Query(
+        False,
+        description="Sort matches by kickoff time, newest first.",
+    ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ) -> dict[str, Any]:
@@ -392,6 +396,7 @@ async def list_predictions(
         min_elapsed_minutes=min_elapsed_minutes,
         max_elapsed_minutes=max_elapsed_minutes,
         kickoff_date=str(kickoff_date) if kickoff_date else None,
+        newest_first=newest_first,
         elapsed_minute_bucket=(
             int(now.timestamp() // 60)
             if min_elapsed_minutes is not None or max_elapsed_minutes is not None
@@ -471,9 +476,12 @@ async def list_predictions(
     total_result = await db.execute(total_stmt)
     total = total_result.scalar() or 0
 
-    stmt = stmt.order_by(
-        Match.kickoff_at.asc().nullslast(), Prediction.generated_at.desc()
-    ).offset(offset).limit(ps)
+    kickoff_order = (
+        Match.kickoff_at.desc().nullslast()
+        if newest_first
+        else Match.kickoff_at.asc().nullslast()
+    )
+    stmt = stmt.order_by(kickoff_order, Prediction.generated_at.desc()).offset(offset).limit(ps)
     result = await db.execute(stmt)
     predictions = result.all()
 

@@ -32,19 +32,44 @@ export class ApiError extends Error {
   }
 }
 
+const API_UNAVAILABLE_STATUSES = new Set([502, 503, 504]);
+
+async function fetchApi(path: string, options: RequestInit): Promise<Response> {
+  const baseUrls = [...new Set([env.apiUrl, env.apiFallbackUrl])];
+  let lastError: unknown;
+
+  for (let index = 0; index < baseUrls.length; index += 1) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(`${baseUrls[index]}${path}`, {
+        ...options,
+        signal: controller.signal,
+      });
+      if (
+        index < baseUrls.length - 1 &&
+        API_UNAVAILABLE_STATUSES.has(response.status)
+      ) {
+        continue;
+      }
+      return response;
+    } catch (error) {
+      lastError = error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("API unavailable");
+}
+
 async function requestResponse<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiSuccessResponse<T>> {
-  const url = `${env.apiUrl}${path}`;
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-
   try {
-    const response = await fetch(url, {
+    const response = await fetchApi(path, {
       ...options,
-      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
@@ -88,8 +113,6 @@ async function requestResponse<T>(
       500,
       "UNKNOWN_ERROR",
     );
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 
@@ -211,13 +234,9 @@ async function adminCall<T = unknown>(
   // `meta.message` bodies on 200 `success:false` and (b) `{ detail }` on
   // HTTP errors. `requestResponse` doesn't surface those, so we handle the
   // envelope explicitly here to give the UI actionable error text.
-  const url = `${env.apiUrl}${path}`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
   try {
-    const response = await fetch(url, {
+    const response = await fetchApi(path, {
       ...init,
-      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...init.headers,
@@ -261,8 +280,6 @@ async function adminCall<T = unknown>(
       500,
       "UNKNOWN_ERROR",
     );
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
 
@@ -515,6 +532,7 @@ export const api = {
     min_elapsed_minutes?: number;
     max_elapsed_minutes?: number;
     kickoff_date?: string;
+    newest_first?: boolean;
     page?: number;
     page_size?: number;
   }) => {

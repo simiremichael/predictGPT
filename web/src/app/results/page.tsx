@@ -37,7 +37,7 @@ export default function ResultsPage() {
         pageSize={50}
         played
         minElapsedMinutes={100}
-        showDateFilter={false}
+        newestFirst
       />
     </div>
   );

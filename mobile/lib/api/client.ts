@@ -31,24 +31,50 @@ interface FetchOptions {
 
 class ApiClient {
   private baseURL: string;
+  private fallbackBaseURL: string;
 
-  constructor(baseURL: string) {
+  constructor(baseURL: string, fallbackBaseURL: string) {
     this.baseURL = baseURL;
+    this.fallbackBaseURL = fallbackBaseURL;
+  }
+
+  private async fetchApi(path: string, options: RequestInit): Promise<Response> {
+    const baseUrls = [...new Set([this.baseURL, this.fallbackBaseURL])];
+    const unavailableStatuses = new Set([502, 503, 504]);
+    let lastError: unknown;
+
+    for (let index = 0; index < baseUrls.length; index += 1) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      try {
+        const response = await fetch(`${baseUrls[index]}${path}`, {
+          ...options,
+          signal: controller.signal,
+        });
+        if (
+          index < baseUrls.length - 1 &&
+          unavailableStatuses.has(response.status)
+        ) {
+          continue;
+        }
+        return response;
+      } catch (error) {
+        lastError = error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("API unavailable");
   }
 
   private async requestResponse<T>(
     path: string,
     options: RequestInit = {},
   ): Promise<ApiErrorResponse | { success: true; data: T; meta?: Record<string, unknown> }> {
-    const url = `${this.baseURL}${path}`;
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
-
     try {
-      const response = await fetch(url, {
+      const response = await this.fetchApi(path, {
         ...options,
-        signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
           ...options.headers,
@@ -76,8 +102,6 @@ class ApiClient {
         500,
         "UNKNOWN_ERROR",
       );
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 
@@ -432,4 +456,5 @@ class ApiClient {
 
 }
 
+export const api = new ApiClient(env.apiUrl, env.apiFallbackUrl);
 export type { SearchResultItem };

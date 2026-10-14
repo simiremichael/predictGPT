@@ -20,6 +20,7 @@ interface PredictionsListProps {
   played: boolean;
   minElapsedMinutes?: number;
   maxElapsedMinutes?: number;
+  newestFirst?: boolean;
   showDateFilter?: boolean;
   matchId?: string;
   leagueId?: string;
@@ -31,6 +32,7 @@ export function PredictionsList({
   played,
   minElapsedMinutes,
   maxElapsedMinutes,
+  newestFirst = false,
   showDateFilter = true,
   matchId,
   leagueId,
@@ -61,6 +63,7 @@ export function PredictionsList({
       played,
       minElapsedMinutes,
       maxElapsedMinutes,
+      newestFirst,
       filterDate,
       initialPageSize,
     ],
@@ -76,6 +79,7 @@ export function PredictionsList({
         min_elapsed_minutes: minElapsedMinutes,
         max_elapsed_minutes: maxElapsedMinutes,
         kickoff_date: filterDate ?? undefined,
+        newest_first: newestFirst,
       }),
     refetchInterval: 10_000,
     refetchOnWindowFocus: true,
