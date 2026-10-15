@@ -38,7 +38,7 @@ from core.cache import (
 )
 from core.config import get_settings
 from core.pagination import get_page, get_page_size
-from core.security import verify_admin_api_key
+from core.security import get_current_user, verify_admin_api_key
 from db.database import get_db
 from jobs.job_manager import create_job, get_job
 from models.match import (
@@ -377,8 +377,26 @@ async def list_predictions(
     ),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    user_email: str | None = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """List prediction history with filters and pagination."""
+    """List prediction history with filters and pagination.
+
+    Free (non-subscribed) users are limited to the first 2 predictions.
+    """
+    from models.user import User
+
+    is_subscribed = False
+    if user_email:
+        async with get_db() as session:
+            from sqlalchemy import select
+
+            result = await session.execute(
+                select(User).where(User.email == user_email)
+            )
+            user = result.scalar_one_or_none()
+            if user and user.is_subscribed:
+                is_subscribed = True
+
     page_num = get_page(page)
     ps = get_page_size(page_size)
     offset = (page_num - 1) * ps
@@ -402,6 +420,7 @@ async def list_predictions(
             if min_elapsed_minutes is not None or max_elapsed_minutes is not None
             else None
         ),
+        is_subscribed=is_subscribed,
         page=page_num,
         page_size=ps,
     )
@@ -472,9 +491,14 @@ async def list_predictions(
         end = start + timedelta(days=1)
         stmt = stmt.where(Match.kickoff_at >= start).where(Match.kickoff_at < end)
 
+    # Free (non-subscribed) users see at most 2 predictions
+    free_limit = 2 if not is_subscribed else None
+
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total_result = await db.execute(total_stmt)
     total = total_result.scalar() or 0
+    if free_limit is not None:
+        total = min(total, free_limit)
 
     kickoff_order = (
         Match.kickoff_at.desc().nullslast()
@@ -482,6 +506,8 @@ async def list_predictions(
         else Match.kickoff_at.asc().nullslast()
     )
     stmt = stmt.order_by(kickoff_order, Prediction.generated_at.desc()).offset(offset).limit(ps)
+    if free_limit is not None:
+        stmt = stmt.limit(free_limit)
     result = await db.execute(stmt)
     predictions = result.all()
 
@@ -534,6 +560,8 @@ async def list_predictions(
             "total": total,
             "total_pages": max(1, -(-total // ps)) if ps > 0 else 1,
             "upcoming_only": upcoming_only,
+            "is_subscribed": is_subscribed,
+            "free_predictions_remaining": max(0, 2 - len(items)) if not is_subscribed else None,
         },
     }
 

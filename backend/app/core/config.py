@@ -217,6 +217,42 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("ADMIN_API_KEY", "admin_api_key"),
     )
+
+    # ------------------------------------------------------------------ #
+    # Auth / JWT
+    # ------------------------------------------------------------------ #
+    secret_key: str = Field(
+        default="dev-secret-change-me",
+        validation_alias=AliasChoices("SECRET_KEY", "secret_key"),
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        validation_alias=AliasChoices("JWT_ALGORITHM", "jwt_algorithm"),
+    )
+    access_token_expire_minutes: int = Field(
+        default=43200,
+        validation_alias=AliasChoices("ACCESS_TOKEN_EXPIRE_MINUTES", "access_token_expire_minutes"),
+    )
+
+    # ------------------------------------------------------------------ #
+    # Flutterwave
+    # ------------------------------------------------------------------ #
+    flutterwave_secret_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FLUTTERWAVE_SECRET_KEY", "flutterwave_secret_key"),
+    )
+    flutterwave_public_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FLUTTERWAVE_PUBLIC_KEY", "flutterwave_public_key"),
+    )
+    flutterwave_webhook_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FLUTTERWAVE_WEBHOOK_SECRET", "flutterwave_webhook_secret"),
+    )
+    subscription_price_usd: float = Field(
+        default=5.0,
+        validation_alias=AliasChoices("SUBSCRIPTION_PRICE_USD", "subscription_price_usd"),
+    )
     allowed_hosts: list[str] = Field(default_factory=lambda: ["*"])
     cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost:19006"]

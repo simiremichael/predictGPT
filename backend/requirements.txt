@@ -38,3 +38,5 @@ structlog==25.4.0
 
 # Utilities
 python-dateutil==2.9.0.post0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4

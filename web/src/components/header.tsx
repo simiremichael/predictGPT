@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import { SearchDialog } from "@/components/search-dialog";
+import { useAuth } from "@/contexts/auth";
 
 const navItems = [
   { href: "/", label: "Home" },
@@ -23,6 +24,7 @@ export function Header() {
   const pathname = usePathname();
   const [showSearch, setShowSearch] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, isSubscribed, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -78,6 +80,36 @@ export function Header() {
             >
               <Search className="h-4 w-4" />
             </Button>
+            {user ? (
+              <>
+                {isSubscribed ? (
+                  <span className="hidden items-center gap-1.5 rounded-full border border-border/80 bg-card/60 px-2.5 py-1 text-xs font-medium text-green-400 md:flex">
+                    <span className="h-2 w-2 rounded-full bg-green-400" />
+                    Premium
+                  </span>
+                ) : (
+                  <Link href="/subscription">
+                    <Button size="sm" variant="outline">
+                      Upgrade
+                    </Button>
+                  </Link>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={logout}
+                  className="hidden md:inline-flex"
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Link href="/login">
+                <Button size="sm" variant="ghost">
+                  Login
+                </Button>
+              </Link>
+            )}
             <Button
               variant="ghost"
               size="icon"

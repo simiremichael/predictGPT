@@ -23,12 +23,14 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.v1.endpoints.admin import router as admin_router
+from api.v1.endpoints.auth import router as auth_router
 from api.v1.endpoints.leagues import router as leagues_router
 from api.v1.endpoints.matches import router as matches_router
 from api.v1.endpoints.predictions import router as predictions_router
 from api.v1.endpoints.providers import router as providers_router
 from api.v1.endpoints.research import router as research_router
 from api.v1.endpoints.search import router as search_router
+from api.v1.endpoints.subscription import router as subscription_router
 from api.v1.endpoints.teams import router as teams_router
 from core.api_exceptions import (
     APIError,
@@ -283,6 +285,8 @@ def create_app() -> FastAPI:
     app.include_router(research_router, prefix="/api/v1", tags=["research"])
     app.include_router(search_router, prefix="/api/v1", tags=["search"])
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
+    app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+    app.include_router(subscription_router, prefix="/api/v1", tags=["subscription"])
 
     # Health endpoints
     from api.v1.endpoints.health import deep_health, health

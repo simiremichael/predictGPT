@@ -1,14 +1,83 @@
-"""Security helpers: API-key auth for admin routes, CORS setup."""
+"""Security helpers: JWT authentication, password hashing, API-key auth."""
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Security, status
-from fastapi.security import APIKeyHeader
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
 from core.config import get_settings
 
 api_key_header = APIKeyHeader(name="X-Admin-Api-Key", auto_error=False)
+bearer_scheme = HTTPBearer(auto_error=False)
+
+_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    return _pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    return _pwd_context.verify(plain_password, hashed_password)
+
+
+def create_access_token(email: str, expires_delta: timedelta | None = None) -> str:
+    """Create a JWT access token for the given email."""
+    settings = get_settings()
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.now(UTC) + expires_delta
+    payload = {
+        "sub": email,
+        "exp": expire,
+        "type": "access",
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
+async def get_current_user(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)] = None,
+) -> str | None:
+    """Extract and validate the JWT token, returning the user's email.
+
+    Returns None when no token is present (anonymous user).
+    Raises HTTPException on invalid/expired tokens.
+    """
+    if credentials is None:
+        return None
+    settings = get_settings()
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+        return email
+    except JWTError:
+        return None
+
+
+async def get_current_user_required(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)] = None,
+) -> str:
+    """Require a valid JWT token. Raises 401 if missing or invalid."""
+    email = await get_current_user(credentials)
+    if email is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return email
 
 
 async def verify_admin_api_key(

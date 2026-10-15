@@ -4,6 +4,7 @@ interface Env {
   appName: string;
   appEnv: "development" | "production" | "staging";
   adminApiKey: string;
+  flutterwavePublicKey: string;
 }
 
 export const env: Env = {
@@ -13,4 +14,5 @@ export const env: Env = {
   appName: process.env.NEXT_PUBLIC_APP_NAME || "Football AI",
   appEnv: (process.env.NODE_ENV as Env["appEnv"]) || "development",
   adminApiKey: process.env.NEXT_PUBLIC_ADMIN_API_KEY || "",
+  flutterwavePublicKey: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY || "",
 };

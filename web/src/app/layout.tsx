@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { AuthProvider } from "@/contexts/auth";
 
 export const metadata: Metadata = {
   title: {
@@ -91,6 +92,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       </head>
       <body className="antialiased">
         <QueryProvider>
+          <AuthProvider>
           <ThemeProvider
             attribute="data-theme"
             defaultTheme="system"
@@ -168,9 +170,10 @@ export default function RootLayout({ children }: RootLayoutProps) {
 
               <Toaster position="bottom-right" richColors closeButton />
               <ThemeToggle />
-            </div>
-          </ThemeProvider>
-        </QueryProvider>
+             </div>
+           </ThemeProvider>
+          </AuthProvider>
+         </QueryProvider>
       </body>
     </html>
   );

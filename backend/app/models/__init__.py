@@ -44,6 +44,11 @@ from models.research import (  # noqa: F401
     ResearchRun,
     WebSourceExtended,
 )
+from models.user import (  # noqa: F401
+    Subscription,
+    SubscriptionStatus,
+    User,
+)
 
 __all__ = [
     "Base",
@@ -77,4 +82,7 @@ __all__ = [
     "ResearchEvidence",
     "ResearchRun",
     "WebSourceExtended",
+    "User",
+    "Subscription",
+    "SubscriptionStatus",
 ]

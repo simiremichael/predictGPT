@@ -530,3 +530,26 @@ export interface TeamCountry {
   country: string;
   league_count: number;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  is_active: boolean;
+  is_subscribed: boolean;
+  created_at?: string | null;
+}
+
+export interface Subscription {
+  id: string;
+  status: string;
+  current_period_end?: string | null;
+  amount: number;
+  currency: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: User;
+}

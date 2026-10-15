@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { AIGeneratedBadge } from "@/components/ai-generated-badge";
 import type { PredictionHistoryItem } from "@/types/models";
 import { getConfidenceColor } from "@/lib/predictions";
+import { useAuth } from "@/contexts/auth";
+
+const FREE_LIMIT = 2;
 
 interface PredictionsListProps {
   pageSize: number;
@@ -90,6 +93,10 @@ export function PredictionsList({
   });
 
   const rows = result?.pages.flatMap((pageResult) => pageResult.data) ?? [];
+  const { user } = useAuth();
+  const firstPageMeta = result?.pages[0]?.meta;
+  const isSubscribed = firstPageMeta?.is_subscribed ?? true;
+  const freeRemaining = firstPageMeta?.free_predictions_remaining;
 
   if (error && !result) {
     return (
@@ -147,7 +154,23 @@ export function PredictionsList({
             Clear
           </Button>
         )}
-      </div>}
+       </div>}
+      {(!isSubscribed || freeRemaining !== undefined) && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
+          <p className="font-semibold text-foreground">
+            Showing first {FREE_LIMIT} predictions
+          </p>
+          <p className="text-muted-foreground">
+            Subscribe for $5/month to see all predictions with full market details.
+          </p>
+          <Link
+            href={user ? "/subscription" : "/signup"}
+            className="mt-2 inline-block font-medium text-primary hover:underline"
+          >
+            {user ? "Go to subscription →" : "Create an account / subscribe →"}
+          </Link>
+        </div>
+      )}
       {rows.map((item: PredictionHistoryItem) => (
         <PredictionItem key={item.prediction_id} item={item} played={played} nowMs={nowMs} />
       ))}

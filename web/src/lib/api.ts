@@ -6,6 +6,7 @@ import type {
   ApiResponseMeta,
 } from "@/types/api";
 import type {
+  AuthResponse,
   League,
   MatchBrief,
   MatchDetail,
@@ -18,7 +19,9 @@ import type {
   SearchResultItem,
   Season,
   Standing,
+  Subscription,
   Team,
+  User,
 } from "@/types/models";
 
 export class ApiError extends Error {
@@ -145,7 +148,10 @@ export interface PaginatedResult<T> {
     page_size: number;
     total: number;
     total_pages: number;
+    is_subscribed?: boolean;
+    free_predictions_remaining?: number | null;
   };
+  [key: string]: unknown;
 }
 
 export interface AdminLeague {
@@ -297,6 +303,12 @@ async function requestPaginated<T>(
       page_size: Number(meta.page_size) || 20,
       total: Number(meta.total) || 0,
       total_pages: Number(meta.total_pages) || 1,
+      ...("is_subscribed" in meta
+        ? { is_subscribed: meta.is_subscribed as boolean }
+        : {}),
+      ...("free_predictions_remaining" in meta
+        ? { free_predictions_remaining: meta.free_predictions_remaining as number | null }
+        : {}),
     },
   };
 }
@@ -799,4 +811,60 @@ export const api = {
         { method: "PUT" },
       ),
   },
+
+  authLogin: (email: string, password: string): Promise<AuthResponse> =>
+    request<AuthResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  authRegister: (
+    email: string,
+    password: string,
+  ): Promise<AuthResponse> =>
+    request<AuthResponse>("/api/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  authGetCurrent: (): Promise<User> =>
+    request<User>("/api/v1/auth/me", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}` },
+    }),
+
+  authLogout: (): Promise<{ success: boolean }> => {
+    localStorage.removeItem("auth_token");
+    return Promise.resolve({ success: true });
+  },
+
+  getSubscriptionStatus: (): Promise<{
+    is_subscribed: boolean;
+    free_predictions_remaining: number | null;
+    total_free_predictions: number;
+  }> =>
+    request<{
+      is_subscribed: boolean;
+      free_predictions_remaining: number | null;
+      total_free_predictions: number;
+    }>("/api/v1/subscription/check", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}` },
+    }),
+
+  initiateSubscription: (): Promise<{
+    link: string | null;
+    subscription_id: string | null;
+    reference: string | null;
+    message: string | null;
+  }> =>
+    request<{
+      link: string | null;
+      subscription_id: string | null;
+      reference: string | null;
+      message: string | null;
+    }>("/api/v1/subscription/initiate", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}` },
+    }),
 };
