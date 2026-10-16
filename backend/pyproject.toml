@@ -9,7 +9,7 @@ description = "Football AI - AI-powered football match prediction API"
 requires-python = ">=3.11"
 authors = [{ name = "Football AI" }]
 dependencies = [
-  "fastapi",
+  "fastapi[standard]",
   "uvicorn[standard]",
   "sqlalchemy>=2.0.51",
   "greenlet>=3.0.0",

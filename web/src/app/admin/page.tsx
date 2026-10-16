@@ -584,8 +584,9 @@ function AdminTeams() {
 const now = () => new Date().toISOString().slice(0, 10);
 
 function FixturesTab() {
+  const today = now();
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState(() => now());
+  const [dateTo, setDateTo] = useState(() => today);
   const [leagueInput, setLeagueInput] = useState("");
   const [resyncResult, setResyncResult] = useState<string | null>(null);
   const [matchPage, setMatchPage] = useState(1);
@@ -675,6 +676,18 @@ function FixturesTab() {
           />
         </div>
         <div className="flex items-end gap-2">
+          <Button
+            onClick={() => {
+              setDateFrom(today);
+              setDateTo(today);
+              setMatchPage(1);
+            }}
+            variant="outline"
+            size="sm"
+            className="h-9"
+          >
+            Today
+          </Button>
           <Button
             onClick={() => void refetchMatches()}
             variant="outline"
@@ -778,6 +791,72 @@ function AdminPredictions() {
   const [verifyStates, setVerifyStates] = useState<
     Record<string, { gg: boolean; win: boolean; over_2_5: boolean }>
   >({});
+
+  const renderGenerateButton = () => (
+    <div className="flex items-center gap-2">
+      <div className="relative">
+        <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="date"
+          value={filterDate ?? todayStr}
+          onChange={(e) => setFilterDate(e.target.value || todayStr)}
+          aria-label="Prediction generation date"
+          className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
+        />
+      </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={forceRefresh}
+          onChange={(e) => setForceRefresh(e.target.checked)}
+        />
+        Force refresh
+      </label>
+      <label className="flex items-center gap-2 text-sm font-medium text-destructive">
+        <input
+          type="checkbox"
+          checked={clearAll}
+          onChange={(e) => {
+            if (e.target.checked) {
+              if (
+                !confirm(
+                  "Clear ALL existing predictions before generating new ones?",
+                )
+              ) {
+                return;
+              }
+            }
+            setClearAll(e.target.checked);
+          }}
+        />
+        Clear all existing predictions
+      </label>
+      <Button
+        variant="default"
+        onClick={() => {
+          if (
+            clearAll &&
+            !confirm(
+              "WARNING: This will delete ALL existing predictions.\n\nClick OK to proceed, Cancel to keep existing predictions.",
+            )
+          ) {
+            return;
+          }
+          void generateMutation.mutate({
+            clear_all: clearAll,
+            include_research: true,
+            limit: 500,
+            kickoff_date: filterDate ?? todayStr,
+          });
+        }}
+        disabled={generateMutation.isPending || generationInProgress}
+      >
+        {generateMutation.isPending || generationInProgress
+          ? "Generating..."
+          : `Generate for ${filterDate ?? todayStr}`}
+      </Button>
+    </div>
+  );
 
   const renderMarketBox = (
     prediction: PredictionHistoryItem,
@@ -1038,333 +1117,185 @@ function AdminPredictions() {
     );
   }
 
-  if (error)
-    return (
-      <EmptyState
-        title="Failed to load predictions"
-        description={errMsg(error)}
-      />
-    );
-  if (loading && !listResult)
-    return <LoadingState message="Loading predictions..." />;
-  if (!listResult || rows.length === 0)
-    return (
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-sm text-muted-foreground">
-            {total} predictions
-          </span>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant={filterDate === todayStr ? "default" : "outline"}
-                onClick={() => setFilterDate(todayStr)}
-              >
-                Today
-              </Button>
-              <fieldset className="flex items-center gap-3 rounded-md border border-border px-3 py-1.5 text-sm">
-                <legend className="sr-only">Match status</legend>
-                {([
-                  ["all", null, "All"],
-                  ["played", true, "Played"],
-                  ["unplayed", false, "Unplayed"],
-                ] as const).map(([value, played, label]) => (
-                  <label key={value} className="flex cursor-pointer items-center gap-1.5">
-                    <input
-                      type="radio"
-                      name="admin-prediction-played-filter"
-                      value={value}
-                      checked={filterPlayed === played}
-                      onChange={() => setFilterPlayed(played)}
-                      className="accent-primary"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </fieldset>
-              <div className="relative">
-                <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="date"
-                  value={filterDate ?? ""}
-                  onChange={(e) => setFilterDate(e.target.value || null)}
-                  aria-label="Prediction filter and generation date"
-                  className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
-                />
-              </div>
-              {(filterPlayed !== null || filterDate) && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setFilterPlayed(null);
-                    setFilterDate(null);
-                  }}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={forceRefresh}
-                onChange={(e) => setForceRefresh(e.target.checked)}
-              />
-              Force refresh
-            </label>
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            if (
-              clearAll &&
-              !confirm(
-                "WARNING: This will delete ALL existing predictions.\n\nClick OK to proceed, Cancel to keep existing predictions.",
-              )
-            ) {
-              return;
-            }
-            void generateMutation.mutate({
-              clear_all: clearAll,
-              include_research: true,
-              limit: 500,
-              kickoff_date: filterDate ?? todayStr,
-            });
-          }}
-          disabled={generateMutation.isPending || generationInProgress}
-        >
-          {generateMutation.isPending || generationInProgress
-            ? "Generating..."
-            : `Generate predictions for ${filterDate ?? todayStr}`}
-        </Button>
-        <EmptyState title="No predictions found" />
-      </div>
-    );
+  
+  const hasActiveFilters = filterPlayed !== null || filterDate;
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-sm text-muted-foreground">
-          {total} predictions
-        </span>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              variant={filterDate === todayStr ? "default" : "outline"}
-              onClick={() => setFilterDate(todayStr)}
-            >
-              Today
-            </Button>
-            <fieldset className="flex items-center gap-3 rounded-md border border-border px-3 py-1.5 text-sm">
-              <legend className="sr-only">Match status</legend>
-              {([
+      <div className="surface-card rounded-[1.5rem] p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-sm text-muted-foreground">
+            {total} predictions
+          </span>
+          {renderGenerateButton()}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 pt-3">
+          <Button
+            size="sm"
+            variant={filterDate === todayStr ? "default" : "outline"}
+            onClick={() => setFilterDate(todayStr)}
+          >
+            Today
+          </Button>
+          <fieldset className="flex items-center gap-3 rounded-md border border-border px-3 py-1.5 text-sm">
+            <legend className="sr-only">Match status</legend>
+            {(
+              [
                 ["all", null, "All"],
                 ["played", true, "Played"],
                 ["unplayed", false, "Unplayed"],
-              ] as const).map(([value, played, label]) => (
-                <label key={value} className="flex cursor-pointer items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="admin-prediction-played-filter"
-                    value={value}
-                    checked={filterPlayed === played}
-                    onChange={() => setFilterPlayed(played)}
-                    className="accent-primary"
-                  />
-                  {label}
-                </label>
-              ))}
-            </fieldset>
-            <div className="relative">
-              <Calendar className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="date"
-                value={filterDate ?? ""}
-                onChange={(e) => setFilterDate(e.target.value || null)}
-                aria-label="Prediction filter and generation date"
-                className="rounded-md border border-border bg-background pl-8 pr-2 py-1 text-sm"
-              />
-            </div>
-            {(filterPlayed !== null || filterDate) && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setFilterPlayed(null);
-                  setFilterDate(null);
-                }}
+              ] as const
+            ).map(([value, played, label]) => (
+              <label
+                key={value}
+                className="flex cursor-pointer items-center gap-1.5"
               >
-                Clear
-              </Button>
-            )}
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={forceRefresh}
-              onChange={(e) => setForceRefresh(e.target.checked)}
-            />
-            Force refresh
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium text-destructive">
-            <input
-              type="checkbox"
-              checked={clearAll}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  if (
-                    !confirm(
-                      "Clear ALL existing predictions before generating new ones?",
-                    )
-                  ) {
-                    return;
-                  }
-                }
-                setClearAll(e.target.checked);
+                <input
+                  type="radio"
+                  name="admin-prediction-played-filter"
+                  value={value}
+                  checked={filterPlayed === played}
+                  onChange={() => setFilterPlayed(played)}
+                  className="accent-primary"
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          {hasActiveFilters && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setFilterPlayed(null);
+                setFilterDate(null);
               }}
-            />
-            Clear all existing predictions
-          </label>
-          <Button
-            variant="outline"
-            onClick={() => {
-              if (
-                clearAll &&
-                !confirm(
-                  "WARNING: This will delete ALL existing predictions.\n\nClick OK to proceed, Cancel to keep existing predictions.",
-                )
-              ) {
-                return;
-              }
-              void generateMutation.mutate({
-                clear_all: clearAll,
-                include_research: true,
-                limit: 500,
-                kickoff_date: filterDate ?? todayStr,
-              });
-            }}
-            disabled={generateMutation.isPending || generationInProgress}
-          >
-            {generateMutation.isPending || generationInProgress
-              ? "Generating..."
-              : `Generate predictions for ${filterDate ?? todayStr}`}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => void bulkDelete()}
-            disabled={selected.size === 0 || bulkDeleteMutation.isPending}
-          >
-            {bulkDeleteMutation.isPending
-              ? "Deleting..."
-              : `Delete (${selected.size})`}
-          </Button>
+            >
+              Clear
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border/80">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="bg-muted/40">
-              <th className="p-3">
-                <Toggle
-                  checked={allSelected}
-                  onChange={(c) =>
-                    setSelected(
-                      c ? new Set(rows.map((p) => p.prediction_id)) : new Set(),
-                    )
-                  }
-                />
-              </th>
-              <th className="px-3 py-2 font-medium">Match</th>
-              <th className="px-3 py-2 font-medium">Model</th>
-              <th className="px-3 py-2 font-medium">H</th>
-              <th className="px-3 py-2 font-medium">D</th>
-              <th className="px-3 py-2 font-medium">A</th>
-              <th className="px-3 py-2 font-medium">Top 4 Scorelines</th>
-              <th className="px-3 py-2 font-medium">Research</th>
-              <th className="px-3 py-2 font-medium">AI Adj.</th>
-              <th className="px-3 py-2 font-medium">Match Date</th>
-              <th className="px-3 py-2 font-medium">BTTS</th>
-              <th className="px-3 py-2 font-medium">Win</th>
-              <th className="px-3 py-2 font-medium">O 2.5</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((p: PredictionHistoryItem) => (
-              <tr key={p.prediction_id} className="border-t border-border/60">
-                <td className="p-3">
+      {error && (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
+          {errMsg(error)}
+        </div>
+      )}
+
+      {loading && !listResult && (
+        <LoadingState message="Loading predictions..." />
+      )}
+
+      {!listResult || rows.length === 0 ? (
+        (loading && !listResult) || error ? null : (
+          <EmptyState title="No predictions found" />
+        )
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border/80">
+          <div className="flex flex-wrap items-center gap-2 p-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void bulkDelete()}
+              disabled={selected.size === 0 || bulkDeleteMutation.isPending}
+            >
+              {bulkDeleteMutation.isPending
+                ? "Deleting..."
+                : `Delete (${selected.size})`}
+            </Button>
+          </div>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="bg-muted/40">
+                <th className="p-3">
                   <Toggle
-                    checked={selected.has(p.prediction_id)}
+                    checked={allSelected}
                     onChange={(c) =>
-                      setSelected((s) => {
-                        const copy = new Set(s);
-                        if (c) {
-                          copy.add(p.prediction_id);
-                        } else {
-                          copy.delete(p.prediction_id);
-                        }
-                        return copy;
-                      })
+                      setSelected(c ? new Set(rows.map((p) => p.prediction_id)) : new Set())
                     }
                   />
-                </td>
-                <td className="px-3 py-2">
-                  {p.match_home_team} vs {p.match_away_team}
-                </td>
-                <td className="px-3 py-2 font-mono text-xs">
-                  {p.model_version}
-                </td>
-                <td className="px-3 py-2">{pct(p.home_probability)}</td>
-                <td className="px-3 py-2">{pct(p.draw_probability)}</td>
-                <td className="px-3 py-2">{pct(p.away_probability)}</td>
-                <td className="px-3 py-2">
-                  <ScorelineList predictionId={p.prediction_id} />
-                </td>
-                <td className="px-3 py-2">
-                  {p.ai_adjustment_applied ? (
-                    <span className="text-xs text-green-600">Yes</span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {p.ai_adjustment_applied ? (
-                    <span className="text-xs text-green-600">Adjusted</span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Base</span>
-                  )}
-                </td>
-                <td className="px-3 py-2">
-                  {p.match_kickoff
-                    ? new Date(p.match_kickoff).toLocaleString()
-                    : "—"}
-                </td>
-                {renderMarketBox(p, "gg", "BTTS")}
-                {renderMarketBox(p, "win", "Win")}
-                {renderMarketBox(p, "over_2_5", "Over 2.5")}
-                <td className="px-3 py-2 text-right">
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => void remove(p.prediction_id)}
-                    disabled={actionId === p.prediction_id}
-                  >
-                    {actionId === p.prediction_id ? (
-                      "..."
-                    ) : (
-                      <Trash2 className="h-3 w-3" />
-                    )}
-                  </Button>
-                </td>
+                </th>
+                <th className="px-3 py-2 font-medium">Match</th>
+                <th className="px-3 py-2 font-medium">Model</th>
+                <th className="px-3 py-2 font-medium">H</th>
+                <th className="px-3 py-2 font-medium">D</th>
+                <th className="px-3 py-2 font-medium">A</th>
+                <th className="px-3 py-2 font-medium">Top 4 Scorelines</th>
+                <th className="px-3 py-2 font-medium">Research</th>
+                <th className="px-3 py-2 font-medium">AI Adj.</th>
+                <th className="px-3 py-2 font-medium">Match Date</th>
+                <th className="px-3 py-2 font-medium">BTTS</th>
+                <th className="px-3 py-2 font-medium">Win</th>
+                <th className="px-3 py-2 font-medium">O 2.5</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rows.map((p: PredictionHistoryItem) => (
+                <tr key={p.prediction_id} className="border-t border-border/60">
+                  <td className="p-3">
+                    <Toggle
+                      checked={selected.has(p.prediction_id)}
+                      onChange={(c) =>
+                        setSelected((s) => {
+                          const copy = new Set(s);
+                          if (c) {
+                            copy.add(p.prediction_id);
+                          } else {
+                            copy.delete(p.prediction_id);
+                          }
+                          return copy;
+                        })
+                      }
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    {p.match_home_team} vs {p.match_away_team}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-xs">
+                    {p.model_version}
+                  </td>
+                  <td className="px-3 py-2">{pct(p.home_probability)}</td>
+                  <td className="px-3 py-2">{pct(p.draw_probability)}</td>
+                  <td className="px-3 py-2">{pct(p.away_probability)}</td>
+                  <td className="px-3 py-2">
+                    <ScorelineList predictionId={p.prediction_id} />
+                  </td>
+                  <td className="px-3 py-2">
+                    {p.ai_adjustment_applied ? (
+                      <span className="text-xs text-green-600">Yes</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {p.match_kickoff
+                      ? new Date(p.match_kickoff).toLocaleString()
+                      : "—"}
+                  </td>
+                  {renderMarketBox(p, "gg", "BTTS")}
+                  {renderMarketBox(p, "win", "Win")}
+                  {renderMarketBox(p, "over_2_5", "Over 2.5")}
+                  <td className="px-3 py-2 text-right">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => void remove(p.prediction_id)}
+                      disabled={actionId === p.prediction_id}
+                    >
+                      {actionId === p.prediction_id ? (
+                        "..."
+                      ) : (
+                        <Trash2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {hasNextPage && (
         <div className="flex justify-center py-2">

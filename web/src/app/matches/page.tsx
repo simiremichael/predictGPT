@@ -1,4 +1,4 @@
-import { Calendar } from "lucide-react";
+import { Calendar, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MatchesList } from "@/components/matches/matches-list";
 import { LoadingState } from "@/components/loading-states";
@@ -31,6 +31,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   const teamId = params.team_id || "";
   const status = params.status || "";
   const date = params.date || "";
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -62,9 +63,49 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
               <Calendar className="mr-1 h-3 w-3" />
               {new Date().toLocaleDateString()}
             </Badge>
+            <Badge
+              variant="secondary"
+              className="rounded-full px-3 py-1.5 text-xs font-semibold"
+            >
+              <CalendarDays className="mr-1 h-3 w-3" />
+              {todayStr}
+            </Badge>
           </div>
         </div>
       </section>
+
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={`/matches?today=true`}
+          className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            isToday
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted/20 text-foreground hover:bg-muted/40"
+          }`}
+        >
+          Today's Matches
+        </a>
+        <a
+          href={`/matches?upcoming=true`}
+          className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            isUpcoming
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted/20 text-foreground hover:bg-muted/40"
+          }`}
+        >
+          Upcoming
+        </a>
+        <a
+          href={`/matches`}
+          className={`inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            !isToday && !isUpcoming
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted/20 text-foreground hover:bg-muted/40"
+          }`}
+        >
+          All Matches
+        </a>
+      </div>
 
       <MatchesList
         initialPage={page}
