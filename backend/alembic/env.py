@@ -16,18 +16,25 @@ from logging.config import fileConfig
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
+# Load .env from the backend directory
+_BACKEND = Path(__file__).resolve().parents[1]
+load_dotenv(dotenv_path=_BACKEND / ".env")
+
 # Make backend/app importable so `import models` works
-_APP = Path(__file__).resolve().parents[1] / "app"
+_APP = _BACKEND / "app"
 if str(_APP) not in sys.path:
     sys.path.insert(0, str(_APP))
 
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("FOOTBALL_DATA_PROVIDER", "api_football")
 
+from alembic import context  # noqa: E402
+
 from core.config import get_settings  # noqa: E402
 from db.base import Base  # noqa: E402
 from db.database import engine  # noqa: E402
-from alembic import context  # noqa: E402
 
 config = context.config
 
