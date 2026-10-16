@@ -44,6 +44,16 @@ function authHeaders(): Record<string, string> {
 }
 
 async function fetchApi(path: string, options: RequestInit): Promise<Response> {
+  if (typeof window !== "undefined") {
+    return fetch(`/api/proxy${path}`, {
+      ...options,
+      headers: {
+        ...authHeaders(),
+        ...options.headers,
+      },
+    });
+  }
+
   const baseUrls = [...new Set([env.apiUrl, env.apiFallbackUrl])];
   let lastError: unknown;
 

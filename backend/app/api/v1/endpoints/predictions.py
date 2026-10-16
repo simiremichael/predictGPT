@@ -388,8 +388,6 @@ async def list_predictions(
     is_subscribed = False
     if user_email:
         async with get_db() as session:
-            from sqlalchemy import select
-
             result = await session.execute(
                 select(User).where(User.email == user_email)
             )
