@@ -10,6 +10,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     String,
+    func,
 )
 from sqlalchemy import (
     Enum as SAEnum,
@@ -41,11 +42,11 @@ class User(Base):
     is_subscribed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False,
-        onupdate=datetime.utcnow,
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False,
+        onupdate=lambda: datetime.now(UTC), server_default=func.now(),
     )
 
     subscription: Mapped[Subscription | None] = relationship(
@@ -93,17 +94,17 @@ class Subscription(Base):
         default=SubscriptionStatus.INCOMPLETE,
         nullable=False,
     )
-    current_period_end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    current_period_start: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    current_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     amount: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="usd", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False,
-        onupdate=datetime.utcnow,
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False,
+        onupdate=lambda: datetime.now(UTC), server_default=func.now(),
     )
 
     user: Mapped[User] = relationship(

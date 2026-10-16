@@ -44,6 +44,26 @@ async def _ensure_schema() -> None:
                 ))
                 print("[startup] Added payment_reference column to subscriptions table")
 
+            # Convert timezone-naive datetime columns to timezone-aware
+            # (needed for databases created before the DateTime(timezone=True) fix)
+            tz_aware_columns = {
+                "subscriptions": ["current_period_end", "current_period_start", "created_at", "updated_at"],
+                "users": ["created_at", "updated_at"],
+            }
+            for table_name, columns in tz_aware_columns.items():
+                for col_name in columns:
+                    result_col = await conn.execute(text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = :table_name AND column_name = :col_name "
+                        "AND udt_name = 'timestamp'"
+                    ), {"table_name": table_name, "col_name": col_name})
+                    if result_col.fetchone() is not None:
+                        await conn.execute(text(
+                            f"ALTER TABLE {table_name} "
+                            f"ALTER COLUMN {col_name} TYPE TIMESTAMP WITH TIME ZONE"
+                        ))
+                        print(f"[startup] Converted {table_name}.{col_name} to TIMESTAMPTZ")
+
             # Check if is_superuser column exists in users table
             result2 = await conn.execute(text(
                 "SELECT column_name FROM information_schema.columns "

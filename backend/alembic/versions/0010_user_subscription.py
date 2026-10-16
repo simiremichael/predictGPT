@@ -5,8 +5,8 @@ Revises: 0009_prediction_admin_verify
 Create Date: 2026-10-15
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0010_user_subscription"
 down_revision = "0009_prediction_admin_verify"
@@ -23,17 +23,17 @@ def upgrade() -> None:
         sa.Column("flutterwave_subscription_id", sa.String(200), unique=True, nullable=True),
         sa.Column("payment_reference", sa.String(200), unique=True, nullable=True),
         sa.Column("status", sa.String(20), default="incomplete", nullable=False),
-        sa.Column("current_period_end", sa.DateTime, nullable=True),
-        sa.Column("current_period_start", sa.DateTime, nullable=True),
+        sa.Column("current_period_end", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("current_period_start", sa.DateTime(timezone=True), nullable=True),
         sa.Column("cancel_at_period_end", sa.Boolean, default=False, nullable=False),
         sa.Column("amount", sa.Float, default=5.0, nullable=False),
         sa.Column("currency", sa.String(3), default="usd", nullable=False),
-        sa.Column("created_at", sa.DateTime, nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime, nullable=False, server_default=sa.func.now()),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
 
     op.add_column("users", sa.Column("is_subscribed", sa.Boolean, default=False, nullable=False, server_default="false"))
-    op.add_column("users", sa.Column("updated_at", sa.DateTime, nullable=False, server_default=sa.func.now()))
+    op.add_column("users", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
 
 
 def downgrade() -> None:
