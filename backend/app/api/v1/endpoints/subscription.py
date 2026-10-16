@@ -114,7 +114,17 @@ async def initiate_subscription(
             user=user,
             status=SubscriptionStatus.INCOMPLETE,
         )
-        sub.amount = settings.subscription_price_usd
+
+        # Determine pricing based on user's country
+        if (user.country or "").upper() == settings.nigeria_country_code.upper():
+            amount = settings.subscription_price_ngn
+            currency = "NGN"
+        else:
+            amount = settings.subscription_price_usd
+            currency = "USD"
+
+        sub.amount = amount
+        sub.currency = currency.lower()
         session.add(sub)
         await session.commit()
         await session.refresh(sub)
@@ -138,8 +148,8 @@ async def initiate_subscription(
                     },
                     json={
                         "tx_ref": tx_ref,
-                        "amount": settings.subscription_price_usd,
-                        "currency": "USD",
+                        "amount": amount,
+                        "currency": currency,
                         "customer": {
                             "email": user.email,
                         },
@@ -235,23 +245,13 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
 
             access_token = await _get_flutterwave_token(settings)
             verified = await _verify_flutterwave_transaction(str(charge_id), access_token)
-            try:
-                amount_matches = (
-                    float(verified.get("amount") or 0) >= settings.subscription_price_usd
-                )
-            except (TypeError, ValueError):
-                amount_matches = False
-            if (
-                verified.get("status") not in ("successful", "succeeded")
-                or (verified.get("currency") or "").upper() != "USD"
-                or not amount_matches
-            ):
-                return {"status": "payment_not_verified"}
 
+            # Load the user to determine expected currency/price
             if sub is not None:
-                verified_ref = verified.get("tx_ref") or verified.get("reference")
-                if verified_ref != sub.payment_reference:
-                    return {"status": "payment_not_verified"}
+                _user_result = await session.execute(
+                    select(User).where(User.id == sub.user_id)
+                )
+                _user = _user_result.scalar_one()
             else:
                 # Renewal charges have a new transaction reference. Match them
                 # to the customer using metadata.
@@ -264,6 +264,28 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
                 renewal_user = user_result.scalar_one_or_none()
                 if renewal_user is None:
                     return {"status": "ignored"}
+                _user = renewal_user
+
+            expected_currency, expected_amount = _get_currency_for_user(_user, settings)
+            try:
+                amount_matches = (
+                    float(verified.get("amount") or 0) >= expected_amount
+                )
+            except (TypeError, ValueError):
+                amount_matches = False
+            if (
+                verified.get("status") not in ("successful", "succeeded")
+                or (verified.get("currency") or "").upper() != expected_currency.upper()
+                or not amount_matches
+            ):
+                return {"status": "payment_not_verified"}
+
+            if sub is not None:
+                verified_ref = verified.get("tx_ref") or verified.get("reference")
+                if verified_ref != sub.payment_reference:
+                    return {"status": "payment_not_verified"}
+            elif renewal_user is not None:
+                # Find or create subscription for renewal
                 sub_result = await session.execute(
                     select(Subscription)
                     .where(Subscription.user_id == renewal_user.id)
@@ -368,8 +390,9 @@ async def verify_subscription_payment(
             )
 
         verified = await _verify_flutterwave_transaction(payload.transaction_id, access_token)
+        expected_currency, expected_amount = _get_currency_for_user(user, settings)
         try:
-            amount_matches = float(verified.get("amount") or 0) >= settings.subscription_price_usd
+            amount_matches = float(verified.get("amount") or 0) >= expected_amount
         except (TypeError, ValueError):
             amount_matches = False
         customer_email = str((verified.get("customer") or {}).get("email") or "").strip().lower()
@@ -377,7 +400,7 @@ async def verify_subscription_payment(
         valid = (
             verified.get("status") in ("successful", "succeeded")
             and (verified.get("tx_ref") or verified.get("reference")) == sub.payment_reference
-            and (verified.get("currency") or "").upper() == "USD"
+            and (verified.get("currency") or "").upper() == expected_currency.upper()
             and amount_matches
             and str(metadata.get("subscription_id")) == sub.id
             and customer_email == user.email
@@ -402,15 +425,25 @@ async def verify_subscription_payment(
         return {"is_subscribed": user.has_active_subscription}
 
 
+async def _get_currency_for_user(user: User, settings) -> tuple[str, float]:
+    """Return (currency, price) based on the user's country."""
+    if (user.country or "").upper() == settings.nigeria_country_code.upper():
+        return "NGN", float(settings.subscription_price_ngn)
+    return "USD", settings.subscription_price_usd
+
+
 @router.get("/check")
 async def check_subscription(
     email: str = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Quick check if the current user has an active subscription."""
+    settings = get_settings()
     if email is None:
         return {
             "is_subscribed": False,
-            "subscription_price_usd": get_settings().subscription_price_usd,
+            "subscription_price_usd": settings.subscription_price_usd,
+            "subscription_price": settings.subscription_price_usd,
+            "subscription_currency": "USD",
             "free_predictions_remaining": FREE_PREDICTION_LIMIT,
             "total_free_predictions": FREE_PREDICTION_LIMIT,
         }
@@ -420,11 +453,14 @@ async def check_subscription(
     async with DBSession() as session:
         result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
+        currency, price = _get_currency_for_user(user, settings) if user else ("USD", settings.subscription_price_usd)
         subscription_active = bool(user and user.has_active_subscription)
         if subscription_active:
             return {
                 "is_subscribed": True,
-                "subscription_price_usd": get_settings().subscription_price_usd,
+                "subscription_price_usd": settings.subscription_price_usd,
+                "subscription_price": price,
+                "subscription_currency": currency,
                 "free_predictions_remaining": None,
                 "total_free_predictions": FREE_PREDICTION_LIMIT,
             }
@@ -438,13 +474,17 @@ async def check_subscription(
                 ):
                     return {
                         "is_subscribed": False,
+                        "subscription_price": price,
+                        "subscription_currency": currency,
                         "free_predictions_remaining": FREE_PREDICTION_LIMIT,
                         "total_free_predictions": FREE_PREDICTION_LIMIT,
                     }
 
         return {
             "is_subscribed": False,
-            "subscription_price_usd": get_settings().subscription_price_usd,
+            "subscription_price_usd": settings.subscription_price_usd,
+            "subscription_price": price,
+            "subscription_currency": currency,
             "free_predictions_remaining": FREE_PREDICTION_LIMIT,
             "total_free_predictions": FREE_PREDICTION_LIMIT,
         }

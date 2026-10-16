@@ -288,6 +288,14 @@ class Settings(BaseSettings):
         default=5.0,
         validation_alias=AliasChoices("SUBSCRIPTION_PRICE_USD", "subscription_price_usd"),
     )
+    subscription_price_ngn: int = Field(
+        default=7000,
+        validation_alias=AliasChoices("SUBSCRIPTION_PRICE_NGN", "subscription_price_ngn"),
+    )
+    nigeria_country_code: str = Field(
+        default="NG",
+        validation_alias=AliasChoices("NIGERIA_COUNTRY_CODE", "nigeria_country_code"),
+    )
     frontend_url: str = Field(
         default="https://predictgpt.netlify.app",
         validation_alias=AliasChoices("FRONTEND_URL", "frontend_url"),

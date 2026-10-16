@@ -10,7 +10,7 @@ interface AuthContextType {
   loading: boolean;
   isSubscribed: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+   signup: (email: string, password: string, country?: string) => Promise<void>;
   logout: () => void;
   refreshSubscription: () => Promise<void>;
 }
@@ -63,8 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsSubscribed(response.user.is_subscribed);
   };
 
-  const signup = async (email: string, password: string) => {
-    const response: AuthResponse = await api.authRegister(email, password);
+  const signup = async (email: string, password: string, country?: string) => {
+    const response: AuthResponse = await api.authRegister(email, password, country);
     localStorage.setItem("auth_token", response.access_token);
     setToken(response.access_token);
     setUser(response.user);

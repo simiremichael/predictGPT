@@ -51,6 +51,7 @@ async def register(
         user = User(
             email=normalized_email,
             hashed_password=hash_password(payload.password),
+            country=payload.country,
         )
         session.add(user)
         await session.commit()

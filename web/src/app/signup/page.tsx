@@ -15,7 +15,29 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/contexts/auth";
+
+const COUNTRIES = [
+  { code: "NG", name: "Nigeria - ₦7,000" },
+  { code: "US", name: "United States - $5" },
+  { code: "GB", name: "United Kingdom - $5" },
+  { code: "CA", name: "Canada - $5" },
+  { code: "AU", name: "Australia - $5" },
+  { code: "DE", name: "Germany - $5" },
+  { code: "FR", name: "France - $5" },
+  { code: "ZA", name: "South Africa - $5" },
+  { code: "KE", name: "Kenya - $5" },
+  { code: "IN", name: "India - $5" },
+  { code: "BR", name: "Brazil - $5" },
+  { code: "OTHER", name: "Other - $5" },
+];
 
 export default function SignupPage() {
   const router = useRouter();
@@ -24,16 +46,21 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [country, setCountry] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!country) {
+      toast.error("Please select your country");
+      return;
+    }
     if (password.length < 8) {
       toast.error("Password must be at least 8 characters");
       return;
     }
     setIsSubmitting(true);
     try {
-      await signup(email, password);
+      await signup(email, password, country);
       toast.success("Account created successfully");
       router.push("/predictions");
     } catch (err) {
@@ -68,6 +95,23 @@ export default function SignupPage() {
                 autoComplete="email"
                 required
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1" htmlFor="country">
+                Country
+              </label>
+              <Select value={country} onValueChange={setCountry} required>
+                <SelectTrigger id="country">
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" htmlFor="password">

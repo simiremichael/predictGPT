@@ -537,6 +537,7 @@ export interface User {
   is_active: boolean;
   is_subscribed: boolean;
   is_superuser: boolean;
+  country?: string | null;
   created_at?: string | null;
 }
 

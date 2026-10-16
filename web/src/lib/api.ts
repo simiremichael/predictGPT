@@ -883,10 +883,11 @@ export const api = {
   authRegister: (
     email: string,
     password: string,
+    country?: string,
   ): Promise<AuthResponse> =>
     requestRaw<AuthResponse>("/api/v1/auth/register", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, country }),
     }),
 
   authGetCurrent: (): Promise<User> =>
@@ -900,15 +901,19 @@ export const api = {
     return Promise.resolve({ success: true });
   },
 
-  getSubscriptionStatus: (): Promise<{
+   getSubscriptionStatus: (): Promise<{
     is_subscribed: boolean;
     subscription_price_usd: number;
+    subscription_price: number;
+    subscription_currency: string;
     free_predictions_remaining: number | null;
     total_free_predictions: number;
   }> =>
     requestRaw<{
       is_subscribed: boolean;
       subscription_price_usd: number;
+      subscription_price: number;
+      subscription_currency: string;
       free_predictions_remaining: number | null;
       total_free_predictions: number;
     }>("/api/v1/subscription/check", {

@@ -11,6 +11,7 @@ class AuthRegisterRequest(BaseModel):
 
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
+    country: str | None = Field(default=None, max_length=2, description="ISO 3166-1 alpha-2 country code")
 
     @field_validator("password")
     @classmethod
@@ -51,6 +52,7 @@ class UserResponse(BaseModel):
     is_active: bool
     is_subscribed: bool
     is_superuser: bool
+    country: str | None = None
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}

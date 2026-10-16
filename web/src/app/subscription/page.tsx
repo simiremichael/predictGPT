@@ -122,7 +122,9 @@ export default function SubscriptionPage() {
         <CardContent className="space-y-6">
           <div className="text-center">
             <p className="text-4xl font-bold text-primary">
-              ${status?.subscription_price_usd ?? 5}
+              {status?.subscription_currency === "NGN"
+                ? `₦${status?.subscription_price ?? 7000}`
+                : `$${status?.subscription_price ?? status?.subscription_price_usd ?? 5}`}
             </p>
             <p className="text-sm text-muted-foreground">per month</p>
           </div>

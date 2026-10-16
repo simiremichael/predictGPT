@@ -76,6 +76,18 @@ async def _ensure_schema() -> None:
                 ))
                 print("[startup] Added is_superuser column to users table")
 
+            # Check if country column exists in users table
+            result3 = await conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'users' AND column_name = 'country'"
+            ))
+            exists3 = result3.fetchone()
+            if exists3 is None:
+                await conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN country VARCHAR(2)"
+                ))
+                print("[startup] Added country column to users table")
+
     except Exception as exc:
         print(f"[startup] Schema check warning: {exc}")
 
