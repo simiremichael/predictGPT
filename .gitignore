@@ -12,6 +12,7 @@ venv/
 .env.*
 !.env.example
 .env.example
+.env.example.*
 
 # Testing / coverage
 .pytest_cache/
