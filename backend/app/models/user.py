@@ -89,7 +89,7 @@ class Subscription(Base):
     )
     payment_reference: Mapped[str | None] = mapped_column(String(200), unique=True, nullable=True)
     status: Mapped[SubscriptionStatus] = mapped_column(
-        SAEnum(SubscriptionStatus),
+        SAEnum(SubscriptionStatus, native_enum=False, length=20),
         default=SubscriptionStatus.INCOMPLETE,
         nullable=False,
     )

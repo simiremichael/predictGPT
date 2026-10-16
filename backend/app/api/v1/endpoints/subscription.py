@@ -187,7 +187,9 @@ async def initiate_subscription(
                         data.get("message") or "Flutterwave did not return a successful response"
                     )
                 charge_data = data.get("data", {})
-                payment_link = charge_data.get("link") or charge_data.get("payment_options", {}).get("link")
+                payment_link = charge_data.get("link") or charge_data.get(
+                    "payment_options", {}
+                ).get("link")
 
             return FlutterwaveInitResponse(
                 link=payment_link,
@@ -258,9 +260,7 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
             sub = result.scalar_one_or_none()
 
             access_token = await _get_flutterwave_token(settings)
-            verified = await _verify_flutterwave_transaction(
-                str(charge_id), access_token
-            )
+            verified = await _verify_flutterwave_transaction(str(charge_id), access_token)
             try:
                 amount_matches = (
                     float(verified.get("amount") or 0) >= settings.subscription_price_usd
@@ -284,9 +284,7 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
                 if not customer_email:
                     return {"status": "ignored"}
                 user_result = await session.execute(
-                    select(User).where(
-                        User.email == str(customer_email).strip().lower()
-                    )
+                    select(User).where(User.email == str(customer_email).strip().lower())
                 )
                 renewal_user = user_result.scalar_one_or_none()
                 if renewal_user is None:
@@ -338,9 +336,7 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
                 from sqlalchemy import select, update
 
                 user_result = await session.execute(
-                    select(User).where(
-                        User.email == str(customer_email).strip().lower()
-                    )
+                    select(User).where(User.email == str(customer_email).strip().lower())
                 )
                 user = user_result.scalar_one_or_none()
                 if user:
@@ -396,9 +392,7 @@ async def verify_subscription_payment(
                 detail="Payment reference not found",
             )
 
-        verified = await _verify_flutterwave_transaction(
-            payload.transaction_id, access_token
-        )
+        verified = await _verify_flutterwave_transaction(payload.transaction_id, access_token)
         try:
             amount_matches = float(verified.get("amount") or 0) >= settings.subscription_price_usd
         except (TypeError, ValueError):
@@ -426,9 +420,7 @@ async def verify_subscription_payment(
             sub.current_period_start = now
             sub.current_period_end = now + relativedelta(months=1)
             sub.flutterwave_subscription_id = transaction_reference
-            await session.execute(
-                update(User).where(User.id == user.id).values(is_subscribed=True)
-            )
+            await session.execute(update(User).where(User.id == user.id).values(is_subscribed=True))
             user.is_subscribed = True
             await session.commit()
 
