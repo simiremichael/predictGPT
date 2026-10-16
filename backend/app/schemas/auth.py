@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -52,7 +51,7 @@ class UserResponse(BaseModel):
     is_active: bool
     is_subscribed: bool
     is_superuser: bool
-    created_at: str | None = None
+    created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

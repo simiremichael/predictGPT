@@ -536,6 +536,7 @@ export interface User {
   email: string;
   is_active: boolean;
   is_subscribed: boolean;
+  is_superuser: boolean;
   created_at?: string | null;
 }
 
