@@ -236,7 +236,7 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------ #
-    # Flutterwave
+    # Flutterwave (v4 - OAuth 2.0)
     # ------------------------------------------------------------------ #
     flutterwave_secret_key: str | None = Field(
         default=None,
@@ -253,6 +253,22 @@ class Settings(BaseSettings):
     flutterwave_payment_plan_id: int | None = Field(
         default=None,
         validation_alias=AliasChoices("FLUTTERWAVE_PAYMENT_PLAN_ID", "flutterwave_payment_plan_id"),
+    )
+    flutterwave_client_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FLUTTERWAVE_CLIENT_ID", "flutterwave_client_id"),
+    )
+    flutterwave_client_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FLUTTERWAVE_CLIENT_SECRET", "flutterwave_client_secret"),
+    )
+    flutterwave_api_base_url: str = Field(
+        default="https://api.flutterwave.com/v4",
+        validation_alias=AliasChoices("FLUTTERWAVE_API_BASE_URL", "flutterwave_api_base_url"),
+    )
+    flutterwave_oauth_url: str = Field(
+        default="https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token",
+        validation_alias=AliasChoices("FLUTTERWAVE_OAUTH_URL", "flutterwave_oauth_url"),
     )
 
     @field_validator("flutterwave_payment_plan_id", mode="before")

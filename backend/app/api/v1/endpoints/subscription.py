@@ -1,8 +1,11 @@
-"""Subscription management endpoints with Flutterwave integration."""
+"""Subscription management endpoints with Flutterwave v4 integration."""
+
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+import hashlib
 import hmac
+import secrets
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -21,11 +24,45 @@ router = APIRouter(prefix="/subscription", tags=["subscription"])
 FREE_PREDICTION_LIMIT = 2
 
 
-async def _verify_flutterwave_transaction(transaction_id: str, secret_key: str) -> dict[str, Any]:
+async def _get_flutterwave_token(settings) -> str:
+    """Retrieve an OAuth 2.0 access token from Flutterwave v4."""
+    if not settings.flutterwave_client_id or not settings.flutterwave_client_secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Flutterwave OAuth credentials are not configured on this server.",
+        )
+
+    async with httpx.AsyncClient(timeout=20) as http:
+        response = await http.post(
+            settings.flutterwave_oauth_url,
+            data={
+                "grant_type": "client_credentials",
+                "client_id": settings.flutterwave_client_id,
+                "client_secret": settings.flutterwave_client_secret,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not authenticate with Flutterwave.",
+        )
+    data = response.json()
+    token = data.get("access_token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Flutterwave did not return an access token.",
+        )
+    return token
+
+
+async def _verify_flutterwave_transaction(charge_id: str, access_token: str) -> dict[str, Any]:
+    """Verify a charge via Flutterwave v4 GET /charges/{id}."""
     async with httpx.AsyncClient(timeout=20) as http:
         response = await http.get(
-            f"https://api.flutterwave.com/v3/transactions/{transaction_id}/verify",
-            headers={"Authorization": f"Bearer {secret_key}"},
+            f"{get_settings().flutterwave_api_base_url}/charges/{charge_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
         )
     if response.status_code != 200:
         raise HTTPException(
@@ -44,7 +81,9 @@ def _create_subscription_record(
 ) -> Subscription:
     """Helper to create/update a subscription record."""
     now = datetime.now(UTC)
-    period_end = now + relativedelta(months=1) if period_days == 30 else now + timedelta(days=period_days)
+    period_end = (
+        now + relativedelta(months=1) if period_days == 30 else now + timedelta(days=period_days)
+    )
 
     sub = Subscription(
         user_id=user.id,
@@ -64,26 +103,26 @@ async def initiate_subscription(
     email: str = Depends(get_current_user_required),
     db=Depends(get_db),
 ) -> FlutterwaveInitResponse:
-    """Initiate a Flutterwave payment for subscription."""
+    """Initiate a Flutterwave v4 payment for subscription."""
     settings = get_settings()
 
+    if not settings.flutterwave_client_id or not settings.flutterwave_client_secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Flutterwave OAuth credentials are not configured on this server.",
+        )
     if not settings.flutterwave_secret_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flutterwave is not configured on this server.",
         )
-    if settings.flutterwave_payment_plan_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="A recurring Flutterwave payment plan is not configured on this server.",
-        )
+
+    access_token = await _get_flutterwave_token(settings)
 
     from sqlalchemy import select
 
     async with db as session:
-        result = await session.execute(
-            select(User).where(User.email == email)
-        )
+        result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if user is None:
             raise HTTPException(
@@ -108,48 +147,47 @@ async def initiate_subscription(
         await session.commit()
         await session.refresh(sub)
 
-        # Initiate Flutterwave checkout
-        tx_ref = f"sub_{sub.id}_{int(datetime.now(UTC).timestamp())}"
+        # Generate a unique reference for the charge
+        tx_ref = f"sub_{sub.id}_{int(datetime.now(UTC).timestamp())}_{secrets.token_hex(4)}"
         sub.payment_reference = tx_ref
         await session.commit()
-        flutterwave_url = "https://api.flutterwave.com/v3/payments"
+
+        # Initiate Flutterwave v4 charge
+        flutterwave_url = f"{settings.flutterwave_api_base_url}/charges"
 
         try:
             async with httpx.AsyncClient(timeout=30) as http:
                 response = await http.post(
                     flutterwave_url,
                     headers={
-                        "Authorization": f"Bearer {settings.flutterwave_secret_key}",
+                        "Authorization": f"Bearer {access_token}",
                         "Content-Type": "application/json",
+                        "X-Trace-Id": sub.id,
                     },
                     json={
-                        "tx_ref": tx_ref,
-                        "amount": settings.subscription_price_usd,
+                        "reference": tx_ref,
+                        "amount": str(settings.subscription_price_usd),
                         "currency": "USD",
-                        "payment_plan": settings.flutterwave_payment_plan_id,
                         "customer": {
                             "email": user.email,
-                            "user_id": user.id,
-                            "subscription_id": sub.id,
                         },
-                        "redirect_url": f"{settings.frontend_url.rstrip('/')}/subscription/complete",
+                        "payment_options": "card",
                         "meta": {
                             "subscription_id": sub.id,
                             "user_id": user.id,
                             "transaction_type": "subscription_payment",
                         },
-                        "customizations": {
-                            "title": "Football AI Subscription",
-                            "description": f"Monthly subscription (${settings.subscription_price_usd}/month)",
-                            "logo": "https://predictgpt.onrender.com/favicon.ico",
-                        },
+                        "redirect_url": f"{settings.frontend_url.rstrip('/')}/subscription/complete",
                     },
                 )
                 response.raise_for_status()
                 data = response.json()
-                if data.get("status") != "success" or not data.get("data", {}).get("link"):
-                    raise RuntimeError(data.get("message") or "Flutterwave did not return a checkout link")
-                payment_link = data.get("data", {}).get("link")
+                if data.get("status") != "success":
+                    raise RuntimeError(
+                        data.get("message") or "Flutterwave did not return a successful response"
+                    )
+                charge_data = data.get("data", {})
+                payment_link = charge_data.get("link") or charge_data.get("payment_options", {}).get("link")
 
             return FlutterwaveInitResponse(
                 link=payment_link,
@@ -168,24 +206,30 @@ async def initiate_subscription(
 
 
 @router.post("/webhook")
-async def flutterwave_webhook(
-    request: Request,
-) -> dict[str, Any]:
-    """Handle Flutterwave webhook events."""
+async def flutterwave_webhook(request: Request) -> dict[str, Any]:
+    """Handle Flutterwave v4 webhook events."""
     settings = get_settings()
 
-    signature = request.headers.get("verif-hash", "")
-    if not settings.flutterwave_webhook_secret or not hmac.compare_digest(
-        signature, settings.flutterwave_webhook_secret
-    ):
+    raw_body = await request.body()
+
+    # Verify HMAC-SHA256 signature using flutterwave-signature header (v4)
+    signature = request.headers.get("flutterwave-signature", "")
+    if not settings.flutterwave_webhook_secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Flutterwave webhook secret is not configured on this server.",
+        )
+
+    expected_signature = hmac.new(
+        settings.flutterwave_webhook_secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(signature, expected_signature):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook signature",
-        )
-    if not settings.flutterwave_secret_key:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Flutterwave is not configured on this server.",
         )
 
     try:
@@ -196,13 +240,13 @@ async def flutterwave_webhook(
             detail="Invalid JSON body",
         ) from None
 
-    event_type = body.get("event", "")
+    event_type = body.get("type", "")
     data = body.get("data", {})
 
     if event_type == "charge.completed":
-        transaction_id = data.get("id")
-        payment_reference = data.get("tx_ref")
-        if not transaction_id or not payment_reference:
+        charge_id = data.get("id")
+        payment_reference = data.get("reference")
+        if not charge_id or not payment_reference:
             return {"status": "ignored"}
 
         async with get_db() as session:
@@ -213,32 +257,36 @@ async def flutterwave_webhook(
             )
             sub = result.scalar_one_or_none()
 
+            access_token = await _get_flutterwave_token(settings)
             verified = await _verify_flutterwave_transaction(
-                str(transaction_id), settings.flutterwave_secret_key
+                str(charge_id), access_token
             )
             try:
-                amount_matches = float(verified.get("amount") or 0) >= settings.subscription_price_usd
+                amount_matches = (
+                    float(verified.get("amount") or 0) >= settings.subscription_price_usd
+                )
             except (TypeError, ValueError):
                 amount_matches = False
             if (
-                verified.get("status") != "successful"
+                verified.get("status") != "succeeded"
                 or (verified.get("currency") or "").upper() != "USD"
                 or not amount_matches
             ):
                 return {"status": "payment_not_verified"}
 
             if sub is not None:
-                if verified.get("tx_ref") != sub.payment_reference:
+                if verified.get("reference") != sub.payment_reference:
                     return {"status": "payment_not_verified"}
             else:
                 # Renewal charges have a new transaction reference. Match them
-                # to the customer and recurring plan returned by verification.
-                verified_plan_id = verified.get("payment_plan")
+                # to the customer using metadata.
                 customer_email = (verified.get("customer") or {}).get("email", "")
-                if str(verified_plan_id) != str(settings.flutterwave_payment_plan_id) or not customer_email:
+                if not customer_email:
                     return {"status": "ignored"}
                 user_result = await session.execute(
-                    select(User).where(User.email == str(customer_email).strip().lower())
+                    select(User).where(
+                        User.email == str(customer_email).strip().lower()
+                    )
                 )
                 renewal_user = user_result.scalar_one_or_none()
                 if renewal_user is None:
@@ -253,7 +301,7 @@ async def flutterwave_webhook(
                 if sub is None:
                     return {"status": "ignored"}
 
-            transaction_reference = str(verified.get("id") or transaction_id)
+            transaction_reference = str(verified.get("id") or charge_id)
             if sub.flutterwave_subscription_id != transaction_reference:
                 now = datetime.now(UTC)
                 sub.status = SubscriptionStatus.ACTIVE
@@ -269,14 +317,30 @@ async def flutterwave_webhook(
                 )
                 await session.commit()
 
-    elif event_type == "subscription.cancelled":
+    elif event_type == "charge.failed":
+        payment_reference = data.get("reference")
+        if payment_reference:
+            async with get_db() as session:
+                from sqlalchemy import select
+
+                result = await session.execute(
+                    select(Subscription).where(Subscription.payment_reference == payment_reference)
+                )
+                sub = result.scalar_one_or_none()
+                if sub and sub.status == SubscriptionStatus.INCOMPLETE:
+                    await session.delete(sub)
+                    await session.commit()
+
+    elif event_type == "subscription.cancelled" or event_type == "subscription.expired":
         customer_email = (data.get("customer") or {}).get("email", "")
         if customer_email:
             async with get_db() as session:
                 from sqlalchemy import select, update
 
                 user_result = await session.execute(
-                    select(User).where(User.email == str(customer_email).strip().lower())
+                    select(User).where(
+                        User.email == str(customer_email).strip().lower()
+                    )
                 )
                 user = user_result.scalar_one_or_none()
                 if user:
@@ -304,11 +368,13 @@ async def verify_subscription_payment(
 ) -> dict[str, Any]:
     """Verify a completed checkout redirect for the signed-in customer."""
     settings = get_settings()
-    if not settings.flutterwave_secret_key or settings.flutterwave_payment_plan_id is None:
+    if not settings.flutterwave_secret_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Flutterwave is not configured on this server.",
         )
+
+    access_token = await _get_flutterwave_token(settings)
 
     async with get_db() as session:
         from sqlalchemy import select, update
@@ -331,7 +397,7 @@ async def verify_subscription_payment(
             )
 
         verified = await _verify_flutterwave_transaction(
-            payload.transaction_id, settings.flutterwave_secret_key
+            payload.transaction_id, access_token
         )
         try:
             amount_matches = float(verified.get("amount") or 0) >= settings.subscription_price_usd
@@ -340,11 +406,10 @@ async def verify_subscription_payment(
         customer_email = str((verified.get("customer") or {}).get("email") or "").strip().lower()
         metadata = verified.get("meta") or {}
         valid = (
-            verified.get("status") == "successful"
-            and verified.get("tx_ref") == sub.payment_reference
+            verified.get("status") == "succeeded"
+            and verified.get("reference") == sub.payment_reference
             and (verified.get("currency") or "").upper() == "USD"
             and amount_matches
-            and str(verified.get("payment_plan")) == str(settings.flutterwave_payment_plan_id)
             and str(metadata.get("subscription_id")) == sub.id
             and customer_email == user.email
         )
@@ -386,9 +451,7 @@ async def check_subscription(
     from sqlalchemy import select
 
     async with get_db() as session:
-        result = await session.execute(
-            select(User).where(User.email == email)
-        )
+        result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         subscription_active = bool(user and user.has_active_subscription)
         if subscription_active:
@@ -402,7 +465,10 @@ async def check_subscription(
         # Check if subscription has expired
         if user and user.subscription:
             if user.subscription.status == SubscriptionStatus.ACTIVE:
-                if user.subscription.current_period_end and user.subscription.current_period_end < datetime.now(UTC):
+                if (
+                    user.subscription.current_period_end
+                    and user.subscription.current_period_end < datetime.now(UTC)
+                ):
                     return {
                         "is_subscribed": False,
                         "free_predictions_remaining": FREE_PREDICTION_LIMIT,

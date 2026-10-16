@@ -52,7 +52,7 @@ class User(Base):
         "Subscription",
         back_populates="user",
         uselist=False,
-        lazy="selectin",
+        lazy="select",
     )
 
     def __repr__(self) -> str:
@@ -60,8 +60,13 @@ class User(Base):
 
     @property
     def has_active_subscription(self) -> bool:
-        subscription = self.subscription
-        if not self.is_subscribed or subscription is None:
+        if not self.is_subscribed:
+            return False
+        try:
+            subscription = self.subscription
+        except Exception:
+            return False
+        if subscription is None:
             return False
         if subscription.status != SubscriptionStatus.ACTIVE:
             return False
@@ -105,7 +110,7 @@ class Subscription(Base):
         "User",
         back_populates="subscription",
         foreign_keys=[user_id],
-        lazy="selectin",
+        lazy="select",
     )
 
     def __repr__(self) -> str:
