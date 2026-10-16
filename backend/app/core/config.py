@@ -263,7 +263,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("FLUTTERWAVE_CLIENT_SECRET", "flutterwave_client_secret"),
     )
     flutterwave_api_base_url: str = Field(
-        default="https://api.flutterwave.com/v4",
+        default="https://f4bexperience.flutterwave.com",
         validation_alias=AliasChoices("FLUTTERWAVE_API_BASE_URL", "flutterwave_api_base_url"),
     )
     flutterwave_oauth_url: str = Field(
