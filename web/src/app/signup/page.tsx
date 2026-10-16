@@ -25,8 +25,8 @@ import {
 import { useAuth } from "@/contexts/auth";
 
 const COUNTRIES = [
-  { code: "NG", name: "Nigeria - ₦7,000" },
   { code: "US", name: "United States - $5" },
+  { code: "NG", name: "Nigeria - ₦7,000" },
   { code: "GB", name: "United Kingdom - $5" },
   { code: "CA", name: "Canada - $5" },
   { code: "AU", name: "Australia - $5" },
@@ -36,7 +36,7 @@ const COUNTRIES = [
   { code: "KE", name: "Kenya - $5" },
   { code: "IN", name: "India - $5" },
   { code: "BR", name: "Brazil - $5" },
-  { code: "OTHER", name: "Other - $5" },
+  { code: "OR", name: "Others - $5" },
 ];
 
 export default function SignupPage() {
@@ -46,14 +46,10 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [country, setCountry] = useState("");
+  const [country, setCountry] = useState("US");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!country) {
-      toast.error("Please select your country");
-      return;
-    }
     if (password.length < 8) {
       toast.error("Password must be at least 8 characters");
       return;
@@ -77,7 +73,8 @@ export default function SignupPage() {
         <CardHeader>
           <CardTitle>Create Account</CardTitle>
           <CardDescription>
-            Sign up to see the first 2 predictions for free, or subscribe for full access
+            Sign up to see the first 2 predictions for free, or subscribe for
+            full access
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,24 +94,10 @@ export default function SignupPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="country">
-                Country
-              </label>
-              <Select value={country} onValueChange={setCountry} required>
-                <SelectTrigger id="country">
-                  <SelectValue placeholder="Select your country" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COUNTRIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" htmlFor="password">
+              <label
+                className="block text-sm font-medium mb-1"
+                htmlFor="password"
+              >
                 Password
               </label>
               <div className="relative">
@@ -136,17 +119,46 @@ export default function SignupPage() {
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
+
+            <div>
+              <label
+                className="block text-sm font-medium mb-1"
+                htmlFor="country"
+              >
+                Country
+              </label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger id="country">
+                  <SelectValue placeholder="Select your country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Creating account..." : "Sign up"}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link
+              href="/login"
+              className="font-medium text-primary hover:underline"
+            >
               Log in
             </Link>
           </p>
