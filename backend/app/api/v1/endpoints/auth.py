@@ -15,7 +15,7 @@ from core.security import (
     hash_password,
     verify_password,
 )
-from db.database import get_db
+from db.database import DBSession, get_db
 from models.user import User
 from schemas.auth import (
     AuthLoginRequest,
@@ -123,7 +123,7 @@ async def get_current_user_info(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    async with get_db() as session:
+    async with DBSession() as session:
         from sqlalchemy import select
 
         result = await session.execute(

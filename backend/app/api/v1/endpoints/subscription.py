@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from core.config import get_settings
 from core.security import get_current_user, get_current_user_required
-from db.database import get_db
+from db.database import DBSession, get_db
 from models.user import Subscription, SubscriptionStatus, User
 from schemas.auth import FlutterwaveInitResponse, FlutterwaveVerifyRequest
 
@@ -249,7 +249,7 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
         if not charge_id or not payment_reference:
             return {"status": "ignored"}
 
-        async with get_db() as session:
+        async with DBSession() as session:
             from sqlalchemy import select, update
 
             result = await session.execute(
@@ -320,7 +320,7 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
     elif event_type == "charge.failed":
         payment_reference = data.get("reference")
         if payment_reference:
-            async with get_db() as session:
+            async with DBSession() as session:
                 from sqlalchemy import select
 
                 result = await session.execute(
@@ -334,7 +334,7 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
     elif event_type == "subscription.cancelled" or event_type == "subscription.expired":
         customer_email = (data.get("customer") or {}).get("email", "")
         if customer_email:
-            async with get_db() as session:
+            async with DBSession() as session:
                 from sqlalchemy import select, update
 
                 user_result = await session.execute(
@@ -376,7 +376,7 @@ async def verify_subscription_payment(
 
     access_token = await _get_flutterwave_token(settings)
 
-    async with get_db() as session:
+    async with DBSession() as session:
         from sqlalchemy import select, update
 
         result = await session.execute(select(User).where(User.email == email))
@@ -450,7 +450,7 @@ async def check_subscription(
 
     from sqlalchemy import select
 
-    async with get_db() as session:
+    async with DBSession() as session:
         result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         subscription_active = bool(user and user.has_active_subscription)

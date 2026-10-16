@@ -39,7 +39,7 @@ from core.cache import (
 from core.config import get_settings
 from core.pagination import get_page, get_page_size
 from core.security import get_current_user, verify_admin_api_key
-from db.database import get_db
+from db.database import DBSession, get_db
 from jobs.job_manager import create_job, get_job
 from models.match import (
     Match,
@@ -387,7 +387,7 @@ async def list_predictions(
 
     is_subscribed = False
     if user_email:
-        async with get_db() as session:
+        async with DBSession() as session:
             result = await session.execute(
                 select(User).where(User.email == user_email)
             )
