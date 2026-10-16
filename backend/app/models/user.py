@@ -1,4 +1,5 @@
 """SQLAlchemy models for user authentication and subscriptions."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -42,11 +43,17 @@ class User(Base):
     is_subscribed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, server_default=func.now()
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False,
-        onupdate=lambda: datetime.now(UTC), server_default=func.now(),
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+        onupdate=lambda: datetime.now(UTC),
+        server_default=func.now(),
     )
 
     subscription: Mapped[Subscription | None] = relationship(
@@ -80,7 +87,9 @@ class Subscription(Base):
     __tablename__ = "subscriptions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True
+    )
     flutterwave_customer_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     flutterwave_subscription_id: Mapped[str | None] = mapped_column(
         String(200), unique=True, nullable=True
@@ -91,17 +100,27 @@ class Subscription(Base):
         default=SubscriptionStatus.INCOMPLETE,
         nullable=False,
     )
-    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    current_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    current_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     amount: Mapped[float] = mapped_column(Float, default=5.0, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="usd", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, server_default=func.now()
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False,
-        onupdate=lambda: datetime.now(UTC), server_default=func.now(),
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
+        onupdate=lambda: datetime.now(UTC),
+        server_default=func.now(),
     )
 
     user: Mapped[User] = relationship(
