@@ -1,7 +1,7 @@
 """Admin endpoints.
 
 GET  /api/v1/admin/stats              -- platform-wide statistics
-GET  /api/v1/admin/prediction-runs     -- list prediction runs
+GET  /api/v1/admin/predictions         -- list all predictions (no subscription limit)
 GET  /api/v1/admin/models              -- list model versions
 GET  /api/v1/admin/leagues             -- list leagues (internal + provider ids)
 GET  /api/v1/admin/teams               -- list teams (internal + provider ids)
@@ -24,10 +24,12 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import delete, desc, func, or_, select
+from sqlalchemy import delete, desc, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from core.logging import get_logger
+from core.pagination import get_page, get_page_size
 from core.security import verify_admin_api_key
 from db.database import AsyncSessionLocal, get_db
 from models.league import League, ProviderLeague, ProviderTeam, Season, Team
@@ -56,6 +58,7 @@ from models.research import (
     ResearchRun,
     WebSourceExtended,
 )
+from schemas.api import PredictionHistoryItem
 
 logger = get_logger(__name__)
 
@@ -302,6 +305,152 @@ async def list_prediction_runs(
             "page_size": page_size,
             "total": total,
             "total_pages": max(1, -(-total // page_size)) if page_size > 0 else 1,
+        },
+    }
+
+
+@router.get("/predictions", response_model=dict[str, Any])
+async def admin_list_predictions(
+    _admin: str = Depends(verify_admin_api_key),
+    db: AsyncSession = Depends(get_db),
+    match_id: str | None = Query(None),
+    league_id: str | None = Query(None),
+    team_id: str | None = Query(None),
+    model_version: str | None = Query(None),
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
+    upcoming_only: bool = Query(
+        False,
+        description="Only show predictions for upcoming/unfinished matches.",
+    ),
+    played: bool | None = Query(
+        None,
+        description="Filter by match played status. True for played, False for not played.",
+    ),
+    min_elapsed_minutes: int | None = Query(None, ge=0, le=10080),
+    max_elapsed_minutes: int | None = Query(None, ge=0, le=10080),
+    kickoff_date: date | None = Query(None),
+    newest_first: bool = Query(False),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> dict[str, Any]:
+    """List all predictions without subscription limits (admin only)."""
+    page_num = get_page(page)
+    ps = get_page_size(page_size)
+    offset = (page_num - 1) * ps
+    now = datetime.utcnow()
+
+    home_team = aliased(Team)
+    away_team = aliased(Team)
+    stmt = (
+        select(
+            Prediction,
+            func.coalesce(Match.home_team_name, home_team.name, "Home team"),
+            func.coalesce(Match.away_team_name, away_team.name, "Away team"),
+            Match.kickoff_at,
+            Match.status,
+            func.coalesce(PredictionResult.home_score, Match.home_score),
+            func.coalesce(PredictionResult.away_score, Match.away_score),
+        )
+        .join(Match, Match.id == Prediction.match_id)
+        .outerjoin(PredictionResult, PredictionResult.prediction_id == Prediction.id)
+        .outerjoin(home_team, Match.home_team_id == home_team.id)
+        .outerjoin(away_team, Match.away_team_id == away_team.id)
+    )
+    if match_id:
+        stmt = stmt.where(Prediction.match_id == match_id)
+    if league_id:
+        stmt = stmt.where(Match.league_id == league_id)
+    if team_id:
+        stmt = stmt.where((Match.home_team_id == team_id) | (Match.away_team_id == team_id))
+    if model_version:
+        stmt = stmt.where(Prediction.model_version == model_version)
+    if date_from:
+        stmt = stmt.where(Prediction.generated_at >= date_from)
+    if date_to:
+        stmt = stmt.where(Prediction.generated_at <= date_to)
+    if upcoming_only:
+        stmt = stmt.where(Match.kickoff_at >= now).where(Match.is_finished.is_(False))
+    completed_match = or_(
+        Match.is_finished.is_(True),
+        func.lower(Match.status) == "finished",
+    )
+    if played is True:
+        stmt = stmt.where(completed_match)
+    elif played is False:
+        stmt = stmt.where(not_(completed_match))
+    if min_elapsed_minutes is not None:
+        stmt = stmt.where(Match.kickoff_at <= now - timedelta(minutes=min_elapsed_minutes))
+    if max_elapsed_minutes is not None:
+        stmt = stmt.where(Match.kickoff_at >= now - timedelta(minutes=max_elapsed_minutes))
+    if kickoff_date:
+        start = datetime.combine(kickoff_date, datetime.min.time())
+        end = start + timedelta(days=1)
+        stmt = stmt.where(Match.kickoff_at >= start).where(Match.kickoff_at < end)
+
+    total_stmt = select(func.count()).select_from(stmt.subquery())
+    total_result = await db.execute(total_stmt)
+    total = total_result.scalar() or 0
+
+    kickoff_order = (
+        Match.kickoff_at.desc().nullslast()
+        if newest_first
+        else Match.kickoff_at.asc().nullslast()
+    )
+    stmt = stmt.order_by(kickoff_order, Prediction.generated_at.desc()).offset(offset).limit(ps)
+    result = await db.execute(stmt)
+    predictions = result.all()
+
+    items = [
+        PredictionHistoryItem(
+            prediction_id=p.id,
+            match_id=p.match_id,
+            match_home_team=home_name,
+            match_away_team=away_name,
+            match_kickoff=match_kickoff,
+            match_status=match_status,
+            home_score=home_score,
+            away_score=away_score,
+            model_version=p.model_version,
+            prediction_version=p.prediction_version,
+            generated_at=p.generated_at,
+            data_quality=p.feature_snapshot.get("data_quality", 0.0)
+            if isinstance(p.feature_snapshot, dict)
+            else 0.0,
+            model_confidence=p.confidence or 0.0,
+            home_probability=p.home_probability,
+            draw_probability=p.draw_probability,
+            away_probability=p.away_probability,
+            over_2_5_probability=p.over_2_5_probability,
+            under_2_5_probability=p.under_2_5_probability,
+            btts_probability=p.btts_probability,
+            ai_adjustment_applied=bool(p.ai_adjustment_json),
+            context_hash=p.context_hash,
+            admin_verify_gg=p.admin_verify_gg,
+            admin_verify_win=p.admin_verify_win,
+            admin_verify_over_2_5=p.admin_verify_over_2_5,
+        )
+        for (
+            p,
+            home_name,
+            away_name,
+            match_kickoff,
+            match_status,
+            home_score,
+            away_score,
+        ) in predictions
+    ]
+
+    return {
+        "success": True,
+        "data": [item.model_dump() for item in items],
+        "meta": {
+            "page": page_num,
+            "page_size": ps,
+            "total": total,
+            "total_pages": max(1, -(-total // ps)) if ps > 0 else 1,
+            "is_subscribed": True,
+            "free_predictions_remaining": None,
         },
     }
 

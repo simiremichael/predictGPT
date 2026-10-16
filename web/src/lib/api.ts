@@ -744,12 +744,16 @@ export const api = {
       upcoming_only?: boolean;
       played?: boolean;
       kickoff_date?: string;
+      min_elapsed_minutes?: number;
+      max_elapsed_minutes?: number;
+      newest_first?: boolean;
       page?: number;
       page_size?: number;
     }) => {
       const qs = buildQs(params || {});
       return requestPaginated<PredictionHistoryItem>(
-        `/api/v1/predictions${qs}`,
+        `/api/v1/admin/predictions${qs}`,
+        { headers: adminHeaders() },
       );
     },
     deleteLeague: (id: string) =>

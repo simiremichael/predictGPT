@@ -8,7 +8,7 @@ interface Env {
 }
 
 export const env: Env = {
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || "https://predictgpt.onrender.com",
+  apiUrl: process.env.NEXT_PUBLIC_API_URL || "https://football-ai.fastapicloud.dev",
   apiFallbackUrl:
     process.env.NEXT_PUBLIC_API_FALLBACK_URL || "http://localhost:8000",
   appName: process.env.NEXT_PUBLIC_APP_NAME || "Football AI",
