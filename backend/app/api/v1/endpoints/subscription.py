@@ -1,4 +1,4 @@
-"""Subscription management endpoints with Flutterwave v4 integration."""
+"""Subscription management endpoints with Flutterwave integration."""
 
 from __future__ import annotations
 
@@ -25,43 +25,20 @@ FREE_PREDICTION_LIMIT = 2
 
 
 async def _get_flutterwave_token(settings) -> str:
-    """Retrieve an OAuth 2.0 access token from Flutterwave v4."""
-    if not settings.flutterwave_client_id or not settings.flutterwave_client_secret:
+    """Return the Flutterwave secret key for v3 API Bearer authentication."""
+    if not settings.flutterwave_secret_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Flutterwave OAuth credentials are not configured on this server.",
+            detail="Flutterwave secret key is not configured on this server.",
         )
-
-    async with httpx.AsyncClient(timeout=20) as http:
-        response = await http.post(
-            settings.flutterwave_oauth_url,
-            data={
-                "grant_type": "client_credentials",
-                "client_id": settings.flutterwave_client_id,
-                "client_secret": settings.flutterwave_client_secret,
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Could not authenticate with Flutterwave.",
-        )
-    data = response.json()
-    token = data.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Flutterwave did not return an access token.",
-        )
-    return token
+    return settings.flutterwave_secret_key
 
 
 async def _verify_flutterwave_transaction(charge_id: str, access_token: str) -> dict[str, Any]:
-    """Verify a charge via Flutterwave v4 GET /charges/{id}."""
+    """Verify a transaction via Flutterwave v3 GET /transactions/{id}/verify."""
     async with httpx.AsyncClient(timeout=20) as http:
         response = await http.get(
-            f"{get_settings().flutterwave_api_base_url}/charges/{charge_id}",
+            f"{get_settings().flutterwave_api_base_url}/transactions/{charge_id}/verify",
             headers={"Authorization": f"Bearer {access_token}"},
         )
     if response.status_code != 200:
@@ -103,14 +80,9 @@ async def initiate_subscription(
     email: str = Depends(get_current_user_required),
     db=Depends(get_db),
 ) -> FlutterwaveInitResponse:
-    """Initiate a Flutterwave v4 payment for subscription."""
+    """Initiate a Flutterwave payment for subscription."""
     settings = get_settings()
 
-    if not settings.flutterwave_client_id or not settings.flutterwave_client_secret:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Flutterwave OAuth credentials are not configured on this server.",
-        )
     if not settings.flutterwave_secret_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -147,13 +119,13 @@ async def initiate_subscription(
         await session.commit()
         await session.refresh(sub)
 
-        # Generate a unique reference for the charge
+        # Generate a unique reference for the transaction
         tx_ref = f"sub_{sub.id}_{int(datetime.now(UTC).timestamp())}_{secrets.token_hex(4)}"
         sub.payment_reference = tx_ref
         await session.commit()
 
-        # Initiate Flutterwave v4 charge
-        flutterwave_url = f"{settings.flutterwave_api_base_url}/charges"
+        # Initiate Flutterwave Standard API payment
+        flutterwave_url = f"{settings.flutterwave_api_base_url}/payments"
 
         try:
             async with httpx.AsyncClient(timeout=30) as http:
@@ -165,8 +137,8 @@ async def initiate_subscription(
                         "X-Trace-Id": sub.id,
                     },
                     json={
-                        "reference": tx_ref,
-                        "amount": str(settings.subscription_price_usd),
+                        "tx_ref": tx_ref,
+                        "amount": settings.subscription_price_usd,
                         "currency": "USD",
                         "customer": {
                             "email": user.email,
@@ -209,13 +181,13 @@ async def initiate_subscription(
 
 @router.post("/webhook")
 async def flutterwave_webhook(request: Request) -> dict[str, Any]:
-    """Handle Flutterwave v4 webhook events."""
+    """Handle Flutterwave webhook events."""
     settings = get_settings()
 
     raw_body = await request.body()
 
-    # Verify HMAC-SHA256 signature using flutterwave-signature header (v4)
-    signature = request.headers.get("flutterwave-signature", "")
+    # Verify HMAC-SHA256 signature (verif-hash for v3, flutterwave-signature for v4)
+    signature = request.headers.get("verif-hash") or request.headers.get("flutterwave-signature", "")
     if not settings.flutterwave_webhook_secret:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -242,12 +214,12 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
             detail="Invalid JSON body",
         ) from None
 
-    event_type = body.get("type", "")
+    event_type = body.get("event") or body.get("type", "")
     data = body.get("data", {})
 
     if event_type == "charge.completed":
         charge_id = data.get("id")
-        payment_reference = data.get("reference")
+        payment_reference = data.get("reference") or data.get("tx_ref")
         if not charge_id or not payment_reference:
             return {"status": "ignored"}
 
@@ -268,14 +240,15 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
             except (TypeError, ValueError):
                 amount_matches = False
             if (
-                verified.get("status") != "succeeded"
+                verified.get("status") not in ("successful", "succeeded")
                 or (verified.get("currency") or "").upper() != "USD"
                 or not amount_matches
             ):
                 return {"status": "payment_not_verified"}
 
             if sub is not None:
-                if verified.get("reference") != sub.payment_reference:
+                verified_ref = verified.get("tx_ref") or verified.get("reference")
+                if verified_ref != sub.payment_reference:
                     return {"status": "payment_not_verified"}
             else:
                 # Renewal charges have a new transaction reference. Match them
@@ -400,8 +373,8 @@ async def verify_subscription_payment(
         customer_email = str((verified.get("customer") or {}).get("email") or "").strip().lower()
         metadata = verified.get("meta") or {}
         valid = (
-            verified.get("status") == "succeeded"
-            and verified.get("reference") == sub.payment_reference
+            verified.get("status") in ("successful", "succeeded")
+            and (verified.get("tx_ref") or verified.get("reference")) == sub.payment_reference
             and (verified.get("currency") or "").upper() == "USD"
             and amount_matches
             and str(metadata.get("subscription_id")) == sub.id
