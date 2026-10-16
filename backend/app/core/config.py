@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import AliasChoices as _AliasChoices
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AliasChoices = _AliasChoices
@@ -253,6 +254,19 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("FLUTTERWAVE_PAYMENT_PLAN_ID", "flutterwave_payment_plan_id"),
     )
+
+    @field_validator("flutterwave_payment_plan_id", mode="before")
+    @classmethod
+    def _parse_int_field(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return None
+            try:
+                return int(v)
+            except (ValueError, TypeError):
+                return None
+        return v
     subscription_price_usd: float = Field(
         default=5.0,
         validation_alias=AliasChoices("SUBSCRIPTION_PRICE_USD", "subscription_price_usd"),
@@ -261,10 +275,34 @@ class Settings(BaseSettings):
         default="https://football-ai.app",
         validation_alias=AliasChoices("FRONTEND_URL", "frontend_url"),
     )
-    allowed_hosts: list[str] = Field(default_factory=lambda: ["*"])
-    cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://localhost:19006"]
-    )
+    allowed_hosts: Any = Field(default="*")
+    cors_origins: Any = Field(default="http://localhost:3000,http://localhost:19006")
+
+    @model_validator(mode="after")
+    def _parse_list_fields(self) -> Settings:
+        for field_name in ("allowed_hosts", "cors_origins"):
+            value = getattr(self, field_name)
+            if isinstance(value, str):
+                if value.strip() == "" or value.strip() == "*":
+                    setattr(self, field_name, ["*"])
+                else:
+                    try:
+                        parsed = json.loads(value)
+                        if isinstance(parsed, list):
+                            setattr(self, field_name, parsed)
+                        else:
+                            setattr(
+                                self, field_name,
+                                [item.strip() for item in value.split(",") if item.strip()],
+                            )
+                    except (json.JSONDecodeError, ValueError):
+                        setattr(
+                            self, field_name,
+                            [item.strip() for item in value.split(",") if item.strip()],
+                        )
+            elif not isinstance(value, list):
+                setattr(self, field_name, list(value))
+        return self
 
     # ------------------------------------------------------------------ #
     # Caching TTLs (seconds)
