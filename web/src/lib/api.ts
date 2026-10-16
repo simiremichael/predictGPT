@@ -281,14 +281,22 @@ async function adminCall<T = unknown>(
   // HTTP errors. `requestResponse` doesn't surface those, so we handle the
   // envelope explicitly here to give the UI actionable error text.
   try {
-    const response = await fetchApi(path, {
+    const requestInit: RequestInit = {
       ...init,
       headers: {
         "Content-Type": "application/json",
         ...init.headers,
-        "X-Admin-Api-Key": env.adminApiKey,
       },
-    });
+    };
+    const response = typeof window === "undefined"
+      ? await fetchApi(path, {
+          ...requestInit,
+          headers: {
+            ...requestInit.headers,
+            "X-Admin-Api-Key": env.adminApiKey,
+          },
+        })
+      : await fetch(`/api/admin-proxy${path}`, requestInit);
 
     let data: AdminEnvelope<T> | null = null;
     const text = await response.text();

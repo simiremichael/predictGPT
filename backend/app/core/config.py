@@ -267,16 +267,19 @@ class Settings(BaseSettings):
             except (ValueError, TypeError):
                 return None
         return v
+
     subscription_price_usd: float = Field(
         default=5.0,
         validation_alias=AliasChoices("SUBSCRIPTION_PRICE_USD", "subscription_price_usd"),
     )
     frontend_url: str = Field(
-        default="https://football-ai.app",
+        default="https://predictgpt.netlify.app",
         validation_alias=AliasChoices("FRONTEND_URL", "frontend_url"),
     )
     allowed_hosts: Any = Field(default="*")
-    cors_origins: Any = Field(default="http://localhost:3000,http://localhost:19006")
+    cors_origins: Any = Field(
+        default="http://localhost:3000,http://localhost:19006,https://predictgpt.netlify.app"
+    )
 
     @model_validator(mode="after")
     def _parse_list_fields(self) -> Settings:
@@ -292,12 +295,14 @@ class Settings(BaseSettings):
                             setattr(self, field_name, parsed)
                         else:
                             setattr(
-                                self, field_name,
+                                self,
+                                field_name,
                                 [item.strip() for item in value.split(",") if item.strip()],
                             )
                     except (json.JSONDecodeError, ValueError):
                         setattr(
-                            self, field_name,
+                            self,
+                            field_name,
                             [item.strip() for item in value.split(",") if item.strip()],
                         )
             elif not isinstance(value, list):
