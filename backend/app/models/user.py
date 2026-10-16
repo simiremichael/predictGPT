@@ -53,7 +53,7 @@ class User(Base):
         "Subscription",
         back_populates="user",
         uselist=False,
-        lazy="select",
+        lazy="selectin",
     )
 
     def __repr__(self) -> str:
@@ -63,10 +63,7 @@ class User(Base):
     def has_active_subscription(self) -> bool:
         if not self.is_subscribed:
             return False
-        try:
-            subscription = self.subscription
-        except Exception:
-            return False
+        subscription = self.subscription
         if subscription is None:
             return False
         if subscription.status != SubscriptionStatus.ACTIVE:
