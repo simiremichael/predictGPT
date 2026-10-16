@@ -1,6 +1,7 @@
 import { Stack, SplashScreen } from "expo-router";
 import { QueryProvider } from "@/lib/query/provider";
 import { ThemeProvider } from "@/lib/theme/provider";
+import { AuthProvider } from "@/contexts/auth";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -8,6 +9,7 @@ export default function RootLayout() {
   return (
     <QueryProvider>
       <ThemeProvider>
+       <AuthProvider>
         <Stack
           screenOptions={{
             headerStyle: {
@@ -21,6 +23,7 @@ export default function RootLayout() {
             },
           }}
         />
+       </AuthProvider>
       </ThemeProvider>
     </QueryProvider>
   );

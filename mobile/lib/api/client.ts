@@ -1,9 +1,7 @@
 import { env } from "../env";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ApiError } from "./errors";
 import type {
-  ApiResponse,
-  ApiErrorResponse,
-  PaginatedResponse,
   PaginatedMeta,
   League,
   Team,
@@ -16,17 +14,37 @@ import type {
   ResearchData,
   SearchResultItem,
   ProviderStatus,
-  Standing,
 } from "@/types";
 
 export { ApiError } from "./errors";
 
-interface CacheOptions {
-  ttl?: number;
+export interface MobileUser {
+  id: string;
+  email: string;
+  is_active: boolean;
+  is_subscribed: boolean;
+  created_at?: string | null;
 }
 
-interface FetchOptions {
-  cache?: CacheOptions;
+export interface MobileAuthResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: MobileUser;
+}
+
+export interface MobileSubscriptionStatus {
+  is_subscribed: boolean;
+  subscription_price_usd?: number;
+  free_predictions_remaining: number | null;
+  total_free_predictions: number;
+}
+
+export interface MobileSubscriptionInit {
+  link: string | null;
+  message: string | null;
+  subscription_id: string | null;
+  reference: string | null;
 }
 
 class ApiClient {
@@ -71,12 +89,13 @@ class ApiClient {
   private async requestResponse<T>(
     path: string,
     options: RequestInit = {},
-  ): Promise<ApiErrorResponse | { success: true; data: T; meta?: Record<string, unknown> }> {
+  ): Promise<{ success: true; data: T; meta?: Record<string, unknown> }> {
     try {
       const response = await this.fetchApi(path, {
         ...options,
         headers: {
           "Content-Type": "application/json",
+          ...(await this.getAuthHeaders()),
           ...options.headers,
         },
       });
@@ -108,6 +127,36 @@ class ApiClient {
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const response = await this.requestResponse<T>(path, options);
     return response.data;
+  }
+
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const token = await AsyncStorage.getItem("auth_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  private async requestRaw<T>(path: string, options: RequestInit = {}): Promise<T> {
+    try {
+      const response = await this.fetchApi(path, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(await this.getAuthHeaders()),
+          ...options.headers,
+        },
+      });
+      const body = await response.json();
+      if (!response.ok || body?.success === false) {
+        throw new ApiError(
+          body?.error?.message || body?.detail || response.statusText || "Request failed",
+          response.status,
+          body?.error?.code,
+        );
+      }
+      return body as T;
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError(error instanceof Error ? error.message : "Network error", 500, "UNKNOWN_ERROR");
+    }
   }
 
   private async requestPaginated<T>(
@@ -221,13 +270,8 @@ class ApiClient {
     }>(`/api/v1/leagues/${id}/standings${qs ? `?${qs}` : ""}`);
   };
 
-  getCountryLeagues = (country: string) => {
-    return this.request<{
-      success: boolean;
-      data: League[];
-      meta: { country: string; total_leagues: number };
-    }>(`/api/v1/leagues/country/${encodeURIComponent(country)}`);
-  };
+  getCountryLeagues = (country: string) =>
+    this.request<League[]>(`/api/v1/leagues/country/${encodeURIComponent(country)}`);
 
   getLeagues = (params?: {
     is_active?: boolean;
@@ -237,9 +281,9 @@ class ApiClient {
   }) => this.listLeagues(params);
 
   getCountryLeaguesList = (country: string) =>
-    this.getCountryLeagues(country).then((res) => ({
-      data: res.data,
-      meta: res.meta,
+    this.getCountryLeagues(country).then((data) => ({
+      data,
+      meta: { page: 1, page_size: data.length, total: data.length, total_pages: 1 },
     }));
 
   // ─── Teams ──────────────────────────────────────────── //
@@ -410,6 +454,28 @@ class ApiClient {
 
   getPredictionStats = () =>
     this.request<PredictionStats>("/api/v1/predictions/stats");
+
+  authLogin = (email: string, password: string) =>
+    this.requestRaw<MobileAuthResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+  authRegister = (email: string, password: string) =>
+    this.requestRaw<MobileAuthResponse>("/api/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+
+  authGetCurrent = () => this.requestRaw<MobileUser>("/api/v1/auth/me");
+
+  getSubscriptionStatus = () =>
+    this.requestRaw<MobileSubscriptionStatus>("/api/v1/subscription/check");
+
+  initiateSubscription = () =>
+    this.requestRaw<MobileSubscriptionInit>("/api/v1/subscription/initiate", {
+      method: "POST",
+    });
 
   getPredictionHistory = (params?: {
     match_id?: string;

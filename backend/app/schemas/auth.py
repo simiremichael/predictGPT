@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class AuthRegisterRequest(BaseModel):
@@ -13,12 +13,26 @@ class AuthRegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
 
+    @field_validator("password")
+    @classmethod
+    def validate_bcrypt_password_length(cls, password: str) -> str:
+        if len(password.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 UTF-8 bytes")
+        return password
+
 
 class AuthLoginRequest(BaseModel):
     """Request body for user login."""
 
     email: EmailStr
     password: str = Field(..., min_length=1)
+
+    @field_validator("password")
+    @classmethod
+    def validate_bcrypt_password_length(cls, password: str) -> str:
+        if len(password.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 UTF-8 bytes")
+        return password
 
 
 class TokenResponse(BaseModel):
@@ -63,10 +77,16 @@ class FlutterwaveInitResponse(BaseModel):
     reference: str | None = None
 
 
+class FlutterwaveVerifyRequest(BaseModel):
+    transaction_id: str
+    tx_ref: str
+
+
 class SubscriptionStatusResponse(BaseModel):
     """Response for subscription status check."""
 
     is_subscribed: bool
+    subscription_price_usd: float = 5.0
     subscription: SubscriptionResponse | None = None
     user: UserResponse
 

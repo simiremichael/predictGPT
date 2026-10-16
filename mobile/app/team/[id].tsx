@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
+import { StyleSheet, Text, View, ScrollView, RefreshControl } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/theme/provider";
 import { api } from "@/lib/api/client";

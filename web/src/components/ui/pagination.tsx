@@ -71,8 +71,11 @@ export function Pagination({ page, pageSize, total, totalPages, onPageChange, cl
         <ChevronRight className="h-4 w-4" />
       </Button>
 
-      <span className="text-sm text-muted-foreground ml-2">
+      <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
         Page {page} of {totalPages} ({total} items)
+      </span>
+      <span className="text-xs text-muted-foreground ml-2 sm:hidden">
+        Page {page}/{totalPages}
       </span>
     </nav>
   );

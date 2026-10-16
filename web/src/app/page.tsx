@@ -263,61 +263,71 @@ export default async function HomePage() {
                   href={`/predictions/${item.prediction_id}`}
                   className="block rounded-2xl border border-border bg-background/60 p-3 transition-all hover:border-primary/20 hover:bg-primary/5"
                 >
-                   <div className="flex items-center justify-between gap-3">
-                     <div>
-                       <AIGeneratedBadge />
-                       <p className="font-semibold text-foreground">
-                         {item.match_home_team} vs {item.match_away_team}
-                       </p>
-                       <p className="text-xs text-muted-foreground">
-                         {item.match_kickoff
-                           ? new Date(item.match_kickoff).toLocaleDateString()
-                           : new Date(item.generated_at).toLocaleDateString()}{" "}
-                         • {item.model_version}
-                       </p>
-                     </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <AIGeneratedBadge />
+                      <p className="font-semibold text-foreground">
+                        {item.match_home_team} vs {item.match_away_team}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.match_kickoff
+                          ? new Date(item.match_kickoff).toLocaleDateString()
+                          : new Date(
+                              item.generated_at,
+                            ).toLocaleDateString()}{" "}
+                        • {item.model_version}
+                      </p>
+                    </div>
 
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
-                          <span className="text-[9px] uppercase text-muted-foreground">Win</span>
-                          <p className="text-sm font-bold">
-                            {item.home_probability != null &&
-                            item.home_probability >= (item.draw_probability ?? 0) &&
-                            item.home_probability >= (item.away_probability ?? 0)
-                              ? "H"
-                              : item.draw_probability != null &&
-                                  item.draw_probability >= (item.away_probability ?? 0)
-                                ? "D"
-                                : "A"}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
-                          <span className="text-[9px] uppercase text-muted-foreground">O 2.5</span>
-                          <p className="text-sm font-bold">
-                            {item.over_2_5_probability != null &&
-                            item.over_2_5_probability >= 0.5
-                              ? "O2.5"
-                              : "U2.5"}
-                          </p>
-                        </div>
-                        <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
-                          <span className="text-[9px] uppercase text-muted-foreground">BTTS</span>
-                          <p className="text-sm font-bold">
-                            {item.btts_probability != null &&
-                            item.btts_probability >= 0.5
-                              ? "GG"
-                              : "NG"}
-                          </p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
+                        <span className="text-[9px] uppercase text-muted-foreground">
+                          Win
+                        </span>
+                        <p className="text-sm font-bold">
+                          {item.home_probability != null &&
+                          item.home_probability >=
+                            (item.draw_probability ?? 0) &&
+                          item.home_probability >= (item.away_probability ?? 0)
+                            ? "H"
+                            : item.draw_probability != null &&
+                                item.draw_probability >=
+                                  (item.away_probability ?? 0)
+                              ? "D"
+                              : "A"}
+                        </p>
                       </div>
-                       <Badge
-                         variant="default"
-                         className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-                       >
-                         {(item.model_confidence * 100).toFixed(0)}%
-                        </Badge>
+                      <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
+                        <span className="text-[9px] uppercase text-muted-foreground">
+                          O 2.5
+                        </span>
+                        <p className="text-sm font-bold">
+                          {item.over_2_5_probability != null &&
+                          item.over_2_5_probability >= 0.5
+                            ? "O2.5"
+                            : "U2.5"}
+                        </p>
                       </div>
-                    </Link>
+                      <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
+                        <span className="text-[9px] uppercase text-muted-foreground">
+                          BTTS
+                        </span>
+                        <p className="text-sm font-bold">
+                          {item.btts_probability != null &&
+                          item.btts_probability >= 0.5
+                            ? "GG"
+                            : "NG"}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge
+                      variant="default"
+                      className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+                    >
+                      {(item.model_confidence * 100).toFixed(0)}%
+                    </Badge>
+                  </div>
+                </Link>
               ))
             ) : (
               <EmptyState
@@ -478,7 +488,7 @@ function StatsPreview() {
   const stats = [
     { label: "Leagues Covered", value: "26+", icon: Trophy },
     { label: "Teams Tracked", value: "500+", icon: Shield },
-    { label: "Daily Fixtures", value: "1K+", icon: CalendarDays },
+    { label: "Monthly Fixtures", value: "1K+", icon: CalendarDays },
     { label: "Avg. Edge", value: "+7.8%", icon: TrendingUp },
   ];
 

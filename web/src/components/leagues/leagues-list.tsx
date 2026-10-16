@@ -10,6 +10,8 @@ import type { League } from "@/types/models";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 
+const ALL_COUNTRIES = "__all_countries__";
+
 interface LeaguesListProps {
   initialPage: number;
   initialPageSize: number;
@@ -65,7 +67,7 @@ export function LeaguesList({
     return <LoadingState message="Loading leagues..." />;
   }
 
-  if (!result || result.data.length === 0) {
+  if (!result) {
     return (
       <EmptyState
         title="No leagues found"
@@ -90,9 +92,9 @@ export function LeaguesList({
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Select
-                value={country}
+                value={country || ALL_COUNTRIES}
                 onValueChange={(value) => {
-                  setCountry(value);
+                  setCountry(value === ALL_COUNTRIES ? "" : value);
                   setPage(1);
                 }}
               >
@@ -100,7 +102,7 @@ export function LeaguesList({
                   <SelectValue placeholder="All Countries" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Countries</SelectItem>
+                  <SelectItem value={ALL_COUNTRIES}>All Countries</SelectItem>
                   {countries.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
@@ -151,41 +153,48 @@ export function LeaguesList({
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {result.data.map((league: League) => (
-          <Link
-            key={league.id}
-            href={`/leagues/${league.id}`}
-            className="group block"
-          >
-            <div className="surface-card flex h-full flex-col rounded-[1.5rem] p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,23,42,0.08)]">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/12 to-cyan-500/10 text-primary ring-1 ring-primary/10">
-                  <Trophy className="h-5 w-5" />
+      {result.data.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {result.data.map((league: League) => (
+            <Link
+              key={league.id}
+              href={`/leagues/${league.id}`}
+              className="group block"
+            >
+              <div className="surface-card flex h-full flex-col rounded-[1.5rem] p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_20px_44px_rgba(15,23,42,0.08)]">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/12 to-cyan-500/10 text-primary ring-1 ring-primary/10">
+                    <Trophy className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="truncate font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
+                      {league.name}
+                    </h3>
+                    {league.country && (
+                      <p className="truncate text-sm text-muted-foreground">
+                        {league.country}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="truncate font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
-                    {league.name}
-                  </h3>
-                  {league.country && (
-                    <p className="truncate text-sm text-muted-foreground">
-                      {league.country}
-                    </p>
-                  )}
+                <div className="mt-4 border-t border-border/80 pt-3">
+                  <Badge
+                    variant={league.is_active ? "default" : "secondary"}
+                    className="text-xs font-semibold"
+                  >
+                    {league.is_active ? "Active" : "Inactive"}
+                  </Badge>
                 </div>
               </div>
-              <div className="mt-4 border-t border-border/80 pt-3">
-                <Badge
-                  variant={league.is_active ? "default" : "secondary"}
-                  className="text-xs font-semibold"
-                >
-                  {league.is_active ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No leagues found"
+          description="Try changing the country or status filters."
+        />
+      )}
 
       <Pagination
         page={result.meta.page}

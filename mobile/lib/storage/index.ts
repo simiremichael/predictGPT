@@ -9,6 +9,12 @@ export interface SearchHistoryItem {
 const SEARCH_HISTORY_KEY = "search_history";
 const MAX_HISTORY = 20;
 
+export async function clearCache(): Promise<void> {
+  const keys = await AsyncStorage.getAllKeys();
+  const cacheKeys = keys.filter((key) => key !== "auth_token" && key !== SEARCH_HISTORY_KEY);
+  if (cacheKeys.length > 0) await AsyncStorage.multiRemove(cacheKeys);
+}
+
 export async function getSearchHistory(): Promise<SearchHistoryItem[]> {
   try {
     const raw = await AsyncStorage.getItem(SEARCH_HISTORY_KEY);

@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { View, ScrollView, RefreshControl, Text } from "react-native";
+import { View, ScrollView, RefreshControl, Text, TouchableOpacity } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useTheme } from "@/lib/theme/provider";
 import { api } from "@/lib/api/client";
 import { LoadingState } from "@/components/common/LoadingState";
 import { EmptyState } from "@/components/common/EmptyState";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { useQueryClient } from "@tanstack/react-query";
 import { getLeagueTierLabel } from "@/utils";
 import type { League, Standing } from "@/types";
 
@@ -20,8 +19,6 @@ export default function LeagueDetailScreen() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const { id } = useLocalSearchParams<{ id: string }>();
-  const queryClient = useQueryClient();
-
   const [activeTab, setActiveTab] = useState("standings");
 
   const {

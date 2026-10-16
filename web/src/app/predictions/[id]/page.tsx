@@ -289,8 +289,8 @@ async function PredictionDetailContent({
           <CardHeader>
             <CardTitle>Admin Verification</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="flex gap-6 text-sm">
+            <CardContent>
+            <div className="flex flex-col gap-3 text-sm sm:flex-row sm:gap-6">
               <div className="flex items-center gap-2">
                 <span className={prediction.admin_verify_gg === true ? "text-green-600" : (prediction.admin_verify_gg === false || (prediction.match_kickoff && new Date(prediction.match_kickoff).getTime() + 100 * 60 * 1000 < Date.now())) ? "text-red-600" : "text-muted-foreground"}>
                   {prediction.admin_verify_gg === true ? "✓" : (prediction.admin_verify_gg === false || (prediction.match_kickoff && new Date(prediction.match_kickoff).getTime() + 100 * 60 * 1000 < Date.now())) ? "✗" : "—"}

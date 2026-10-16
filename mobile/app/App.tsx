@@ -10,9 +10,10 @@ export function App() {
     SplashScreen.hideAsync();
   }, []);
 
-  return (
-    <ExpoRoot context={require.context("./", true, /\.[jt]sx?$/)} />
-  );
+  const routerContext = (require as unknown as {
+    context: (directory: string, recursive: boolean, filter: RegExp) => unknown;
+  }).context("./", true, /\.[jt]sx?$/);
+  return <ExpoRoot context={routerContext as Parameters<typeof ExpoRoot>[0]["context"]} />;
 }
 
 export default App;

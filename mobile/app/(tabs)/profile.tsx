@@ -1,15 +1,18 @@
-import React from "react";
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert } from "react-native";
-import { Link } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
+import { useCallback } from "react";
 import { useTheme } from "@/lib/theme/provider";
 import { api } from "@/lib/api/client";
 import { LoadingState } from "@/components/common/LoadingState";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { clearCache } from "@/lib/storage";
 import type { PredictionStats } from "@/types";
+import { useAuth } from "@/contexts/auth";
 
 export default function ProfileScreen() {
   const { theme, setThemeMode } = useTheme();
+  const { user, isSubscribed, logout, refreshSubscription } = useAuth();
+  const userId = user?.id;
   const isDark = theme === "dark";
 
   const { data: statsData, isLoading: statsLoading } = useApiQuery(["prediction-stats"], () =>
@@ -17,6 +20,10 @@ export default function ProfileScreen() {
   );
 
   const stats: PredictionStats | null = statsData ?? null;
+
+  useFocusEffect(useCallback(() => {
+    if (userId) void refreshSubscription().catch(() => undefined);
+  }, [userId, refreshSubscription]));
 
   const toggleTheme = (value: boolean) => {
     setThemeMode(value ? "dark" : "light");
@@ -43,6 +50,23 @@ export default function ProfileScreen() {
         <Text style={[styles.title, { color: isDark ? "#e7f0eb" : "#121f19" }]}>
           Profile
         </Text>
+      </View>
+
+      <View style={[styles.section, { backgroundColor: isDark ? "#0f1f19" : "#ffffff", borderColor: isDark ? "#253e33" : "#dce6e0" }]}>
+        <Text style={[styles.sectionTitle, { color: isDark ? "#e7f0eb" : "#121f19" }]}>Account</Text>
+        {user ? (
+          <>
+            <Text style={[styles.actionLabel, { color: isDark ? "#9eb1a4" : "#617068" }]}>{user.email}</Text>
+            <Text style={[styles.actionLabel, { color: isDark ? "#e7f0eb" : "#121f19" }]}>{isSubscribed ? "Premium subscriber" : "Free account"}</Text>
+            <Link href="/(auth)/subscription" asChild><TouchableOpacity style={styles.actionRow}><Text style={[styles.actionLabel, { color: isDark ? "#e7f0eb" : "#121f19" }]}>{isSubscribed ? "View subscription" : "Upgrade to Premium"}</Text></TouchableOpacity></Link>
+            <TouchableOpacity style={styles.actionRow} onPress={() => void logout()}><Text style={[styles.actionLabel, { color: isDark ? "#e7f0eb" : "#121f19" }]}>Log out</Text></TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Link href="/(auth)/login" asChild><TouchableOpacity style={styles.actionRow}><Text style={[styles.actionLabel, { color: isDark ? "#e7f0eb" : "#121f19" }]}>Log in</Text></TouchableOpacity></Link>
+            <Link href="/(auth)/signup" asChild><TouchableOpacity style={styles.actionRow}><Text style={[styles.actionLabel, { color: isDark ? "#e7f0eb" : "#121f19" }]}>Create account</Text></TouchableOpacity></Link>
+          </>
+        )}
       </View>
 
       <View
@@ -123,7 +147,7 @@ export default function ProfileScreen() {
             Export Cache
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionRow} onPress={clearCache}>
+        <TouchableOpacity style={styles.actionRow} onPress={handleClearCache}>
           <Text style={[styles.actionLabel, { color: isDark ? "#e7f0eb" : "#121f19" }]}>
             Clear Cache
           </Text>

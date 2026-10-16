@@ -31,13 +31,14 @@ export default function PredictionsScreen() {
   );
 
   const predictions = predictionsData?.data ?? [];
-     if (confidenceFilter === "all") return true;
-     const conf = p.model_confidence;
-     if (confidenceFilter === "high") return conf >= 0.8;
-     if (confidenceFilter === "medium") return conf >= 0.5 && conf < 0.8;
-     if (confidenceFilter === "low") return conf < 0.5;
-     return true;
-    });
+  const filteredPredictions = predictions.filter((p) => {
+    if (confidenceFilter === "all") return true;
+    const confidence = p.model_confidence;
+    if (confidenceFilter === "high") return confidence >= 0.8;
+    if (confidenceFilter === "medium") return confidence >= 0.5 && confidence < 0.8;
+    if (confidenceFilter === "low") return confidence < 0.5;
+    return true;
+  });
 
   const onRefresh = () => {
     refetchPredictions();

@@ -1,9 +1,9 @@
-import React from "react";
 import { StyleSheet, Text, View, ViewStyle } from "react-native";
 import { useTheme } from "@/lib/theme/provider";
+import type { ScoreMatrix as ScoreMatrixData } from "@/types";
 
 interface ScoreMatrixProps {
-  matrix: Record<string, Record<string, number>> | null | undefined;
+  matrix: ScoreMatrixData | Record<string, Record<string, number>> | null | undefined;
   maxGoals?: number;
   size?: "compact" | "normal";
   style?: ViewStyle;
@@ -17,8 +17,16 @@ export function ScoreMatrix({ matrix, maxGoals = 4, size = "normal", style }: Sc
     return null;
   }
 
+  const scoreMatrix = matrix as ScoreMatrixData;
+  const values: Record<string, Record<string, number>> = Array.isArray(scoreMatrix.matrix)
+    ? Object.fromEntries(scoreMatrix.matrix.map((row, home) => [
+        String(home),
+        Object.fromEntries(row.map((value, away) => [String(away), value])),
+      ]))
+    : matrix as Record<string, Record<string, number>>;
+
   const cellSize = size === "compact" ? 22 : 28;
-  const maxValue = Object.values(matrix).reduce((max, row) => {
+  const maxValue = Object.values(values).reduce((max, row) => {
     if (typeof row === "object" && row !== null) {
       return Math.max(max, ...Object.values(row).filter((v) => typeof v === "number") as number[]);
     }
@@ -38,10 +46,10 @@ export function ScoreMatrix({ matrix, maxGoals = 4, size = "normal", style }: Sc
   };
 
   const renderCell = (home: number, away: number) => {
-    const value = (matrix[home] && matrix[home][away]) || 0;
+    const value = (values[home] && values[home][away]) || 0;
     const isMostLikely =
       value ===
-      Object.values(matrix).reduce((max, row) => {
+      Object.values(values).reduce((max, row) => {
         if (typeof row === "object" && row !== null) {
           return Math.max(max, ...Object.values(row).filter((v) => typeof v === "number") as number[]);
         }

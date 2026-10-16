@@ -1,7 +1,7 @@
 """SQLAlchemy models for user authentication and subscriptions."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import (
@@ -39,9 +39,6 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_subscribed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    subscription_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("subscriptions.id"), nullable=True
-    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
@@ -53,12 +50,26 @@ class User(Base):
     subscription: Mapped[Subscription | None] = relationship(
         "Subscription",
         back_populates="user",
-        foreign_keys=[subscription_id],
+        uselist=False,
         lazy="selectin",
     )
 
     def __repr__(self) -> str:
         return f"<User id={self.id!r} email={self.email!r}>"
+
+    @property
+    def has_active_subscription(self) -> bool:
+        subscription = self.subscription
+        if not self.is_subscribed or subscription is None:
+            return False
+        if subscription.status != SubscriptionStatus.ACTIVE:
+            return False
+        if subscription.current_period_end is None:
+            return True
+        period_end = subscription.current_period_end
+        if period_end.tzinfo is None:
+            period_end = period_end.replace(tzinfo=UTC)
+        return period_end > datetime.now(UTC)
 
 
 class Subscription(Base):
@@ -70,6 +81,7 @@ class Subscription(Base):
     flutterwave_subscription_id: Mapped[str | None] = mapped_column(
         String(200), unique=True, nullable=True
     )
+    payment_reference: Mapped[str | None] = mapped_column(String(200), unique=True, nullable=True)
     status: Mapped[SubscriptionStatus] = mapped_column(
         SAEnum(SubscriptionStatus),
         default=SubscriptionStatus.INCOMPLETE,

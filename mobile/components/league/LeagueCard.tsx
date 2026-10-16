@@ -1,4 +1,3 @@
-import React from "react";
 import { StyleSheet, Text, View, TouchableOpacity, ViewStyle } from "react-native";
 import { Link } from "expo-router";
 import { useTheme } from "@/lib/theme/provider";

@@ -1,6 +1,5 @@
-import React from "react";
 import { StyleSheet, Text, View, ViewStyle } from "react-native";
-import { useTheme } from "@/lib/theme/provider"; from "@/lib/theme/provider";
+import { useTheme } from "@/lib/theme/provider";
 import { getDataQualityLabel, formatDataQuality } from "@/utils";
 
 interface DataQualityIndicatorProps {
@@ -28,7 +27,7 @@ export function DataQualityIndicator({
   };
 
   const barColor = getBarColor();
-  const barWidth = quality ? `${quality * 100}%` : "0%";
+  const barWidth = quality ? (`${quality * 100}%` as `${number}%`) : "0%";
 
   return (
     <View style={[styles.container, style]}>
@@ -49,7 +48,6 @@ export function DataQualityIndicator({
             { backgroundColor: barColor, width: barWidth },
           ]}
         />
-      </View>
       </View>
     </View>
   );

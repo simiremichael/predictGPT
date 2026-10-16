@@ -126,6 +126,36 @@ async function request<T>(
   return (await requestResponse<T>(path, options)).data;
 }
 
+async function requestRaw<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  try {
+    const response = await fetchApi(path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+    const body = await response.json();
+    if (!response.ok || body?.success === false) {
+      throw new ApiError(
+        body?.error?.message || body?.detail || response.statusText || "Request failed",
+        response.status,
+        body?.error?.code,
+      );
+    }
+    return body as T;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new ApiError("Request timeout", 408, "TIMEOUT");
+    }
+    throw new ApiError(err instanceof Error ? err.message : "Network error", 500, "UNKNOWN_ERROR");
+  }
+}
+
 /**
  * Fetch a single resource.
  *
@@ -813,7 +843,7 @@ export const api = {
   },
 
   authLogin: (email: string, password: string): Promise<AuthResponse> =>
-    request<AuthResponse>("/api/v1/auth/login", {
+    requestRaw<AuthResponse>("/api/v1/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
@@ -822,13 +852,13 @@ export const api = {
     email: string,
     password: string,
   ): Promise<AuthResponse> =>
-    request<AuthResponse>("/api/v1/auth/register", {
+    requestRaw<AuthResponse>("/api/v1/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
 
   authGetCurrent: (): Promise<User> =>
-    request<User>("/api/v1/auth/me", {
+    requestRaw<User>("/api/v1/auth/me", {
       method: "GET",
       headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}` },
     }),
@@ -840,11 +870,13 @@ export const api = {
 
   getSubscriptionStatus: (): Promise<{
     is_subscribed: boolean;
+    subscription_price_usd: number;
     free_predictions_remaining: number | null;
     total_free_predictions: number;
   }> =>
-    request<{
+    requestRaw<{
       is_subscribed: boolean;
+      subscription_price_usd: number;
       free_predictions_remaining: number | null;
       total_free_predictions: number;
     }>("/api/v1/subscription/check", {
@@ -858,13 +890,19 @@ export const api = {
     reference: string | null;
     message: string | null;
   }> =>
-    request<{
+    requestRaw<{
       link: string | null;
       subscription_id: string | null;
       reference: string | null;
       message: string | null;
     }>("/api/v1/subscription/initiate", {
       method: "POST",
+      headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}` },
+    }),
+  verifySubscriptionPayment: (transactionId: string, txRef: string): Promise<{ is_subscribed: boolean }> =>
+    requestRaw<{ is_subscribed: boolean }>("/api/v1/subscription/verify", {
+      method: "POST",
+      body: JSON.stringify({ transaction_id: transactionId, tx_ref: txRef }),
       headers: { Authorization: `Bearer ${localStorage.getItem("auth_token") || ""}` },
     }),
 };

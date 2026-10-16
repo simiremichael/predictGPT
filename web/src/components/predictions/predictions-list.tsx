@@ -273,9 +273,11 @@ function PredictionItem({
                     ? "D"
                     : "A"}
               </div>
-              <div className="text-[9px] text-muted-foreground">
-                {renderVerify(item.admin_verify_win)}
-              </div>
+              {played && (
+                <div className="text-[9px] text-muted-foreground">
+                  {renderVerify(item.admin_verify_win)}
+                </div>
+              )}
             </div>
 
             {/* Over 2.5 prediction */}
@@ -289,9 +291,11 @@ function PredictionItem({
                   ? "O2.5"
                   : "U2.5"}
               </div>
-              <div className="text-[9px] text-muted-foreground">
-                {renderVerify(item.admin_verify_over_2_5)}
-              </div>
+              {played && (
+                <div className="text-[9px] text-muted-foreground">
+                  {renderVerify(item.admin_verify_over_2_5)}
+                </div>
+              )}
             </div>
 
             {/* BTTS prediction */}
@@ -305,9 +309,11 @@ function PredictionItem({
                   ? "GG"
                   : "NG"}
               </div>
-              <div className="text-[9px] text-muted-foreground">
-                {renderVerify(item.admin_verify_gg)}
-              </div>
+              {played && (
+                <div className="text-[9px] text-muted-foreground">
+                  {renderVerify(item.admin_verify_gg)}
+                </div>
+              )}
             </div>
 
             <div className="text-right text-xs text-muted-foreground">

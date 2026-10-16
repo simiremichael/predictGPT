@@ -249,9 +249,17 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("FLUTTERWAVE_WEBHOOK_SECRET", "flutterwave_webhook_secret"),
     )
+    flutterwave_payment_plan_id: int | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FLUTTERWAVE_PAYMENT_PLAN_ID", "flutterwave_payment_plan_id"),
+    )
     subscription_price_usd: float = Field(
         default=5.0,
         validation_alias=AliasChoices("SUBSCRIPTION_PRICE_USD", "subscription_price_usd"),
+    )
+    frontend_url: str = Field(
+        default="https://football-ai.app",
+        validation_alias=AliasChoices("FRONTEND_URL", "frontend_url"),
     )
     allowed_hosts: list[str] = Field(default_factory=lambda: ["*"])
     cors_origins: list[str] = Field(

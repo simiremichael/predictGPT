@@ -35,11 +35,12 @@ async def register(
 ) -> TokenResponse:
     """Register a new user account and return a JWT token."""
     settings = get_settings()
+    normalized_email = str(payload.email).strip().lower()
     from sqlalchemy import select
 
     async with db as session:
         existing = await session.execute(
-            select(User).where(User.email == payload.email)
+            select(User).where(User.email == normalized_email)
         )
         if existing.scalar_one_or_none() is not None:
             raise HTTPException(
@@ -48,7 +49,7 @@ async def register(
             )
 
         user = User(
-            email=payload.email,
+            email=normalized_email,
             hashed_password=hash_password(payload.password),
         )
         session.add(user)
@@ -62,7 +63,9 @@ async def register(
         return TokenResponse(
             access_token=access_token,
             expires_in=settings.access_token_expire_minutes * 60,
-            user=UserResponse.model_validate(user),
+            user=UserResponse.model_validate(user).model_copy(
+                update={"is_subscribed": user.has_active_subscription}
+            ),
         )
 
 
@@ -73,11 +76,12 @@ async def login(
 ) -> TokenResponse:
     """Authenticate user and return a JWT token."""
     settings = get_settings()
+    normalized_email = str(payload.email).strip().lower()
     from sqlalchemy import select
 
     async with db as session:
         result = await session.execute(
-            select(User).where(User.email == payload.email)
+            select(User).where(User.email == normalized_email)
         )
         user = result.scalar_one_or_none()
 
@@ -101,7 +105,9 @@ async def login(
         return TokenResponse(
             access_token=access_token,
             expires_in=settings.access_token_expire_minutes * 60,
-            user=UserResponse.model_validate(user),
+            user=UserResponse.model_validate(user).model_copy(
+                update={"is_subscribed": user.has_active_subscription}
+            ),
         )
 
 
@@ -131,7 +137,9 @@ async def get_current_user_info(
                 detail="User not found",
             )
 
-        return UserResponse.model_validate(user)
+        return UserResponse.model_validate(user).model_copy(
+            update={"is_subscribed": user.has_active_subscription}
+        )
 
 
 @router.get("/status", response_model=SubscriptionStatusResponse)
@@ -154,7 +162,9 @@ async def get_subscription_status(
                 detail="User not found",
             )
 
-        user_resp = UserResponse.model_validate(user)
+        user_resp = UserResponse.model_validate(user).model_copy(
+            update={"is_subscribed": user.has_active_subscription}
+        )
 
         sub_resp = None
         if user.subscription:
@@ -171,7 +181,8 @@ async def get_subscription_status(
             }
 
         return SubscriptionStatusResponse(
-            is_subscribed=user.is_subscribed,
+            is_subscribed=user.has_active_subscription,
+            subscription_price_usd=get_settings().subscription_price_usd,
             subscription=sub_resp,
             user=user_resp,
         )

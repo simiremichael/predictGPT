@@ -22,40 +22,39 @@
     "target": "esnext",
     "resolveJsonModule": true,
     "useDefineForClassFields": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"
       ],
       "@/components/*": [
-        "components/*"
+        "./components/*"
       ],
       "@/lib/*": [
-        "lib/*"
+        "./lib/*"
       ],
       "@/types": [
-        "types/index.ts"
+        "./types/index.ts"
       ],
       "@/types/*": [
-        "types/*"
+        "./types/*"
       ],
       "@/hooks/*": [
-        "hooks/*"
+        "./hooks/*"
       ],
       "@/services/*": [
-        "services/*"
+        "./services/*"
       ],
       "@/constants/*": [
-        "constants/*"
+        "./constants/*"
       ],
       "@/utils/*": [
-        "utils/*"
+        "./utils/*"
       ],
       "@/utils": [
-        "utils/index.ts"
+        "./utils/index.ts"
       ],
       "@/assets/*": [
-        "assets/*"
+        "./assets/*"
       ]
     },
     "jsxImportSource": "react"

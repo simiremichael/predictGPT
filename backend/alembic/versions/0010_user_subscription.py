@@ -21,6 +21,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(36), sa.ForeignKey("users.id"), nullable=False, index=True),
         sa.Column("flutterwave_customer_id", sa.String(100), nullable=True),
         sa.Column("flutterwave_subscription_id", sa.String(200), unique=True, nullable=True),
+        sa.Column("payment_reference", sa.String(200), unique=True, nullable=True),
         sa.Column("status", sa.String(20), default="incomplete", nullable=False),
         sa.Column("current_period_end", sa.DateTime, nullable=True),
         sa.Column("current_period_start", sa.DateTime, nullable=True),
@@ -32,12 +33,10 @@ def upgrade() -> None:
     )
 
     op.add_column("users", sa.Column("is_subscribed", sa.Boolean, default=False, nullable=False, server_default="false"))
-    op.add_column("users", sa.Column("subscription_id", sa.String(36), sa.ForeignKey("subscriptions.id"), nullable=True))
     op.add_column("users", sa.Column("updated_at", sa.DateTime, nullable=False, server_default=sa.func.now()))
 
 
 def downgrade() -> None:
     op.drop_column("users", "updated_at")
-    op.drop_column("users", "subscription_id")
     op.drop_column("users", "is_subscribed")
     op.drop_table("subscriptions")

@@ -35,3 +35,13 @@ services:
         sync: false
       - key: CORS_ORIGINS
         sync: false
+      - key: FRONTEND_URL
+        value: https://football-ai.app
+      - key: FLUTTERWAVE_SECRET_KEY
+        sync: false
+      - key: FLUTTERWAVE_WEBHOOK_SECRET
+        sync: false
+      - key: FLUTTERWAVE_PAYMENT_PLAN_ID
+        sync: false
+      - key: SUBSCRIPTION_PRICE_USD
+        value: "5.00"

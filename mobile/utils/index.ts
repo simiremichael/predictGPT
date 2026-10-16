@@ -2,6 +2,7 @@ export {
   formatDate,
   formatTime,
   formatProbability,
+  formatScoreline,
   formatDateTime,
   timeToKickoff,
   getMatchStatusColor,

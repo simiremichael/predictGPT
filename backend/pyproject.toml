@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "football-ai-backend"
+version = "0.1.0"
+description = "Football AI - AI-powered football match prediction API"
+requires-python = ">=3.11"
+authors = [{ name = "Football AI" }]
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "sqlalchemy>=2.0.51",
+  "asyncpg>=0.31.0",
+  "alembic>=1.18.5",
+  "redis>=8.1.0",
+  "httpx>=0.28.1",
+  "pydantic>=2.13.4",
+  "pydantic-settings>=2.15.0",
+  "openai>=1.66.3",
+  "celery>=5.5.3",
+  "structlog>=25.4.0",
+  "python-dateutil>=2.9.0.post0",
+  "python-jose[cryptography]>=3.3.0",
+  "passlib[bcrypt]>=1.7.4",
+  "bcrypt>=4.0.1",
+  "email-validator>=2.0.0",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.4.0",
+  "pytest-cov>=6.2.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff",
+  "mypy",
+]
+
+[tool.setuptools.packages.find]
+where = ["app"]
+
+[tool.uvicorn]
+app = "main:app"
+host = "0.0.0.0"
+port = 8000
+reload = true

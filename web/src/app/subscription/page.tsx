@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,10 +26,9 @@ const FEATURES = [
 
 export default function SubscriptionPage() {
   const { user, isSubscribed, loading: authLoading } = useAuth();
-  const queryClient = useQueryClient();
   const [initiating, setInitiating] = useState(false);
 
-  const { data: status, refetch } = useQuery({
+  const { data: status } = useQuery({
     queryKey: ["subscription-status"],
     queryFn: () => api.getSubscriptionStatus(),
     enabled: !!user && !authLoading,
@@ -50,7 +49,7 @@ export default function SubscriptionPage() {
     try {
       const result = await api.initiateSubscription();
       if (result.link) {
-        window.open(result.link, "_blank", "noopener,noreferrer");
+        window.location.assign(result.link);
       } else {
         toast.success(result.message || "Subscription initiated");
       }
@@ -122,7 +121,9 @@ export default function SubscriptionPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center">
-            <p className="text-4xl font-bold text-primary">$5</p>
+            <p className="text-4xl font-bold text-primary">
+              ${status?.subscription_price_usd ?? 5}
+            </p>
             <p className="text-sm text-muted-foreground">per month</p>
           </div>
 
@@ -152,7 +153,7 @@ export default function SubscriptionPage() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            Cancel anytime. Secure payment via Flutterwave.
+            Monthly recurring billing through your Flutterwave payment plan.
           </p>
         </CardContent>
       </Card>

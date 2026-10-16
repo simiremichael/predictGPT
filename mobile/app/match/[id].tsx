@@ -372,7 +372,7 @@ export default function MatchDetailScreen() {
 
       {activeTab === "analysis" && (
         <View style={styles.tabContent}>
-          {prediction?.statistics && typeof prediction.statistics === "object" && Object.keys(prediction.statistics).length > 0 ? (
+          {match?.statistics && typeof match.statistics === "object" && Object.keys(match.statistics).length > 0 ? (
             <View
               style={{
                 backgroundColor: isDark ? "#0f1f19" : "#ffffff",
@@ -386,7 +386,7 @@ export default function MatchDetailScreen() {
               <Text style={[styles.researchTitle, { color: isDark ? "#e7f0eb" : "#121f19" }]}>
                 Match Statistics
               </Text>
-              {Object.entries(prediction.statistics).map(([key, value]) => (
+              {Object.entries(match.statistics).map(([key, value]) => (
                 <View key={key} style={{ flexDirection: "row", justifyContent: "space-between" }}>
                   <Text style={{ color: isDark ? "#9eb1a4" : "#617068", textTransform: "capitalize" }}>
                     {key.replace(/_/g, " ")}

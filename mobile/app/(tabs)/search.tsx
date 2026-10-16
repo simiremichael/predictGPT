@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { StyleSheet, Text, View, TextInput, ScrollView, TouchableOpacity, Keyboard, ActivityIndicator } from "react-native";
 import { useTheme } from "@/lib/theme/provider";
 import { api } from "@/lib/api/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { debounce } from "lodash-es";
 import { formatDate } from "@/utils";
 import type { SearchResultItem } from "@/types";
 
@@ -12,7 +10,6 @@ const SEARCH_TYPES = ["all", "teams", "leagues", "matches", "predictions"];
 export default function SearchScreen() {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const queryClient = useQueryClient();
 
   const [query, setQuery] = useState("");
   const [selectedType, setSelectedType] = useState("all");
@@ -20,8 +17,11 @@ export default function SearchScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
 
-  const search = useCallback(
-    debounce(async (q: string, type: string) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const runSearch = async () => {
+        const q = query;
+        const type = selectedType;
       if (!q.trim()) {
         setResults({});
         setIsSearching(false);
@@ -37,18 +37,16 @@ export default function SearchScreen() {
           matches: res.matches ?? [],
           predictions: res.predictions ?? [],
         });
-      } catch (err) {
+      } catch {
         setResults({});
       } finally {
         setIsSearching(false);
       }
-    }, 500),
-    [],
-  );
-
-  useEffect(() => {
-    search(query, selectedType);
-  }, [query, selectedType, search]);
+      };
+      void runSearch();
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [query, selectedType]);
 
   const performSearch = (q: string) => {
     setQuery(q);
@@ -77,10 +75,10 @@ export default function SearchScreen() {
             {
               backgroundColor: isDark ? "#172b23" : "#eff4f1",
               color: isDark ? "#e7f0eb" : "#121f19",
-              placeholderColor: isDark ? "#9eb1a4" : "#617068",
             },
           ]}
           placeholder="Search teams, leagues, matches, predictions..."
+          placeholderTextColor={isDark ? "#9eb1a4" : "#617068"}
           value={query}
           onChangeText={performSearch}
           onSubmitEditing={Keyboard.dismiss}
