@@ -1,6 +1,7 @@
 import { History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PredictionsList } from "@/components/predictions/predictions-list";
+import { fetchCachedPredictions } from "@/lib/cached-api";
 
 interface PredictionsPageProps {
   searchParams: Promise<{
@@ -10,7 +11,7 @@ interface PredictionsPageProps {
   }>;
 }
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 export const metadata = {
   title: "Predictions | Football AI",
@@ -21,6 +22,22 @@ export default async function PredictionsPage({
   searchParams,
 }: PredictionsPageProps) {
   const params = await searchParams;
+
+  let initialData: Awaited<ReturnType<typeof fetchCachedPredictions>> | null = null;
+  try {
+    initialData = await fetchCachedPredictions({
+      match_id: params.match_id,
+      league_id: params.league_id,
+      team_id: params.team_id,
+      played: false,
+      max_elapsed_minutes: 100,
+      page: 1,
+      page_size: 50,
+    });
+  } catch {
+    initialData = null;
+  }
+
   return (
     <div className="space-y-6">
       <section className="surface-card rounded-[1.75rem] p-5 sm:p-6">
@@ -52,6 +69,7 @@ export default async function PredictionsPage({
         matchId={params.match_id}
         leagueId={params.league_id}
         teamId={params.team_id}
+        initialData={initialData ?? undefined}
       />
     </div>
   );

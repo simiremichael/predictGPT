@@ -226,7 +226,7 @@ async function PredictionSection({ matchId }: { matchId: string }) {
 
   try {
     const predictionData = await api.getPrediction(matchId);
-    prediction = predictionData.data;
+    prediction = predictionData;
   } catch (e) {
     error = e instanceof Error ? e : new Error("Failed to load prediction");
   }

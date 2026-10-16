@@ -1,15 +1,29 @@
 import { History } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PredictionsList } from "@/components/predictions/predictions-list";
+import { fetchCachedPredictions } from "@/lib/cached-api";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 export const metadata = {
   title: "Results | Football AI",
   description: "Completed football matches and their saved predictions.",
 };
 
-export default function ResultsPage() {
+export default async function ResultsPage() {
+  let initialData: Awaited<ReturnType<typeof fetchCachedPredictions>> | null = null;
+  try {
+    initialData = await fetchCachedPredictions({
+      page: 1,
+      page_size: 50,
+      played: true,
+      min_elapsed_minutes: 100,
+      newest_first: true,
+    });
+  } catch {
+    initialData = null;
+  }
+
   return (
     <div className="space-y-6">
       <section className="surface-card rounded-[1.75rem] p-5 sm:p-6">
@@ -38,6 +52,7 @@ export default function ResultsPage() {
         played
         minElapsedMinutes={100}
         newestFirst
+        initialData={initialData ?? undefined}
       />
     </div>
   );

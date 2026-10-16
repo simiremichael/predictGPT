@@ -1,7 +1,5 @@
-import { Trophy } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { fetchCachedLeagues } from "@/lib/cached-api";
 import { LeaguesList } from "@/components/leagues/leagues-list";
-import { LoadingState } from "@/components/loading-states";
 
 interface LeaguesPageProps {
   searchParams: Promise<{
@@ -11,6 +9,8 @@ interface LeaguesPageProps {
     is_active?: string;
   }>;
 }
+
+export const revalidate = 0;
 
 export const metadata = {
   title: "Leagues | Football AI",
@@ -24,6 +24,18 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
   const country = params.country || "";
   const isActive = params.is_active !== "false";
 
+  let initialData: Awaited<ReturnType<typeof fetchCachedLeagues>> | null = null;
+  try {
+    initialData = await fetchCachedLeagues({
+      page,
+      page_size: pageSize,
+      country: country || undefined,
+      is_active: isActive,
+    });
+  } catch {
+    initialData = null;
+  }
+
   return (
     <div className="space-y-6">
       <LeaguesList
@@ -31,6 +43,7 @@ export default async function LeaguesPage({ searchParams }: LeaguesPageProps) {
         initialPageSize={pageSize}
         initialCountry={country}
         initialIsActive={isActive}
+        initialData={initialData ?? undefined}
       />
     </div>
   );

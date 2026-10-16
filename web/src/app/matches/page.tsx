@@ -1,7 +1,7 @@
 import { Calendar, CalendarDays } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MatchesList } from "@/components/matches/matches-list";
-import { LoadingState } from "@/components/loading-states";
+import { fetchCachedMatches, fetchCachedTodayMatches, fetchCachedUpcomingMatches } from "@/lib/cached-api";
 
 interface MatchesPageProps {
   searchParams: Promise<{
@@ -15,6 +15,8 @@ interface MatchesPageProps {
     page_size?: string;
   }>;
 }
+
+export const revalidate = 0;
 
 export const metadata = {
   title: "Matches | Football AI",
@@ -33,6 +35,37 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
   const date = params.date || "";
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  let initialData: Awaited<ReturnType<typeof fetchCachedMatches>> | null = null;
+  try {
+    if (isToday) {
+      initialData = await fetchCachedTodayMatches({
+        league_id: leagueId || undefined,
+        page,
+        page_size: pageSize,
+      });
+    } else if (isUpcoming) {
+      initialData = await fetchCachedUpcomingMatches({
+        league_id: leagueId || undefined,
+        team_id: teamId || undefined,
+        page,
+        page_size: pageSize,
+      });
+    } else {
+      initialData = await fetchCachedMatches({
+        league_id: leagueId || undefined,
+        team_id: teamId || undefined,
+        status: status || undefined,
+        date: date || undefined,
+        today: isToday ? true : undefined,
+        upcoming: isUpcoming ? true : undefined,
+        page,
+        page_size: pageSize,
+      });
+    }
+  } catch {
+    initialData = null;
+  }
+
   return (
     <div className="space-y-6">
       <section className="surface-card rounded-[1.75rem] p-5 sm:p-6">
@@ -40,8 +73,8 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
           <div>
             <p className="section-kicker mb-2">Fixtures</p>
             <h1 className="text-3xl font-black tracking-[-0.06em] text-foreground">
-              {isToday
-                ? "Today's Matches"
+                {isToday
+                ? "Today&rsquo;s Matches"
                 : isUpcoming
                   ? "Upcoming Matches"
                   : "All Matches"}
@@ -83,7 +116,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
               : "bg-muted/20 text-foreground hover:bg-muted/40"
           }`}
         >
-          Today's Matches
+          Today&rsquo;s Matches
         </a>
         <a
           href={`/matches?upcoming=true`}
@@ -108,6 +141,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
       </div>
 
       <MatchesList
+        key={`${isToday}-${isUpcoming}-${leagueId}-${teamId}-${status}-${date}-${page}-${pageSize}`}
         initialPage={page}
         initialPageSize={pageSize}
         initialLeagueId={leagueId}
@@ -116,6 +150,7 @@ export default async function MatchesPage({ searchParams }: MatchesPageProps) {
         initialDate={date}
         today={isToday}
         upcoming={isUpcoming}
+        initialData={initialData ?? undefined}
       />
     </div>
   );

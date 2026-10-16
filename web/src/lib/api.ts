@@ -19,7 +19,6 @@ import type {
   SearchResultItem,
   Season,
   Standing,
-  Subscription,
   Team,
   User,
 } from "@/types/models";
@@ -37,6 +36,13 @@ export class ApiError extends Error {
 
 const API_UNAVAILABLE_STATUSES = new Set([502, 503, 504]);
 
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+
+  const token = localStorage.getItem("auth_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function fetchApi(path: string, options: RequestInit): Promise<Response> {
   const baseUrls = [...new Set([env.apiUrl, env.apiFallbackUrl])];
   let lastError: unknown;
@@ -47,6 +53,10 @@ async function fetchApi(path: string, options: RequestInit): Promise<Response> {
     try {
       const response = await fetch(`${baseUrls[index]}${path}`, {
         ...options,
+        headers: {
+          ...authHeaders(),
+          ...options.headers,
+        },
         signal: controller.signal,
       });
       if (
@@ -561,7 +571,7 @@ export const api = {
 
   // Predictions
   getPrediction: (matchId: string) =>
-    request<{ data: PredictionDetail }>(`/api/v1/matches/${matchId}/prediction`),
+    request<PredictionDetail>(`/api/v1/matches/${matchId}/prediction`),
   getPredictions: (params?: {
     match_id?: string;
     league_id?: string;

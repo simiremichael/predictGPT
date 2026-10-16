@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AIGeneratedBadge } from "@/components/ai-generated-badge";
 import type { PredictionHistoryItem } from "@/types/models";
+import type { PaginatedResult } from "@/lib/api";
 import { getConfidenceColor } from "@/lib/predictions";
 import { useAuth } from "@/contexts/auth";
 
@@ -28,6 +29,7 @@ interface PredictionsListProps {
   matchId?: string;
   leagueId?: string;
   teamId?: string;
+  initialData?: PaginatedResult<PredictionHistoryItem>;
 }
 
 export function PredictionsList({
@@ -40,7 +42,9 @@ export function PredictionsList({
   matchId,
   leagueId,
   teamId,
+  initialData,
 }: PredictionsListProps) {
+  const { user } = useAuth();
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const todayStr = new Date().toISOString().split("T")[0];
@@ -69,8 +73,15 @@ export function PredictionsList({
       newestFirst,
       filterDate,
       initialPageSize,
+      user?.id,
     ],
     initialPageParam: 1,
+    initialData: filterDate === null && !user && initialData
+      ? {
+          pages: [initialData],
+          pageParams: [1],
+        }
+      : undefined,
     queryFn: ({ pageParam }) =>
       api.getPredictions({
         match_id: matchId || undefined,
@@ -84,8 +95,7 @@ export function PredictionsList({
         kickoff_date: filterDate ?? undefined,
         newest_first: newestFirst,
       }),
-    refetchInterval: 10_000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     getNextPageParam: (lastPage) =>
       lastPage.meta.page < lastPage.meta.total_pages
         ? lastPage.meta.page + 1
@@ -93,7 +103,6 @@ export function PredictionsList({
   });
 
   const rows = result?.pages.flatMap((pageResult) => pageResult.data) ?? [];
-  const { user } = useAuth();
   const firstPageMeta = result?.pages[0]?.meta;
   const isSubscribed = firstPageMeta?.is_subscribed ?? true;
   const freeRemaining = firstPageMeta?.free_predictions_remaining;

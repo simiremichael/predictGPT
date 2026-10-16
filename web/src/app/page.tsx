@@ -25,7 +25,7 @@ import type {
   Team,
 } from "@/types/models";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 export const metadata = {
   title: "Football AI - AI-Powered Football Match Predictions",

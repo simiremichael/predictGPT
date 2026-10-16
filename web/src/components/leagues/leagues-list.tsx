@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pagination } from "@/components/ui/pagination";
 import type { League } from "@/types/models";
+import type { PaginatedResult } from "@/lib/api";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 
@@ -17,6 +18,7 @@ interface LeaguesListProps {
   initialPageSize: number;
   initialCountry: string;
   initialIsActive: boolean;
+  initialData?: PaginatedResult<League>;
 }
 
 export function LeaguesList({
@@ -24,6 +26,7 @@ export function LeaguesList({
   initialPageSize,
   initialCountry,
   initialIsActive,
+  initialData,
 }: LeaguesListProps) {
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -32,12 +35,10 @@ export function LeaguesList({
   const [result, setResult] = useState<{
     data: League[];
     meta: { page: number; page_size: number; total: number; total_pages: number };
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  } | null>(initialData ?? null);
   const [error, setError] = useState(false);
 
   async function fetchLeagues() {
-    setLoading(true);
     setError(false);
     try {
       const data = await api.listLeagues({
@@ -48,26 +49,33 @@ export function LeaguesList({
       });
       setResult(data);
     } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
+      if (!result) setError(true);
     }
   }
 
-  // Initial fetch and refetch when filters change
+  // Fetch when filter values change from their initial values
   useEffect(() => {
-    fetchLeagues();
-  }, [page, pageSize, country, isActive]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (
+      page === initialPage &&
+      pageSize === initialPageSize &&
+      country === initialCountry &&
+      isActive === initialIsActive
+    ) {
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchLeagues();
+  }, [page, pageSize, country, isActive, initialPage, initialPageSize, initialCountry, initialIsActive]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) {
-    return <LoadingState message="Failed to load leagues. Please try again." />;
-  }
-
-  if (loading && !result) {
-    return <LoadingState message="Loading leagues..." />;
+  if (error && !result) {
+    return <EmptyState title="Failed to load leagues" description="Please try again." />;
   }
 
   if (!result) {
+    return <LoadingState message="Loading leagues..." />;
+  }
+
+  if (result.data.length === 0) {
     return (
       <EmptyState
         title="No leagues found"

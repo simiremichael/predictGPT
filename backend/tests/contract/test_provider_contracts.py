@@ -117,7 +117,7 @@ class _AsyncGetMock:
     async def get_fixtures(self, params: dict | None = None) -> list:
         return self._unwrap_list()
 
-    async def get_fixture(self, fixture_id: str) -> list:
+    async def get_fixture(self, fixture_id: str, **_kwargs: object) -> list:
         return self._unwrap_list()
 
     async def get_standings(self, params: dict | None = None) -> list:

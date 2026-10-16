@@ -1,13 +1,14 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { api } from "@/lib/api";
+import { fetchCachedTeams } from "@/lib/cached-api";
 import { LoadingState, EmptyState } from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Team } from "@/types/models";
+import type { PaginatedResult } from "@/lib/api";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 export const metadata = {
   title: "Teams | Football AI",
@@ -27,6 +28,18 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
   const params = await searchParams;
   const page = parseInt(params.page || "1", 10);
   const pageSize = parseInt(params.page_size || "50", 10);
+
+  let initialData: PaginatedResult<Team> | null = null;
+  try {
+    initialData = await fetchCachedTeams({
+      league_id: params.league_id,
+      search: params.search,
+      page,
+      page_size: pageSize,
+    });
+  } catch {
+    initialData = null;
+  }
 
   return (
     <div className="space-y-6">
@@ -50,12 +63,13 @@ export default async function TeamsPage({ searchParams }: TeamsPageProps) {
       />
 
       <Suspense fallback={<LoadingState message="Loading teams..." />}>
-        <TeamsList
-          page={page}
-          pageSize={pageSize}
-          leagueId={params.league_id}
-          search={params.search}
-        />
+      <TeamsList
+        page={page}
+        pageSize={pageSize}
+        leagueId={params.league_id}
+        search={params.search}
+        initialData={initialData ?? undefined}
+      />
       </Suspense>
     </div>
   );
@@ -97,31 +111,21 @@ function TeamsFilters({
 }
 
 async function TeamsList({
-  page,
-  pageSize,
-  leagueId,
+  page: _page,
+  pageSize: _pageSize,
+  leagueId: _leagueId,
   search,
+  initialData,
 }: {
   page: number;
   pageSize: number;
   leagueId?: string;
   search?: string;
+  initialData?: PaginatedResult<Team>;
 }) {
-  let result: { data: Team[]; meta: { total: number } } | null = null;
-  let error: boolean = false;
+  const result = initialData ?? null;
 
-  try {
-    result = await api.listTeams({
-      league_id: leagueId,
-      search: search,
-      page,
-      page_size: pageSize,
-    });
-  } catch {
-    error = true;
-  }
-
-  if (error) {
+  if (!result) {
     return (
       <EmptyState
         title="Failed to load teams"
@@ -129,8 +133,6 @@ async function TeamsList({
       />
     );
   }
-
-  if (!result) return null;
 
   if (result.data.length === 0) {
     return (

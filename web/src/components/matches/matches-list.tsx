@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Filter, X } from "lucide-react";
+import { X } from "lucide-react";
 import { api } from "@/lib/api";
 import { MatchCard } from "@/components/match-card";
 import { LoadingState, EmptyState } from "@/components/loading-states";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -17,6 +16,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import type { MatchBrief } from "@/types/models";
+import type { PaginatedResult } from "@/lib/api";
 
 const TOP_LEAGUES = [
   { id: "39", name: "Premier League" },
@@ -35,6 +35,7 @@ interface MatchesListProps {
   initialDate: string;
   today: boolean;
   upcoming: boolean;
+  initialData?: PaginatedResult<MatchBrief>;
 }
 
 export function MatchesList({
@@ -46,6 +47,7 @@ export function MatchesList({
   initialDate,
   today,
   upcoming,
+  initialData,
 }: MatchesListProps) {
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -61,8 +63,8 @@ export function MatchesList({
       total: number;
       total_pages: number;
     };
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
+  } | null>(initialData ?? null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function fetchMatches(
@@ -110,15 +112,17 @@ export function MatchesList({
       }
       setResult(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load matches");
+      if (!result) setError(e instanceof Error ? e.message : "Failed to load matches");
     } finally {
       setLoading(false);
     }
   }
 
-  // Initial fetch
+  // Initial fetch - skip if initialData was provided
   useEffect(() => {
-    fetchMatches();
+    if (initialData) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchMatches();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePageChange = (newPage: number) => {

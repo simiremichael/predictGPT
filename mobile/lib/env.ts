@@ -6,7 +6,7 @@ export interface Env {
 }
 
 export const env: Env = {
-  apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://predictgpt.onrender.com",
+  apiUrl: process.env.EXPO_PUBLIC_API_URL || "https://football-ai.fastapicloud.dev" || "https://predictgpt.onrender.com",
   apiFallbackUrl:
     process.env.EXPO_PUBLIC_API_FALLBACK_URL || "http://localhost:8000",
   appName: process.env.EXPO_PUBLIC_APP_NAME || "Football AI",

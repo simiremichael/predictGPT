@@ -27,6 +27,12 @@ import {
   type AdminTeam,
   type ModelAccuracyReport,
 } from "@/lib/api";
+import {
+  revalidateLeagues,
+  revalidateMatches,
+  revalidatePredictions,
+  revalidateTeams,
+} from "@/lib/revalidation-actions";
 import type {
   PredictionHistoryItem,
   MatchBrief,
@@ -116,12 +122,16 @@ function AdminLeagues() {
     onSuccess: (r) => {
       toast.success(metaMsg(r.meta, "League deleted"));
       queryClient.invalidateQueries({ queryKey: ["admin-leagues"] });
+      void revalidateLeagues().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
   const resyncMutation = useMutation({
     mutationFn: (id: string) => api.admin.resyncLeague(id),
-    onSuccess: (r) => toast.success(metaMsg(r.meta, "Resynced")),
+    onSuccess: (r) => {
+      toast.success(metaMsg(r.meta, "Resynced"));
+      void revalidateLeagues().catch(() => {});
+    },
     onError: (e) => toast.error(errMsg(e)),
   });
   const bulkDeleteMutation = useMutation({
@@ -130,6 +140,7 @@ function AdminLeagues() {
       toast.success(`Deleted ${r.data.deleted} league(s)`);
       queryClient.invalidateQueries({ queryKey: ["admin-leagues"] });
       setSelected(new Set());
+      void revalidateLeagues().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -138,6 +149,7 @@ function AdminLeagues() {
     onSuccess: (r) => {
       toast.success(metaMsg(r.meta, "Leagues fetched"));
       queryClient.invalidateQueries({ queryKey: ["admin-leagues"] });
+      void revalidateLeagues().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -349,12 +361,16 @@ function AdminTeams() {
     onSuccess: (r) => {
       toast.success(metaMsg(r.meta, "Team deleted"));
       queryClient.invalidateQueries({ queryKey: ["admin-teams"] });
+      void revalidateTeams().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
   const resyncMutation = useMutation({
     mutationFn: (id: string) => api.admin.resyncTeam(id),
-    onSuccess: (r) => toast.success(metaMsg(r.meta, "Resynced")),
+    onSuccess: (r) => {
+      toast.success(metaMsg(r.meta, "Resynced"));
+      void revalidateTeams().catch(() => {});
+    },
     onError: (e) => toast.error(errMsg(e)),
   });
   const bulkDeleteMutation = useMutation({
@@ -363,6 +379,7 @@ function AdminTeams() {
       toast.success(`Deleted ${r.data.deleted} team(s)`);
       queryClient.invalidateQueries({ queryKey: ["admin-teams"] });
       setSelected(new Set());
+      void revalidateTeams().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -372,6 +389,7 @@ function AdminTeams() {
     onSuccess: (r) => {
       toast.success(metaMsg(r.meta, "Teams fetched"));
       queryClient.invalidateQueries({ queryKey: ["admin-teams"] });
+      void revalidateTeams().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -602,6 +620,7 @@ function FixturesTab() {
     onSuccess: (r) => {
       toast.success(metaMsg(r.meta, "Resynced fixtures"));
       setResyncResult(JSON.stringify(r.data));
+      void revalidateMatches().catch(() => {});
     },
     onError: (e) => {
       toast.error(errMsg(e));
@@ -949,6 +968,7 @@ function AdminPredictions() {
     }) => api.admin.verifyPrediction(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
+      void revalidatePredictions().catch(() => {});
     },
     onError: (e: unknown) => toast.error(errMsg(e)),
   });
@@ -988,6 +1008,7 @@ function AdminPredictions() {
     onSuccess: (r) => {
       toast.success(metaMsg(r.meta, "Prediction deleted"));
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
+      void revalidatePredictions().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -1014,6 +1035,7 @@ function AdminPredictions() {
       toast.success(`Prediction generation started (job ${jobId})`);
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
       queryClient.invalidateQueries({ queryKey: ["predictions"] });
+      void revalidatePredictions().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -1023,6 +1045,7 @@ function AdminPredictions() {
       toast.success(`Deleted ${r.data.deleted} prediction(s)`);
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
       setSelected(new Set());
+      void revalidatePredictions().catch(() => {});
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -1041,7 +1064,9 @@ function AdminPredictions() {
     if (currentJobId && jobStatus?.data?.status === "completed") {
       queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
       queryClient.invalidateQueries({ queryKey: ["predictions"] });
+      void revalidatePredictions().catch(() => {});
       toast.success("Predictions generated successfully");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentJobId(null);
     } else if (currentJobId && jobStatus?.data?.status === "failed") {
       toast.error("Prediction generation failed");
@@ -1054,7 +1079,9 @@ function AdminPredictions() {
       }, 30000);
       return () => clearTimeout(timer);
     }
-  }, [jobStatus, jobStatusError, queryClient, currentJobId]);
+  }, [
+    jobStatus, jobStatusError, queryClient, currentJobId,
+  ]);
 
   const generationInProgress =
     !!currentJobId &&
