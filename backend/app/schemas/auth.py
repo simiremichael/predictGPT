@@ -51,6 +51,7 @@ class UserResponse(BaseModel):
     email: str
     is_active: bool
     is_subscribed: bool
+    is_superuser: bool
     created_at: str | None = None
 
     model_config = {"from_attributes": True}

@@ -392,7 +392,7 @@ async def list_predictions(
                 select(User).where(User.email == user_email)
             )
             user = result.scalar_one_or_none()
-            if user and user.has_active_subscription:
+            if user and (user.has_active_subscription or user.is_superuser):
                 is_subscribed = True
 
     page_num = get_page(page)
