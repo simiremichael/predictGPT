@@ -187,7 +187,9 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
     raw_body = await request.body()
 
     # Verify HMAC-SHA256 signature (verif-hash for v3, flutterwave-signature for v4)
-    signature = request.headers.get("verif-hash") or request.headers.get("flutterwave-signature", "")
+    signature = request.headers.get("verif-hash") or request.headers.get(
+        "flutterwave-signature", ""
+    )
     if not settings.flutterwave_webhook_secret:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
