@@ -25,18 +25,18 @@ import {
 import { useAuth } from "@/contexts/auth";
 
 const COUNTRIES = [
-  { code: "US", name: "United States - $5" },
-  { code: "NG", name: "Nigeria - ₦7,000" },
-  { code: "GB", name: "United Kingdom - $5" },
-  { code: "CA", name: "Canada - $5" },
-  { code: "AU", name: "Australia - $5" },
-  { code: "DE", name: "Germany - $5" },
-  { code: "FR", name: "France - $5" },
-  { code: "ZA", name: "South Africa - $5" },
-  { code: "KE", name: "Kenya - $5" },
-  { code: "IN", name: "India - $5" },
-  { code: "BR", name: "Brazil - $5" },
-  { code: "OR", name: "Others - $5" },
+  { code: "US", name: "United States" },
+  { code: "NG", name: "Nigeria" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "CA", name: "Canada" },
+  { code: "AU", name: "Australia" },
+  { code: "DE", name: "Germany" },
+  { code: "FR", name: "France" },
+  { code: "ZA", name: "South Africa" },
+  { code: "KE", name: "Kenya" },
+  { code: "IN", name: "India" },
+  { code: "BR", name: "Brazil" },
+  { code: "OR", name: "Others" },
 ];
 
 export default function SignupPage() {
@@ -46,10 +46,21 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [country, setCountry] = useState("US");
+  const [country, setCountry] = useState("");
+  const [countryError, setCountryError] = useState(false);
+
+  const handleCountryChange = (value: string) => {
+    setCountry(value);
+    setCountryError(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!country) {
+      setCountryError(true);
+      toast.error("Please select your country");
+      return;
+    }
     if (password.length < 8) {
       toast.error("Password must be at least 8 characters");
       return;
@@ -133,10 +144,13 @@ export default function SignupPage() {
                 className="block text-sm font-medium mb-1"
                 htmlFor="country"
               >
-                Country
+                Country <span className="text-destructive">*</span>
               </label>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger id="country">
+              <Select value={country} onValueChange={handleCountryChange}>
+                <SelectTrigger
+                  id="country"
+                  className={countryError ? "border-destructive" : undefined}
+                >
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
                 <SelectContent>
@@ -147,6 +161,9 @@ export default function SignupPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {countryError && (
+                <p className="text-xs text-destructive mt-1">Country is required</p>
+              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
