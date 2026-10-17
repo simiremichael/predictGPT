@@ -18,10 +18,13 @@ async function proxyApiRequest(
   try {
     const response = await fetch(target, {
       method: request.method,
-      headers: {
+       headers: {
         "Content-Type": request.headers.get("content-type") || "application/json",
         ...(request.headers.get("authorization")
           ? { Authorization: request.headers.get("authorization")! }
+          : {}),
+        ...(request.headers.get("x-admin-api-key")
+          ? { "X-Admin-Api-Key": request.headers.get("x-admin-api-key")! }
           : {}),
       },
       body: ["GET", "HEAD"].includes(request.method) ? undefined : await request.text(),
