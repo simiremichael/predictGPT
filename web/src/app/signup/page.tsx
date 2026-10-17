@@ -25,18 +25,18 @@ import {
 import { useAuth } from "@/contexts/auth";
 
 const COUNTRIES = [
-  { code: "US", name: "United States" },
+  // { code: "US", name: "United States" },
   { code: "NG", name: "Nigeria" },
-  { code: "GB", name: "United Kingdom" },
-  { code: "CA", name: "Canada" },
-  { code: "AU", name: "Australia" },
-  { code: "DE", name: "Germany" },
-  { code: "FR", name: "France" },
-  { code: "ZA", name: "South Africa" },
-  { code: "KE", name: "Kenya" },
-  { code: "IN", name: "India" },
-  { code: "BR", name: "Brazil" },
-  { code: "OR", name: "Others" },
+  // { code: "GB", name: "United Kingdom" },
+  // { code: "CA", name: "Canada" },
+  // { code: "AU", name: "Australia" },
+  // { code: "DE", name: "Germany" },
+  // { code: "FR", name: "France" },
+  // { code: "ZA", name: "South Africa" },
+  // { code: "KE", name: "Kenya" },
+  // { code: "IN", name: "India" },
+  // { code: "BR", name: "Brazil" },
+  { code: "US", name: "Others" },
 ];
 
 export default function SignupPage() {
@@ -162,7 +162,9 @@ export default function SignupPage() {
                 </SelectContent>
               </Select>
               {countryError && (
-                <p className="text-xs text-destructive mt-1">Country is required</p>
+                <p className="text-xs text-destructive mt-1">
+                  Country is required
+                </p>
               )}
             </div>
 
