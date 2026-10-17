@@ -38,6 +38,7 @@ const SelectContent = React.forwardRef<
       )}
       {...props}
     >
+      {props.children}
       <SelectPrimitive.ScrollUpButton className="flex cursor-default select-none items-center justify-center py-1 text-sm">
         <ChevronDown className="h-4 w-4 rotate-180" />
       </SelectPrimitive.ScrollUpButton>
