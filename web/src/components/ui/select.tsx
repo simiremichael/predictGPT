@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Select = SelectPrimitive.Root;
@@ -27,18 +27,18 @@ SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentProps<typeof SelectPrimitive.Content>
->(({ className, position = "popper", ...props }, ref) => (
+>(({ className, position = "popper", children, ...props }, ref) => (
   <SelectPrimitive.Portal>
           <SelectPrimitive.Content
       ref={ref}
       position={position}
       className={cn(
-        "z-[100] min-w-32 overflow-auto rounded-xl border border-border bg-background text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[side=bottom]:slide-in-from-top-2",
+        "z-[100] min-w-32 overflow-auto rounded-xl border border-border bg-white text-popover-foreground shadow-lg data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[side=bottom]:slide-in-from-top-2 dark:bg-popover",
         className,
       )}
       {...props}
     >
-      {props.children}
+      {children}
       <SelectPrimitive.ScrollUpButton className="flex cursor-default select-none items-center justify-center py-1 text-sm">
         <ChevronDown className="h-4 w-4 rotate-180" />
       </SelectPrimitive.ScrollUpButton>
@@ -65,15 +65,22 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName;
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentProps<typeof SelectPrimitive.Item>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default items-center rounded-lg py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex w-full cursor-default select-none items-center rounded-lg py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
     {...props}
-  />
+  >
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-4 w-4" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+  </SelectPrimitive.Item>
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
