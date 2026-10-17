@@ -412,15 +412,16 @@ async def verify_subscription_payment(
             )
 
         transaction_reference = str(verified.get("id") or payload.transaction_id)
-        if sub.flutterwave_subscription_id != transaction_reference:
-            now = datetime.now(UTC)
-            sub.status = SubscriptionStatus.ACTIVE
-            sub.current_period_start = now
-            sub.current_period_end = now + relativedelta(months=1)
-            sub.flutterwave_subscription_id = transaction_reference
-            await session.execute(update(User).where(User.id == user.id).values(is_subscribed=True))
-            user.is_subscribed = True
-            await session.commit()
+        # Always update the subscription when payment is verified, regardless of
+        # whether the webhook already set the reference (handles race conditions)
+        now = datetime.now(UTC)
+        sub.status = SubscriptionStatus.ACTIVE
+        sub.current_period_start = now
+        sub.current_period_end = now + relativedelta(months=1)
+        sub.flutterwave_subscription_id = transaction_reference
+        await session.execute(update(User).where(User.id == user.id).values(is_subscribed=True))
+        user.is_subscribed = True
+        await session.commit()
 
         return {"is_subscribed": user.has_active_subscription}
 
