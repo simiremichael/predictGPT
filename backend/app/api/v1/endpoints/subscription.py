@@ -425,7 +425,7 @@ async def verify_subscription_payment(
         return {"is_subscribed": user.has_active_subscription}
 
 
-async def _get_currency_for_user(user: User, settings) -> tuple[str, float]:
+def _get_currency_for_user(user: User, settings) -> tuple[str, float]:
     """Return (currency, price) based on the user's country."""
     if (user.country or "").upper() == settings.nigeria_country_code.upper():
         return "NGN", float(settings.subscription_price_ngn)
