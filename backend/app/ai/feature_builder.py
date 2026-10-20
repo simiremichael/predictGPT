@@ -320,7 +320,7 @@ class AIFeatureBuilder:
                 f"{item['text']}"
             )
 
-        return "\n".join(parts) if parts else "No evidence found."
+        return "\n".join(parts) if parts else ""
 
     @staticmethod
     def _build_search_context(sources: list[Any]) -> list[dict[str, Any]]:

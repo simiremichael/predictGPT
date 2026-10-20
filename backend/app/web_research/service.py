@@ -16,11 +16,9 @@ models only.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from core.config import get_settings
-from core.logging import get_logger
 from web_research.base import WebSearchProvider
 from web_research.deduplicator import deduplicate_sources
 from web_research.exceptions import (
@@ -42,6 +40,9 @@ from web_research.sources import (
     calculate_freshness,
     normalize_search_result,
 )
+
+from core.config import get_settings
+from core.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -271,7 +272,7 @@ class MatchResearchService:
 
         result = MatchResearchResult(
             match_id=match_id,
-            researched_at=datetime.now(timezone.utc),
+            researched_at=datetime.now(UTC),
             sources=sources,
             injuries=injuries,
             suspensions=suspensions,
@@ -319,7 +320,7 @@ class MatchResearchService:
     ) -> list[ResearchSource]:
         """Filter sources to only those published before the cutoff."""
         if cutoff.tzinfo is None:
-            cutoff = cutoff.replace(tzinfo=timezone.utc)
+            cutoff = cutoff.replace(tzinfo=UTC)
 
         filtered: list[ResearchSource] = []
         for source in sources:
@@ -331,7 +332,7 @@ class MatchResearchService:
 
             pub_time = source.published_at
             if pub_time.tzinfo is None:
-                pub_time = pub_time.replace(tzinfo=timezone.utc)
+                pub_time = pub_time.replace(tzinfo=UTC)
 
             if pub_time <= cutoff:
                 filtered.append(source)

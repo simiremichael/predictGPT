@@ -1,7 +1,7 @@
 """Pydantic schemas for web research data structures."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
@@ -30,7 +30,7 @@ class ResearchSource(BaseModel):
     title: str | None = None
     publisher: str | None = None
     published_at: datetime | None = None
-    retrieved_at: datetime = Field(default_factory=datetime.now(UTC))
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     source_type: SourceType = SourceType.UNKNOWN
     snippet: str | None = None
     content: str | None = None
@@ -136,14 +136,14 @@ class EvidenceConflict(BaseModel):
     claim_b: str
     source_a_id: str
     source_b_id: str
-    detected_at: datetime = Field(default_factory=datetime.now(UTC))
+    detected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class MatchResearchResult(BaseModel):
     """Complete research result for a single match."""
 
     match_id: str
-    researched_at: datetime = Field(default_factory=datetime.now(UTC))
+    researched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     sources: list[ResearchSource] = Field(default_factory=list)
     injuries: list[InjuryEvidence] = Field(default_factory=list)
     suspensions: list[SuspensionEvidence] = Field(default_factory=list)

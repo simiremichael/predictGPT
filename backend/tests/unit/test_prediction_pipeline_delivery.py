@@ -161,7 +161,7 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
     count_result.scalar.return_value = 1
     rows_result = MagicMock()
     rows_result.all.return_value = [
-        (prediction, "Home FC", "Away FC", None, "scheduled")
+        (prediction, "Home FC", "Away FC", None, "scheduled", None, None)
     ]
     database = AsyncMock()
     database.execute = AsyncMock(side_effect=[count_result, rows_result])
@@ -169,6 +169,7 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
     with (
         patch.object(prediction_routes, "get_cached", new=AsyncMock(return_value=None)),
         patch.object(prediction_routes, "set_cached", new=AsyncMock()),
+        patch.object(prediction_routes, "_is_subscribed", new=AsyncMock(return_value=False)),
     ):
         response = await prediction_routes.list_predictions(
             request=MagicMock(),
@@ -184,6 +185,10 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
             kickoff_date=None,
             played=None,
             upcoming_only=False,
+            min_elapsed_minutes=None,
+            max_elapsed_minutes=None,
+            newest_first=False,
+            user_email=None,
         )
 
     assert response["data"][0]["match_home_team"] == "Home FC"

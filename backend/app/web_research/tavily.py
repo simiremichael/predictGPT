@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-
 from web_research.base import SearchResult, WebSearchProvider
 from web_research.exceptions import SearchProviderError
 
@@ -40,7 +39,7 @@ def _next_month_start(now: datetime) -> datetime:
 
 def _is_tavily_quota_exhausted() -> bool:
     global _tavily_fallback_until
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with _quota_state_lock:
         if _tavily_fallback_until and now >= _tavily_fallback_until:
             _tavily_fallback_until = None
@@ -49,7 +48,7 @@ def _is_tavily_quota_exhausted() -> bool:
 
 def _mark_tavily_quota_exhausted() -> bool:
     global _tavily_fallback_until
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with _quota_state_lock:
         if _tavily_fallback_until and now >= _tavily_fallback_until:
             _tavily_fallback_until = None

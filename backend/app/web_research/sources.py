@@ -6,12 +6,11 @@ metadata and publication recency. All rules are configurable.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
 from web_research.schemas import ResearchSource, SourceType
-
 
 # Publisher credibility tiers - publishers in each tier get the listed credibility.
 # These are real-world sports publishers; the rules are transparent and
@@ -272,7 +271,7 @@ def normalize_search_result(
         except Exception:
             pass
 
-    retrieved_at = datetime.now(timezone.utc)
+    retrieved_at = datetime.now(UTC)
 
     credibility = calculate_credibility(
         url=normalized_url,

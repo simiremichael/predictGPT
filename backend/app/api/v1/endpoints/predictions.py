@@ -55,6 +55,18 @@ from services.prediction_orchestrator import PredictionOrchestrator
 router = APIRouter(tags=["predictions"])
 
 
+async def _is_subscribed(user_email: str | None) -> bool:
+    """Check if the user has an active subscription (or is a superuser)."""
+    if not user_email:
+        return False
+    from models.user import User
+
+    async with DBSession() as session:
+        result = await session.execute(select(User).where(User.email == user_email))
+        user = result.scalar_one_or_none()
+        return bool(user and (user.has_active_subscription or user.is_superuser))
+
+
 def get_orchestrator() -> PredictionOrchestrator:
     return PredictionOrchestrator()
 
@@ -89,11 +101,12 @@ async def get_prediction(
     match_id: str,
     db: AsyncSession = Depends(get_db),
     orchestrator: PredictionOrchestrator = Depends(get_orchestrator),
+    user_email: str | None = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Retrieve the latest valid prediction for a match.
 
-    The current context hash is checked before using the response cache. A
-    changed context is reported without automatically generating a prediction.
+    Free users can see basic match info but full prediction probabilities
+    and AI-adjusted scorelines require an active subscription.
     """
     cache_key = cache_match_prediction_key(match_id)
 
@@ -118,19 +131,59 @@ async def get_prediction(
     except Exception:
         current_context_hash = None
 
-    response = {
-        "success": True,
-        "data": prediction.model_dump(),
-        "meta": {
-            "context_hash": prediction.context_hash,
-            "current_context_hash": current_context_hash,
-            "context_changed": bool(
-                prediction.context_hash
-                and current_context_hash
-                and prediction.context_hash != current_context_hash
-            ),
-        },
-    }
+    is_subscribed = await _is_subscribed(user_email)
+
+    if is_subscribed:
+        response = {
+            "success": True,
+            "data": prediction.model_dump(),
+            "meta": {
+                "context_hash": prediction.context_hash,
+                "current_context_hash": current_context_hash,
+                "context_changed": bool(
+                    prediction.context_hash
+                    and current_context_hash
+                    and prediction.context_hash != current_context_hash
+                ),
+                "subscription_required": False,
+            },
+        }
+    else:
+        pred_dict = prediction.model_dump()
+        limited_data = {
+            "prediction_id": pred_dict.get("prediction_id"),
+            "match_id": pred_dict.get("match_id"),
+            "model_version": pred_dict.get("model_version"),
+            "prediction_version": pred_dict.get("prediction_version"),
+            "generated_at": pred_dict.get("generated_at"),
+            "provider_used": pred_dict.get("provider_used"),
+            "data_quality": pred_dict.get("data_quality"),
+            "confidence": pred_dict.get("confidence"),
+            "prediction_status": pred_dict.get("prediction_status"),
+            "lambda_home": pred_dict.get("lambda_home"),
+            "lambda_away": pred_dict.get("lambda_away"),
+            "home_probability": pred_dict.get("home_probability"),
+            "draw_probability": pred_dict.get("draw_probability"),
+            "away_probability": pred_dict.get("away_probability"),
+            "over_2_5_probability": pred_dict.get("over_2_5_probability"),
+            "under_2_5_probability": pred_dict.get("under_2_5_probability"),
+            "btts_probability": pred_dict.get("btts_probability"),
+        }
+        response = {
+            "success": True,
+            "data": limited_data,
+            "meta": {
+                "context_hash": prediction.context_hash,
+                "current_context_hash": current_context_hash,
+                "context_changed": bool(
+                    prediction.context_hash
+                    and current_context_hash
+                    and prediction.context_hash != current_context_hash
+                ),
+                "subscription_required": True,
+                "message": "Full prediction details require an active subscription.",
+            },
+        }
 
     try:
         await set_cached(cache_key, response, ttl=get_settings().cache_ttl_predictions)
@@ -383,17 +436,7 @@ async def list_predictions(
 
     Free (non-subscribed) users are limited to the first 2 predictions.
     """
-    from models.user import User
-
-    is_subscribed = False
-    if user_email:
-        async with DBSession() as session:
-            result = await session.execute(
-                select(User).where(User.email == user_email)
-            )
-            user = result.scalar_one_or_none()
-            if user and (user.has_active_subscription or user.is_superuser):
-                is_subscribed = True
+    is_subscribed = await _is_subscribed(user_email)
 
     page_num = get_page(page)
     ps = get_page_size(page_size)
@@ -587,8 +630,13 @@ async def get_prediction_by_id(
     request: Request,
     prediction_id: str,
     db: AsyncSession = Depends(get_db),
+    user_email: str | None = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Retrieve a specific prediction by its ID."""
+    """Retrieve a specific prediction by its ID.
+
+    Free users can see basic prediction metadata but full details
+    (scorelines, AI evidence, adjustments) require an active subscription.
+    """
     cache_key = cache_prediction_key(prediction_id)
 
     try:
@@ -618,50 +666,79 @@ async def get_prediction_by_id(
     match_kickoff = rows[0][2]
     scorelines = [row[1] for row in rows]
 
-    response = {
-        "success": True,
-        "data": {
-            "prediction_id": pred.id,
-            "match_id": pred.match_id,
-            "match_kickoff": match_kickoff.isoformat() if match_kickoff else None,
-            "model_version": pred.model_version,
-            "prediction_version": pred.prediction_version,
-            "generated_at": pred.generated_at.isoformat() if pred.generated_at else None,
-            "provider_used": pred.provider_used,
-            "lambda_home": pred.lambda_home,
-            "lambda_away": pred.lambda_away,
-            "home_probability": pred.home_probability,
-            "draw_probability": pred.draw_probability,
-            "away_probability": pred.away_probability,
-            "over_2_5_probability": pred.over_2_5_probability,
-            "under_2_5_probability": pred.under_2_5_probability,
-            "btts_probability": pred.btts_probability,
-            "confidence": pred.confidence,
-            "prediction_status": pred.prediction_status,
-            "feature_snapshot": pred.feature_snapshot
-            if isinstance(pred.feature_snapshot, dict)
-            else {},
-            "news_snapshot": pred.news_snapshot if isinstance(pred.news_snapshot, dict) else {},
-            "odds_snapshot": pred.odds_snapshot if isinstance(pred.odds_snapshot, dict) else {},
-            "ai_explanation": pred.ai_explanation,
-            "ai_evidence": pred.ai_evidence_json,
-            "ai_adjustment": pred.ai_adjustment_json,
-            "source_ids": pred.source_ids,
-            "context_hash": pred.context_hash,
-            "admin_verify_gg": pred.admin_verify_gg,
-            "admin_verify_win": pred.admin_verify_win,
-            "admin_verify_over_2_5": pred.admin_verify_over_2_5,
-            "top_scorelines": [
-                {
-                    "rank": sl.rank,
-                    "home_goals": sl.home_goals,
-                    "away_goals": sl.away_goals,
-                    "probability": sl.probability,
-                }
-                for sl in scorelines
-            ],
-        },
-    }
+    is_subscribed = await _is_subscribed(user_email)
+
+    if is_subscribed:
+        response = {
+            "success": True,
+            "data": {
+                "prediction_id": pred.id,
+                "match_id": pred.match_id,
+                "match_kickoff": match_kickoff.isoformat() if match_kickoff else None,
+                "model_version": pred.model_version,
+                "prediction_version": pred.prediction_version,
+                "generated_at": pred.generated_at.isoformat() if pred.generated_at else None,
+                "provider_used": pred.provider_used,
+                "lambda_home": pred.lambda_home,
+                "lambda_away": pred.lambda_away,
+                "home_probability": pred.home_probability,
+                "draw_probability": pred.draw_probability,
+                "away_probability": pred.away_probability,
+                "over_2_5_probability": pred.over_2_5_probability,
+                "under_2_5_probability": pred.under_2_5_probability,
+                "btts_probability": pred.btts_probability,
+                "confidence": pred.confidence,
+                "prediction_status": pred.prediction_status,
+                "feature_snapshot": pred.feature_snapshot
+                if isinstance(pred.feature_snapshot, dict)
+                else {},
+                "news_snapshot": pred.news_snapshot if isinstance(pred.news_snapshot, dict) else {},
+                "odds_snapshot": pred.odds_snapshot if isinstance(pred.odds_snapshot, dict) else {},
+                "ai_explanation": pred.ai_explanation,
+                "ai_evidence": pred.ai_evidence_json,
+                "ai_adjustment": pred.ai_adjustment_json,
+                "source_ids": pred.source_ids,
+                "context_hash": pred.context_hash,
+                "admin_verify_gg": pred.admin_verify_gg,
+                "admin_verify_win": pred.admin_verify_win,
+                "admin_verify_over_2_5": pred.admin_verify_over_2_5,
+                "top_scorelines": [
+                    {
+                        "rank": sl.rank,
+                        "home_goals": sl.home_goals,
+                        "away_goals": sl.away_goals,
+                        "probability": sl.probability,
+                    }
+                    for sl in scorelines
+                ],
+            },
+            "meta": {"subscription_required": False},
+        }
+    else:
+        response = {
+            "success": True,
+            "data": {
+                "prediction_id": pred.id,
+                "match_id": pred.match_id,
+                "match_kickoff": match_kickoff.isoformat() if match_kickoff else None,
+                "model_version": pred.model_version,
+                "prediction_version": pred.prediction_version,
+                "generated_at": pred.generated_at.isoformat() if pred.generated_at else None,
+                "provider_used": pred.provider_used,
+                "home_probability": pred.home_probability,
+                "draw_probability": pred.draw_probability,
+                "away_probability": pred.away_probability,
+                "confidence": pred.confidence,
+                "prediction_status": pred.prediction_status,
+                "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
+                if isinstance(pred.feature_snapshot, dict)
+                else 0.0,
+            },
+            "meta": {
+                "subscription_required": True,
+                "message": "Full prediction details including scorelines and AI evidence require an active subscription.",
+            },
+        }
 
     try:
         await set_cached(cache_key, response, ttl=get_settings().cache_ttl_predictions)
@@ -682,8 +759,13 @@ async def get_match_predictions(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    user_email: str | None = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Return all historical predictions for a match, showing evolution."""
+    """Return all historical predictions for a match, showing evolution.
+
+    Free users see limited prediction metadata; full scorelines and AI details
+    require an active subscription.
+    """
     page_num = get_page(page)
     ps = get_page_size(page_size)
     offset = (page_num - 1) * ps
@@ -736,6 +818,18 @@ async def get_match_predictions(
     total = len(all_predictions)
     paginated = all_predictions[offset : offset + ps]
 
+    is_subscribed = await _is_subscribed(user_email)
+
+    if not is_subscribed:
+        for pred in paginated:
+            pred.pop("lambda_home", None)
+            pred.pop("lambda_away", None)
+            pred.pop("over_2_5_probability", None)
+            pred.pop("btts_probability", None)
+            pred.pop("research_available", None)
+            pred.pop("ai_adjustment_applied", None)
+            pred.pop("top_scorelines", None)
+
     return {
         "success": True,
         "data": paginated,
@@ -744,6 +838,10 @@ async def get_match_predictions(
             "page_size": ps,
             "total": total,
             "total_pages": max(1, -(-total // ps)) if ps > 0 else 1,
+            "subscription_required": not is_subscribed,
+            "message": "Full prediction details require an active subscription."
+            if not is_subscribed
+            else None,
         },
     }
 
@@ -757,8 +855,13 @@ async def compare_match_predictions(
     request: Request,
     match_id: str,
     db: AsyncSession = Depends(get_db),
+    user_email: str | None = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """Compare the latest prediction against the previous one."""
+    """Compare the latest prediction against the previous one.
+
+    Full comparison including lambdas and detailed metrics requires an
+    active subscription. Free users see basic metadata only.
+    """
     from services.prediction_comparison import PredictionComparisonService
 
     stmt = (
@@ -805,18 +908,46 @@ async def compare_match_predictions(
 
     all_preds = list(predictions_map.values())
     if len(all_preds) < 2:
+        is_subscribed = await _is_subscribed(user_email)
+        if not is_subscribed:
+            for pred in all_preds:
+                pred.pop("lambda_home", None)
+                pred.pop("lambda_away", None)
+                pred.pop("over_2_5_probability", None)
+                pred.pop("under_2_5_probability", None)
+                pred.pop("btts_probability", None)
         return {
             "success": True,
             "data": {
                 "current": all_preds[0],
                 "changes": {},
             },
+            "meta": {
+                "subscription_required": not is_subscribed,
+                "message": "Full prediction comparison requires an active subscription."
+                if not is_subscribed
+                else None,
+            },
         }
+
+    is_subscribed = await _is_subscribed(user_email)
+    if not is_subscribed:
+        for pred in all_preds:
+            pred.pop("lambda_home", None)
+            pred.pop("lambda_away", None)
+            pred.pop("over_2_5_probability", None)
+            pred.pop("under_2_5_probability", None)
+            pred.pop("btts_probability", None)
 
     comparer = PredictionComparisonService()
     comparison = comparer.compare(all_preds[1], all_preds[0])
 
-    return {"success": True, "data": comparison}
+    return {"success": True, "data": comparison, "meta": {
+        "subscription_required": not is_subscribed,
+        "message": "Full prediction comparison requires an active subscription."
+        if not is_subscribed
+        else None,
+    }}
 
 
 @router.get(

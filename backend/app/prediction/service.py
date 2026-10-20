@@ -685,7 +685,9 @@ class PredictionService:
             league_id=match.league_id or "",
             league_name=match.league.name if match.league else None,
             season_id=match.season_id,
-            kickoff_at=match.kickoff_at,
+            kickoff_at=match.kickoff_at.replace(tzinfo=UTC)
+            if match.kickoff_at and match.kickoff_at.tzinfo is None
+            else match.kickoff_at,
             home_team=home_team,
             away_team=away_team,
             home_team_stats=home_stats,
@@ -721,11 +723,10 @@ class PredictionService:
         """Check that a match is eligible for prediction."""
         if match_input.kickoff_at is None:
             raise PredictionValidationError("Cannot predict match without kickoff time")
-        if match_input.kickoff_at.tzinfo is not None:
-            now = datetime.now(match_input.kickoff_at.tzinfo)
-        else:
-            now = datetime.now(UTC)
-        if match_input.kickoff_at <= now:
+        kickoff_at = match_input.kickoff_at
+        if kickoff_at.tzinfo is None:
+            kickoff_at = kickoff_at.replace(tzinfo=UTC)
+        if kickoff_at <= datetime.now(UTC):
             raise PredictionValidationError("Cannot generate a pre-match prediction after kickoff")
 
     def _validate_prediction(
