@@ -100,10 +100,10 @@ async def list_matches(
         stmt = stmt.where(Match.kickoff_at >= now)
     else:
         if date_from:
-            d = datetime.strptime(date_from, "%Y-%m-%d")
+            d = datetime.strptime(date_from, "%Y-%m-%d").replace(tzinfo=UTC)
             stmt = stmt.where(Match.kickoff_at >= d)
         if date_to:
-            d = datetime.strptime(date_to, "%Y-%m-%d")
+            d = datetime.strptime(date_to, "%Y-%m-%d").replace(tzinfo=UTC)
             stmt = stmt.where(Match.kickoff_at <= d)
 
     stmt = _resolve_league_filter(league_id, stmt)

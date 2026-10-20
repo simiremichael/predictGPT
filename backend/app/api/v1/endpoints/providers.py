@@ -550,9 +550,9 @@ async def _read_db_resource_payload(provider_method: str, **kwargs: Any) -> list
                 )
             window_start, window_end = _resolve_fixture_window(kwargs)
             if window_start is not None:
-                stmt = stmt.where(Match.kickoff_at >= datetime.combine(window_start, time.min))
+                stmt = stmt.where(Match.kickoff_at >= datetime.combine(window_start, time.min, tzinfo=UTC))
             if window_end is not None:
-                stmt = stmt.where(Match.kickoff_at <= datetime.combine(window_end, time.max))
+                stmt = stmt.where(Match.kickoff_at <= datetime.combine(window_end, time.max, tzinfo=UTC))
             stmt = stmt.order_by(Match.kickoff_at)
             count_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
             total = count_result.scalar() or 0

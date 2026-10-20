@@ -501,8 +501,12 @@ async def list_predictions(
     if model_version:
         stmt = stmt.where(Prediction.model_version == model_version)
     if date_from:
+        if date_from.tzinfo is None:
+            date_from = date_from.replace(tzinfo=UTC)
         stmt = stmt.where(Prediction.generated_at >= date_from)
     if date_to:
+        if date_to.tzinfo is None:
+            date_to = date_to.replace(tzinfo=UTC)
         stmt = stmt.where(Prediction.generated_at <= date_to)
     if upcoming_only:
         stmt = stmt.where(Match.kickoff_at >= now).where(Match.is_finished.is_(False))
@@ -528,7 +532,7 @@ async def list_predictions(
             Match.kickoff_at >= now - timedelta(minutes=max_elapsed_minutes)
         )
     if kickoff_date:
-        start = datetime.combine(kickoff_date, datetime.min.time())
+        start = datetime.combine(kickoff_date, datetime.min.time(), tzinfo=UTC)
         end = start + timedelta(days=1)
         stmt = stmt.where(Match.kickoff_at >= start).where(Match.kickoff_at < end)
 

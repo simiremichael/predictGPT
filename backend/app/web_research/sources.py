@@ -203,6 +203,10 @@ def calculate_freshness(
         return 0.3
 
     now = retrieved_at
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
+    if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=UTC)
     age_seconds = (now - published_at).total_seconds()
 
     if age_seconds < 0:
@@ -229,6 +233,8 @@ def calculate_freshness(
 
     # If we have match kickoff, score relative to it
     if match_kickoff is not None:
+        if match_kickoff.tzinfo is None:
+            match_kickoff = match_kickoff.replace(tzinfo=UTC)
         time_to_kickoff = (match_kickoff - published_at).total_seconds()
         time_to_kickoff_hours = time_to_kickoff / 3600
 

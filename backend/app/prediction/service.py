@@ -1095,6 +1095,7 @@ class PredictionService:
                 prediction_version=output.prediction_version,
                 provider_used=match_input.provider,
                 generated_at=datetime.now(UTC),
+                created_at=datetime.now(UTC),
                 lambda_home=model_result.lambda_home,
                 lambda_away=model_result.lambda_away,
                 home_probability=output.result_probabilities.home,
@@ -1172,6 +1173,7 @@ class PredictionService:
                     away_goals=sl.away_goals,
                     probability=sl.probability,
                     rank=i + 1,
+                    created_at=datetime.now(UTC),
                 )
                 db_session.add(scoreline)
 
