@@ -363,6 +363,38 @@ class AIAdjustmentLayer:
                     away_attack_adj += min(0.25, abs(h2h_adj))
                     reason_codes.append("h2h_disadvantage")
 
+        # BTTS rate advantage — teams with higher recent BTTS may produce
+        # more goals across both sides (affects both attack)
+        if (
+            ai_features.home_btts_rate is not None
+            and ai_features.away_btts_rate is not None
+        ):
+            btts_diff = ai_features.home_btts_rate - ai_features.away_btts_rate
+            if abs(btts_diff) >= 0.05:
+                btts_adj = btts_diff * 0.15
+                if btts_adj > 0:
+                    home_attack_adj += min(0.20, btts_adj)
+                    reason_codes.append("home_btts_advantage")
+                else:
+                    away_attack_adj += min(0.20, abs(btts_adj))
+                    reason_codes.append("away_btts_advantage")
+
+        # Over 2.5 rate advantage — teams that exceed 2.5 more often
+        # have higher scoring profiles
+        if (
+            ai_features.home_over_2_5_rate is not None
+            and ai_features.away_over_2_5_rate is not None
+        ):
+            ou_diff = ai_features.home_over_2_5_rate - ai_features.away_over_2_5_rate
+            if abs(ou_diff) >= 0.05:
+                ou_adj = ou_diff * 0.15
+                if ou_adj > 0:
+                    home_attack_adj += min(0.20, ou_adj)
+                    reason_codes.append("home_over_2_5_advantage")
+                else:
+                    away_attack_adj += min(0.20, abs(ou_adj))
+                    reason_codes.append("away_over_2_5_advantage")
+
         return AIFeatureAdjustment(
             home_attack_adjustment=round(home_attack_adj, 4),
             away_attack_adjustment=round(away_attack_adj, 4),

@@ -115,11 +115,11 @@ async function PredictionDetailContent({
              probability: res.top_scorelines[0].probability,
            }
          : null,
-       top_4_scorelines: res.top_scorelines.map((sl) => ({
-         home_goals: sl.home_goals,
-         away_goals: sl.away_goals,
-         probability: sl.probability,
-       })),
+        top_4_scorelines: res.top_scorelines?.map((sl) => ({
+          home_goals: sl.home_goals,
+          away_goals: sl.away_goals,
+          probability: sl.probability,
+        })) ?? [],
        score_matrix: null,
        goal_distributions: null,
        markets: {

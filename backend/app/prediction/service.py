@@ -193,7 +193,7 @@ class PredictionService:
                 try:
                     from ai.feature_builder import AIFeatureBuilder
 
-                    ai_features = AIFeatureBuilder().build(research_result, match_input)
+                    ai_features = AIFeatureBuilder().build(research_result, match_input, features)
                     adjustment_result = await self._ai_adjustment_layer.apply_adjustment(
                         match_input, base_model_result, features, ai_features
                     )

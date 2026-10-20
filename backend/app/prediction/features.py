@@ -101,6 +101,17 @@ class FeatureVector:
     # Average goals per game difference
     avg_goals_signal: float | None = None
 
+    # Recent-match goal data for BTTS / over-under differentiation
+    # Fraction of recent matches where both teams scored (0-1)
+    home_btts_rate: float | None = None
+    away_btts_rate: float | None = None
+    # Fraction of recent matches with over 2.5 total goals (0-1)
+    home_over_2_5_rate: float | None = None
+    away_over_2_5_rate: float | None = None
+    # Average total goals per recent match
+    home_avg_total_goals: float | None = None
+    away_avg_total_goals: float | None = None
+
     # Data quality components
     data_quality: float = 0.0
 
@@ -205,6 +216,20 @@ class FeatureBuilder:
             match_input.home_team_stats, match_input.away_team_stats
         )
 
+        # Recent-goal data for BTTS / over-under differentiation
+        home_btts_rate, home_over_2_5_rate, home_avg_total_goals = (
+            self._compute_recent_goal_features(
+                match_input.home_recent_fixture,
+                match_input.home_team_id,
+            )
+        )
+        away_btts_rate, away_over_2_5_rate, away_avg_total_goals = (
+            self._compute_recent_goal_features(
+                match_input.away_recent_fixture,
+                match_input.away_team_id,
+            )
+        )
+
         # Expected goal baselines (lambda priors)
         home_lambda_baseline = (
             league_baseline.avg_home_goals * self.default_home_advantage
@@ -218,7 +243,16 @@ class FeatureBuilder:
 
         # Build raw snapshot
         raw_snapshot = self._build_raw_snapshot(
-            match_input, league_baseline, home_strength, away_strength
+            match_input,
+            league_baseline,
+            home_strength,
+            away_strength,
+            home_btts_rate=home_btts_rate,
+            away_btts_rate=away_btts_rate,
+            home_over_2_5_rate=home_over_2_5_rate,
+            away_over_2_5_rate=away_over_2_5_rate,
+            home_avg_total_goals=home_avg_total_goals,
+            away_avg_total_goals=away_avg_total_goals,
         )
 
         # Collect missing features
@@ -257,6 +291,12 @@ class FeatureBuilder:
             standing_signal=standing_signal,
             league_position_signal=league_position_signal,
             avg_goals_signal=avg_goals_signal,
+            home_btts_rate=home_btts_rate,
+            away_btts_rate=away_btts_rate,
+            home_over_2_5_rate=home_over_2_5_rate,
+            away_over_2_5_rate=away_over_2_5_rate,
+            home_avg_total_goals=home_avg_total_goals,
+            away_avg_total_goals=away_avg_total_goals,
             data_quality=data_quality,
             home_sample=home_strength.get("sample", 0) if home_strength else 0,
             away_sample=away_strength.get("sample", 0) if away_strength else 0,
@@ -592,6 +632,56 @@ class FeatureBuilder:
         away_rate = away_gpg if away_gpg is not None else 1.35
         return home_rate - away_rate
 
+    def _compute_recent_goal_features(
+        self,
+        recent_fixtures: list[NormalizedFixture] | None,
+        team_id: str | None,
+    ) -> tuple[float | None, float | None, float | None]:
+        """Compute BTTS / over-2.5 / avg-total-goals from recent completed fixtures.
+
+        Returns (btts_rate, over_2_5_rate, avg_total_goals) or Nones when
+        insufficient data.
+        """
+        if not recent_fixtures or not team_id:
+            return None, None, None
+
+        btts_count = 0
+        over_2_5_count = 0
+        total_goals_sum = 0.0
+        valid_matches = 0
+
+        for fx in recent_fixtures:
+            if (
+                not fx.is_finished
+                or fx.home_score is None
+                or fx.away_score is None
+            ):
+                continue
+            valid_matches += 1
+            home_scored = fx.home_score
+            away_scored = fx.away_score
+
+            # Determine if this team is home or away
+            team_is_home = fx.home_team_id == team_id
+            team_goals = home_scored if team_is_home else away_scored
+            opp_goals = away_scored if team_is_home else home_scored
+
+            total = home_scored + away_scored
+            total_goals_sum += total
+            if team_goals > 0 and opp_goals > 0:
+                btts_count += 1
+            if total > 2.5:
+                over_2_5_count += 1
+
+        if valid_matches == 0:
+            return None, None, None
+
+        btts_rate = btts_count / valid_matches
+        over_2_5_rate = over_2_5_count / valid_matches
+        avg_total_goals = total_goals_sum / valid_matches
+
+        return btts_rate, over_2_5_rate, avg_total_goals
+
     def _compute_data_quality(
         self,
         match_input: PredictionInput,
@@ -658,6 +748,12 @@ class FeatureBuilder:
         baseline: LeagueBaseline,
         home_strength: dict[str, float] | None,
         away_strength: dict[str, float] | None,
+        home_btts_rate: float | None = None,
+        away_btts_rate: float | None = None,
+        home_over_2_5_rate: float | None = None,
+        away_over_2_5_rate: float | None = None,
+        home_avg_total_goals: float | None = None,
+        away_avg_total_goals: float | None = None,
     ) -> dict[str, Any]:
         """Build a snapshot of raw feature values for reproducibility."""
         return {
@@ -697,4 +793,10 @@ class FeatureBuilder:
             "away_avg_goals_per_game": match_input.away_team_stats.goals_per_game
             if match_input.away_team_stats
             else None,
+            "home_btts_rate": home_btts_rate,
+            "away_btts_rate": away_btts_rate,
+            "home_over_2_5_rate": home_over_2_5_rate,
+            "away_over_2_5_rate": away_over_2_5_rate,
+            "home_avg_total_goals": home_avg_total_goals,
+            "away_avg_total_goals": away_avg_total_goals,
         }

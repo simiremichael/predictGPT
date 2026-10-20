@@ -46,7 +46,7 @@ class PoissonModel:
     """
 
     model_name = "poisson"
-    model_version = "poisson-v1.3.0"
+    model_version = "poisson-v1.4.0"
     MAX_GOALS = 8
 
     HOME_ADVANTAGE_MULTIPLIER = 1.05
@@ -57,10 +57,14 @@ class PoissonModel:
     SHRINKAGE_FACTOR = 0.3
 
     # Weight factors for ranking signals (league position, H2H, standings)
-    STANDING_SIGNAL_WEIGHT = 0.04   # Points-per-game advantage weight
-    H2H_SIGNAL_WEIGHT = 0.08        # Head-to-head win ratio weight
-    POSITION_SIGNAL_WEIGHT = 0.06   # League table position advantage weight
-    AVG_GOALS_SIGNAL_WEIGHT = 0.03  # Average goals per game difference weight
+    STANDING_SIGNAL_WEIGHT = 0.12   # Points-per-game advantage weight
+    H2H_SIGNAL_WEIGHT = 0.15       # Head-to-head win ratio weight
+    POSITION_SIGNAL_WEIGHT = 0.12    # League table position advantage weight
+    AVG_GOALS_SIGNAL_WEIGHT = 0.08  # Average goals per game difference weight
+
+    # BTTS / over-under differentiation weights
+    BTTS_SIGNAL_WEIGHT = 0.10       # BTTS rate difference weight
+    OVER_2_5_SIGNAL_WEIGHT = 0.12   # Over 2.5 rate difference weight
 
     def __init__(self, max_goals: int = 8) -> None:
         self.max_goals = max_goals
@@ -93,7 +97,7 @@ class PoissonModel:
         standing_factor = 1.0
         if features.standing_signal is not None:
             standing_log_adjustment = max(
-                -0.25, min(0.25, features.standing_signal * self.STANDING_SIGNAL_WEIGHT)
+                -0.40, min(0.40, features.standing_signal * self.STANDING_SIGNAL_WEIGHT)
             )
             standing_factor = math.exp(standing_log_adjustment)
 
@@ -107,8 +111,8 @@ class PoissonModel:
         position_factor = 1.0
         if features.league_position_signal is not None:
             position_adjustment = max(
-                -0.30,
-                min(0.30, features.league_position_signal * -self.POSITION_SIGNAL_WEIGHT),
+                -0.40,
+                min(0.40, features.league_position_signal * -self.POSITION_SIGNAL_WEIGHT),
             )
             position_factor = math.exp(position_adjustment)
 
@@ -119,6 +123,30 @@ class PoissonModel:
                 min(0.15, features.avg_goals_signal * self.AVG_GOALS_SIGNAL_WEIGHT),
             )
             avg_goals_factor = math.exp(avg_goals_adjustment)
+
+        # BTTS signal: differentiate teams by their recent scoring consistency
+        btts_factor = 1.0
+        if (
+            features.home_btts_rate is not None
+            and features.away_btts_rate is not None
+        ):
+            btts_diff = features.home_btts_rate - features.away_btts_rate
+            btts_adjustment = max(
+                -0.20, min(0.20, btts_diff * self.BTTS_SIGNAL_WEIGHT)
+            )
+            btts_factor = math.exp(btts_adjustment)
+
+        # Over-under 2.5 signal: differentiate teams by recent goal volume
+        over_2_5_factor = 1.0
+        if (
+            features.home_over_2_5_rate is not None
+            and features.away_over_2_5_rate is not None
+        ):
+            ou_diff = features.home_over_2_5_rate - features.away_over_2_5_rate
+            ou_adjustment = max(
+                -0.25, min(0.25, ou_diff * self.OVER_2_5_SIGNAL_WEIGHT)
+            )
+            over_2_5_factor = math.exp(ou_adjustment)
 
         # Pair each team's attacking xG with its opponent's xGA. Keep these
         # adjustments separate so one team's xG cannot move both goal rates.
@@ -132,6 +160,7 @@ class PoissonModel:
         # Core Poisson lambda calculation
         # λ_home = league_avg_home_goals × home_attack × away_defense
         #          × home_advantage × form × xg × standing × h2h × position × avg_goals
+        #          × btts × over_2_5
         lambda_home = (
             league.avg_home_goals
             * home_attack
@@ -143,10 +172,12 @@ class PoissonModel:
             * h2h_home_factor
             * position_factor
             * avg_goals_factor
+            * btts_factor
+            * over_2_5_factor
         )
 
         # λ_away = league_avg_away_goals × away_attack × home_defense × form
-        #          × xg / standing / h2h / position / avg_goals
+        #          × xg / standing / h2h / position / avg_goals / btts / over_2_5
         lambda_away = (
             league.avg_away_goals
             * away_attack
@@ -157,6 +188,8 @@ class PoissonModel:
             / h2h_home_factor
             / position_factor
             / avg_goals_factor
+            / btts_factor
+            / over_2_5_factor
         )
 
         # Apply sample-size protection (shrink toward league average)
@@ -196,13 +229,17 @@ class PoissonModel:
             "league_avg_home_goals": league.avg_home_goals,
             "league_avg_away_goals": league.avg_away_goals,
             "standing_signal_weight": self.STANDING_SIGNAL_WEIGHT,
-            "max_standing_log_adjustment": 0.25,
+            "max_standing_log_adjustment": 0.40,
             "h2h_signal_weight": self.H2H_SIGNAL_WEIGHT,
             "max_h2h_log_adjustment": 0.30,
             "position_signal_weight": self.POSITION_SIGNAL_WEIGHT,
-            "max_position_adjustment": 0.30,
+            "max_position_adjustment": 0.40,
             "avg_goals_signal_weight": self.AVG_GOALS_SIGNAL_WEIGHT,
             "max_avg_goals_adjustment": 0.15,
+            "btts_signal_weight": self.BTTS_SIGNAL_WEIGHT,
+            "max_btts_adjustment": 0.20,
+            "over_2_5_signal_weight": self.OVER_2_5_SIGNAL_WEIGHT,
+            "max_over_2_5_adjustment": 0.25,
         }
 
         feature_snapshot = {
@@ -377,6 +414,28 @@ class PoissonModel:
                 f"{leading_team.capitalize()} team has higher average goals per game "
                 f"(difference {abs(avg_goals_signal):.2f})"
             )
+
+        home_btts = features.get("home_btts_rate")
+        away_btts = features.get("away_btts_rate")
+        if home_btts is not None and away_btts is not None:
+            btts_diff = home_btts - away_btts
+            if abs(btts_diff) >= 0.10:
+                leading_team = "home" if btts_diff > 0 else "away"
+                explanations.append(
+                    f"{leading_team.capitalize()} team shows higher BTTS rate in recent matches "
+                    f"(difference {abs(btts_diff):.2f})"
+                )
+
+        home_ou = features.get("home_over_2_5_rate")
+        away_ou = features.get("away_over_2_5_rate")
+        if home_ou is not None and away_ou is not None:
+            ou_diff = home_ou - away_ou
+            if abs(ou_diff) >= 0.10:
+                leading_team = "home" if ou_diff > 0 else "away"
+                explanations.append(
+                    f"{leading_team.capitalize()} team has higher over 2.5 goals rate recently "
+                    f"(difference {abs(ou_diff):.2f})"
+                )
 
         if not explanations:
             explanations.append("Both teams show league-average characteristics")

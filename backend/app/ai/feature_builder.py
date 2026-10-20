@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from prediction.features import FeatureVector
 
 from web_research.schemas import (
     EvidenceStatus,
@@ -67,6 +70,13 @@ class AIFeatureVector:
     league_position_advantage: int | None = None
     standing_ppg_advantage: float | None = None
     avg_goals_advantage: float | None = None
+    # Recent goal statistics for BTTS / over-under differentiation
+    home_btts_rate: float | None = None
+    away_btts_rate: float | None = None
+    home_over_2_5_rate: float | None = None
+    away_over_2_5_rate: float | None = None
+    home_avg_total_goals: float | None = None
+    away_avg_total_goals: float | None = None
 
 
 class AIFeatureBuilder:
@@ -85,12 +95,15 @@ class AIFeatureBuilder:
         self,
         research_result: MatchResearchResult | None,
         match_input: Any = None,
+        features: FeatureVector | None = None,
     ) -> AIFeatureVector:
         """Build AI features from a research result.
 
         If research_result is None, returns an empty AIFeatureVector with
         research_available=False. If match_input is provided, statistical
         context (H2H, league positions, average goals) is included.
+        If features (computed FeatureVector) is provided, BTTS/over-under
+        and other derived statistics are included.
         """
         if research_result is None:
             vector = AIFeatureVector(research_available=False)
@@ -105,7 +118,7 @@ class AIFeatureBuilder:
             )
 
         if match_input is not None:
-            self._populate_match_context(match_input, vector)
+            self._populate_match_context(match_input, vector, features)
 
         if research_result is not None:
             self._process_injuries(research_result.injuries, vector)
@@ -123,6 +136,7 @@ class AIFeatureBuilder:
         self,
         match_input: Any,
         vector: AIFeatureVector,
+        features: FeatureVector | None = None,
     ) -> None:
         """Extract statistical context from match input and attach to vector."""
         h2h = getattr(match_input, "h2h", None)
@@ -165,6 +179,15 @@ class AIFeatureBuilder:
             vector.avg_goals_advantage = (
                 vector.home_avg_goals_per_game - vector.away_avg_goals_per_game
             )
+
+        # Populate BTTS / over-under statistics from computed FeatureVector
+        if features is not None:
+            vector.home_btts_rate = features.home_btts_rate
+            vector.away_btts_rate = features.away_btts_rate
+            vector.home_over_2_5_rate = features.home_over_2_5_rate
+            vector.away_over_2_5_rate = features.away_over_2_5_rate
+            vector.home_avg_total_goals = features.home_avg_total_goals
+            vector.away_avg_total_goals = features.away_avg_total_goals
 
     def _process_injuries(
         self, injuries: list[InjuryEvidence], vector: AIFeatureVector
@@ -283,6 +306,23 @@ class AIFeatureBuilder:
         if vector.avg_goals_advantage is not None:
             parts.append(
                 f"Goals per game advantage for home team: {vector.avg_goals_advantage:.2f}"
+            )
+
+        # BTTS / over-under context for market differentiation
+        if vector.home_btts_rate is not None and vector.away_btts_rate is not None:
+            parts.append(
+                f"Home BTTS rate: {vector.home_btts_rate:.2f}, "
+                f"Away BTTS rate: {vector.away_btts_rate:.2f}"
+            )
+        if vector.home_over_2_5_rate is not None and vector.away_over_2_5_rate is not None:
+            parts.append(
+                f"Home over 2.5 rate: {vector.home_over_2_5_rate:.2f}, "
+                f"Away over 2.5 rate: {vector.away_over_2_5_rate:.2f}"
+            )
+        if vector.home_avg_total_goals is not None and vector.away_avg_total_goals is not None:
+            parts.append(
+                f"Home avg total goals: {vector.home_avg_total_goals:.2f}, "
+                f"Away avg total goals: {vector.away_avg_total_goals:.2f}"
             )
 
         for injury in vector.injuries:
