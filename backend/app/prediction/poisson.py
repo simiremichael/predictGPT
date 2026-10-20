@@ -46,7 +46,7 @@ class PoissonModel:
     """
 
     model_name = "poisson"
-    model_version = "poisson-v1.2.0"
+    model_version = "poisson-v1.3.0"
     MAX_GOALS = 8
 
     HOME_ADVANTAGE_MULTIPLIER = 1.05
@@ -55,6 +55,12 @@ class PoissonModel:
 
     # Shrinkage toward baseline for teams with insufficient data
     SHRINKAGE_FACTOR = 0.3
+
+    # Weight factors for ranking signals (league position, H2H, standings)
+    STANDING_SIGNAL_WEIGHT = 0.04   # Points-per-game advantage weight
+    H2H_SIGNAL_WEIGHT = 0.08        # Head-to-head win ratio weight
+    POSITION_SIGNAL_WEIGHT = 0.06   # League table position advantage weight
+    AVG_GOALS_SIGNAL_WEIGHT = 0.03  # Average goals per game difference weight
 
     def __init__(self, max_goals: int = 8) -> None:
         self.max_goals = max_goals
@@ -82,22 +88,37 @@ class PoissonModel:
         home_form_adj = features.home_form_strength
         away_form_adj = features.away_form_strength
 
-        # Use standings and head-to-head as small, bounded tie-breakers.
-        # Recent scoring and form remain the main signals so a short H2H run
-        # or an early-season table position cannot dominate the prediction.
+        # Use standings, head-to-head, and league position as bounded signals
+        # that contribute to the prediction alongside form and attack/defense.
         standing_factor = 1.0
         if features.standing_signal is not None:
             standing_log_adjustment = max(
-                -0.05, min(0.05, features.standing_signal * 0.025)
+                -0.25, min(0.25, features.standing_signal * self.STANDING_SIGNAL_WEIGHT)
             )
             standing_factor = math.exp(standing_log_adjustment)
 
         h2h_home_factor = 1.0
         if features.h2h_signal is not None and features.h2h_signal > 0:
             h2h_log_adjustment = max(
-                -0.04, min(0.04, math.log(features.h2h_signal) * 0.06)
+                -0.30, min(0.30, math.log(features.h2h_signal) * self.H2H_SIGNAL_WEIGHT)
             )
             h2h_home_factor = math.exp(h2h_log_adjustment)
+
+        position_factor = 1.0
+        if features.league_position_signal is not None:
+            position_adjustment = max(
+                -0.30,
+                min(0.30, features.league_position_signal * -self.POSITION_SIGNAL_WEIGHT),
+            )
+            position_factor = math.exp(position_adjustment)
+
+        avg_goals_factor = 1.0
+        if features.avg_goals_signal is not None:
+            avg_goals_adjustment = max(
+                -0.15,
+                min(0.15, features.avg_goals_signal * self.AVG_GOALS_SIGNAL_WEIGHT),
+            )
+            avg_goals_factor = math.exp(avg_goals_adjustment)
 
         # Pair each team's attacking xG with its opponent's xGA. Keep these
         # adjustments separate so one team's xG cannot move both goal rates.
@@ -109,7 +130,8 @@ class PoissonModel:
         )
 
         # Core Poisson lambda calculation
-        # λ_home = league_avg_home_goals × home_attack × away_defense × home_advantage × form
+        # λ_home = league_avg_home_goals × home_attack × away_defense
+        #          × home_advantage × form × xg × standing × h2h × position × avg_goals
         lambda_home = (
             league.avg_home_goals
             * home_attack
@@ -119,9 +141,12 @@ class PoissonModel:
             * home_xg_factor
             * standing_factor
             * h2h_home_factor
+            * position_factor
+            * avg_goals_factor
         )
 
         # λ_away = league_avg_away_goals × away_attack × home_defense × form
+        #          × xg / standing / h2h / position / avg_goals
         lambda_away = (
             league.avg_away_goals
             * away_attack
@@ -130,6 +155,8 @@ class PoissonModel:
             * away_xg_factor
             / standing_factor
             / h2h_home_factor
+            / position_factor
+            / avg_goals_factor
         )
 
         # Apply sample-size protection (shrink toward league average)
@@ -168,10 +195,14 @@ class PoissonModel:
             "shrinkage_factor": self.SHRINKAGE_FACTOR,
             "league_avg_home_goals": league.avg_home_goals,
             "league_avg_away_goals": league.avg_away_goals,
-            "standing_signal_weight": 0.025,
-            "max_standing_log_adjustment": 0.05,
-            "h2h_signal_weight": 0.06,
-            "max_h2h_log_adjustment": 0.04,
+            "standing_signal_weight": self.STANDING_SIGNAL_WEIGHT,
+            "max_standing_log_adjustment": 0.25,
+            "h2h_signal_weight": self.H2H_SIGNAL_WEIGHT,
+            "max_h2h_log_adjustment": 0.30,
+            "position_signal_weight": self.POSITION_SIGNAL_WEIGHT,
+            "max_position_adjustment": 0.30,
+            "avg_goals_signal_weight": self.AVG_GOALS_SIGNAL_WEIGHT,
+            "max_avg_goals_adjustment": 0.15,
         }
 
         feature_snapshot = {
@@ -185,8 +216,12 @@ class PoissonModel:
             "away_expected_goals_baseline": features.away_expected_goals_baseline,
             "h2h_signal": features.h2h_signal,
             "standing_signal": features.standing_signal,
+            "league_position_signal": features.league_position_signal,
+            "avg_goals_signal": features.avg_goals_signal,
             "standing_factor": standing_factor,
             "h2h_home_factor": h2h_home_factor,
+            "position_factor": position_factor,
+            "avg_goals_factor": avg_goals_factor,
             "home_xg_factor": home_xg_factor,
             "away_xg_factor": away_xg_factor,
             "data_quality": features.data_quality,
@@ -322,6 +357,25 @@ class PoissonModel:
             explanations.append(
                 f"League points per game currently favour the {leading_team} team "
                 f"({abs(standing_signal):.2f} PPG difference)"
+            )
+
+        position_signal = features.get("league_position_signal")
+        if position_signal is not None:
+            if position_signal > 5:
+                explanations.append(
+                    f"Home team has stronger league position (position advantage {position_signal:.0f} places)"
+                )
+            elif position_signal < -5:
+                explanations.append(
+                    f"Away team has stronger league position (position advantage {abs(position_signal):.0f} places)"
+                )
+
+        avg_goals_signal = features.get("avg_goals_signal")
+        if avg_goals_signal is not None and abs(avg_goals_signal) >= 0.3:
+            leading_team = "home" if avg_goals_signal > 0 else "away"
+            explanations.append(
+                f"{leading_team.capitalize()} team has higher average goals per game "
+                f"(difference {abs(avg_goals_signal):.2f})"
             )
 
         if not explanations:

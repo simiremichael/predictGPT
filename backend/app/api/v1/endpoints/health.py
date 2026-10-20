@@ -6,7 +6,7 @@ GET  /api/v1/health/deep -- deep health (providers, cache, model availability)
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -52,10 +52,10 @@ async def health(
         "success": overall_healthy,
         "data": {
             "status": "healthy" if overall_healthy else "degraded",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": checks,
         },
-        "meta": {"checked_at": datetime.utcnow().isoformat()},
+        "meta": {"checked_at": datetime.now(UTC).isoformat()},
     }
 
 
@@ -127,8 +127,8 @@ async def deep_health(
         "success": overall_healthy,
         "data": {
             "status": "healthy" if overall_healthy else "degraded",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "checks": checks,
         },
-        "meta": {"checked_at": datetime.utcnow().isoformat()},
+        "meta": {"checked_at": datetime.now(UTC).isoformat()},
     }

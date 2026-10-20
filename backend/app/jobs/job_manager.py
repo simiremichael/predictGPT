@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from db.redis_client import redis_client
@@ -43,7 +43,7 @@ async def create_job(
 ) -> str:
     """Create a new job record and return its ID."""
     job_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     data: dict[str, Any] = {
         "job_id": job_id,
         "job_type": job_type,
@@ -84,7 +84,7 @@ async def update_job_status(job_id: str, status: str, **extra: Any) -> None:
         if data is None:
             return
         data["status"] = status
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(UTC).isoformat()
         if status == JobStatus.RUNNING and not data.get("started_at"):
             data["started_at"] = now
         elif status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED):

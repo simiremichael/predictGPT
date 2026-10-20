@@ -11,7 +11,7 @@ All data is read from the synchronized database.  No direct provider calls.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -514,7 +514,7 @@ async def _refresh_incomplete_match(match: Match, db: AsyncSession) -> None:
     if isinstance(metadata, dict):
         match.provider_metadata = {**(match.provider_metadata or {}), **metadata}
 
-    match.retrieved_at = datetime.utcnow()
+    match.retrieved_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(match)
 

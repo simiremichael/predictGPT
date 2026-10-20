@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -42,7 +43,7 @@ class Match(Base):
     )
     home_team_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     away_team_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    kickoff_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    kickoff_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="scheduled")
     venue: Mapped[str | None] = mapped_column(String(255), nullable=True)
     referee: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -50,12 +51,12 @@ class Match(Base):
     away_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_finished: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    league: Mapped["League"] = relationship("League", back_populates="matches")
+    league: Mapped[League] = relationship("League", back_populates="matches")
     home_team: Mapped[Team | None] = relationship(
         "Team",
         foreign_keys=[home_team_id],
@@ -83,7 +84,7 @@ class MatchStatistics(Base):
     fouls: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     is_finished: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
@@ -116,11 +117,11 @@ class TeamStatistics(Base):
     goals_per_game: Mapped[float | None] = mapped_column(Float, nullable=True)
     goals_conceded_per_game: Mapped[float | None] = mapped_column(Float, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
-    league: Mapped["League"] = relationship("League", back_populates="team_statistics")
+    league: Mapped[League] = relationship("League", back_populates="team_statistics")
 
 
 class TeamForm(Base):
@@ -137,7 +138,7 @@ class TeamForm(Base):
     form_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     recent_match_ids: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
@@ -162,10 +163,10 @@ class HeadToHead(Base):
     avg_goals_per_game: Mapped[float | None] = mapped_column(Float, nullable=True)
     fixture_ids: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    league: Mapped["League"] = relationship("League", back_populates="head_to_heads")
+    league: Mapped[League] = relationship("League", back_populates="head_to_heads")
 
 
 class Player(Base):
@@ -179,13 +180,13 @@ class Player(Base):
     last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     position: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    date_of_birth: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    date_of_birth: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
     height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     weight: Mapped[int | None] = mapped_column(Integer, nullable=True)
     footed: Mapped[str | None] = mapped_column(String(10), nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
@@ -202,7 +203,7 @@ class ProviderPlayer(Base):
     provider_name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     provider_player_id: Mapped[str] = mapped_column(String(100), nullable=False)
     provider_team_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class Injury(Base):
@@ -220,11 +221,11 @@ class Injury(Base):
     injury_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     severity: Mapped[str | None] = mapped_column(String(50), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    start_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    return_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    return_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_startingXI_impact: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
@@ -243,10 +244,10 @@ class Suspension(Base):
     position: Mapped[str | None] = mapped_column(String(50), nullable=True)
     reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     suspension_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    suspended_from: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    suspended_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    suspended_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    suspended_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
@@ -265,7 +266,7 @@ class PredictedLineup(Base):
     formation: Mapped[str | None] = mapped_column(String(50), nullable=True)
     players_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
@@ -283,7 +284,7 @@ class ConfirmedLineup(Base):
     formation: Mapped[str | None] = mapped_column(String(50), nullable=True)
     players_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
@@ -298,7 +299,7 @@ class Odds(Base):
     )
     markets_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
@@ -311,7 +312,7 @@ class WebSource(Base):
     publisher: Mapped[str | None] = mapped_column(String(255), nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     source_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     relevance: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -332,7 +333,7 @@ class NewsItem(Base):
     claims_json: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     relevance: Mapped[float | None] = mapped_column(Float, nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     provider_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
 
@@ -345,7 +346,7 @@ class ModelVersion(Base):
     model_type: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     parameters_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
@@ -363,7 +364,7 @@ class Prediction(Base):
     )
     provider_used: Mapped[str] = mapped_column(String(50), nullable=False)
     generated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     lambda_home: Mapped[float | None] = mapped_column(Float, nullable=True)
     lambda_away: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -383,7 +384,7 @@ class Prediction(Base):
     ai_adjustment_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     source_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
     context_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     admin_verify_gg: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
     admin_verify_win: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
@@ -405,7 +406,7 @@ class PredictionScoreline(Base):
     away_goals: Mapped[int] = mapped_column(Integer, nullable=False)
     probability: Mapped[float] = mapped_column(Float, nullable=False)
     rank: Mapped[int] = mapped_column(Integer, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class PredictionResult(Base):
@@ -425,7 +426,7 @@ class PredictionResult(Base):
     over_25_correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     btts_correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     evaluated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 
@@ -438,7 +439,7 @@ class ModelMetric(Base):
     season_id: Mapped[str | None] = mapped_column(String, nullable=True)
     metric_name: Mapped[str] = mapped_column(String(100), nullable=False)
     metric_value: Mapped[float] = mapped_column(Float, nullable=False)
-    computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class ProviderSyncLog(Base):
@@ -451,8 +452,8 @@ class ProviderSyncLog(Base):
     records_fetched: Mapped[int | None] = mapped_column(Integer, nullable=True)
     records_stored: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class PredictionRun(Base):
@@ -465,6 +466,6 @@ class PredictionRun(Base):
     matches_processed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     matches_succeeded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     matches_failed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

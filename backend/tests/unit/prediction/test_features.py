@@ -11,7 +11,7 @@ Tests cover:
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
@@ -61,7 +61,7 @@ def basic_match_input(
         away_team_name="Away City",
         league_id="premier_league",
         season_id="2023",
-        kickoff_at=datetime.utcnow() + timedelta(days=1),
+        kickoff_at=datetime.now(timezone.utc) + timedelta(days=1),
     )
 
 
@@ -120,7 +120,7 @@ def match_with_stats(
         away_team_name="Weak Away",
         league_id="premier_league",
         season_id="2023",
-        kickoff_at=datetime.utcnow() + timedelta(days=1),
+        kickoff_at=datetime.now(timezone.utc) + timedelta(days=1),
         home_team_stats=home_stats,
         away_team_stats=away_stats,
     )
@@ -238,7 +238,7 @@ class TestFormStrength:
 
     def test_positive_form_increases_strength(self, league_baseline: LeagueBaseline) -> None:
         """Winning recent matches → form strength > 1."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         fixtures = [
             NormalizedFixture(
                 provider="api_football",
@@ -272,7 +272,7 @@ class TestFormStrength:
 
     def test_negative_form_decreases_strength(self, league_baseline: LeagueBaseline) -> None:
         """Losing recent matches → form strength < 1."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         fixtures = [
             NormalizedFixture(
                 provider="api_football",
@@ -306,7 +306,7 @@ class TestFormStrength:
 
     def test_form_strength_clamped(self, league_baseline: LeagueBaseline) -> None:
         """Form strength should be clamped to [0.5, 1.5]."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         # All losses (extreme negative form)
         fixtures = [
             NormalizedFixture(

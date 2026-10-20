@@ -1,7 +1,7 @@
 """Tests for the AI adjustment layer."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -28,7 +28,7 @@ def match_input() -> PredictionInput:
         home_team_name="Arsenal",
         away_team_name="Chelsea",
         league_id="premier_league",
-        kickoff_at=datetime.utcnow() + timedelta(days=1),
+        kickoff_at=datetime.now(timezone.utc) + timedelta(days=1),
     )
 
 
@@ -42,7 +42,7 @@ def base_result() -> Any:
         home_team_name="Arsenal",
         away_team_name="Chelsea",
         league_id="premier_league",
-        kickoff_at=datetime.utcnow() + timedelta(days=1),
+        kickoff_at=datetime.now(timezone.utc) + timedelta(days=1),
     ))
 
 

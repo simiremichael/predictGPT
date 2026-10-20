@@ -15,7 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 import httpx
@@ -147,7 +147,7 @@ class FootballHTTPClient:
                 client = await self._ensure_client()
                 start = time.monotonic()
                 self._requests_made += 1
-                self._last_request_at = datetime.utcnow()
+                self._last_request_at = datetime.now(UTC)
                 response = await client.request(method, url, **kwargs)
                 duration_ms = (time.monotonic() - start) * 1000
 
@@ -163,13 +163,13 @@ class FootballHTTPClient:
                 return response.json()
 
             except (ProviderRateLimitError, ProviderNotFoundError, ProviderAuthenticationError):
-                self._last_failure_at = datetime.utcnow()
+                self._last_failure_at = datetime.now(UTC)
                 self._last_error = str(last_exc) if last_exc else "rate limit"
                 raise
             except ProviderUnavailableError as exc:
                 # 5xx -- retry with backoff
                 last_exc = exc
-                self._last_failure_at = datetime.utcnow()
+                self._last_failure_at = datetime.now(UTC)
                 self._last_error = exc.message
                 if attempt < max_retries:
                     await asyncio.sleep(retry_backoff_base * (2 ** (attempt - 1)))
@@ -177,7 +177,7 @@ class FootballHTTPClient:
                 raise
             except httpx.HTTPStatusError as exc:
                 last_exc = exc
-                self._last_failure_at = datetime.utcnow()
+                self._last_failure_at = datetime.now(UTC)
                 self._last_error = str(exc)
                 mapped = self._map_http_error(exc, url)
                 # 5xx via raise_for_status() -- retry
@@ -188,7 +188,7 @@ class FootballHTTPClient:
                 raise mapped from exc
             except httpx.RequestError as exc:
                 last_exc = exc
-                self._last_failure_at = datetime.utcnow()
+                self._last_failure_at = datetime.now(UTC)
                 self._last_error = str(exc)
                 if attempt < max_retries:
                     await asyncio.sleep(retry_backoff_base * (2 ** (attempt - 1)))

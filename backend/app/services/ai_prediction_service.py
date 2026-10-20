@@ -17,7 +17,7 @@ The pipeline:
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -187,9 +187,9 @@ class AIPredictionService:
         from football_data.models import FixtureStatus
         from models.match import Match
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         target_date = kickoff_date or now.date()
-        day_start = datetime.combine(target_date, time.min)
+        day_start = datetime.combine(target_date, time.min, tzinfo=UTC)
         day_end = day_start + timedelta(days=1)
 
         stmt = (

@@ -14,9 +14,10 @@ Optional / provider-specific fields are typed as Optional and default to None,
 so models from either provider -- or even a provider missing some data -- remain
 valid.
 """
+
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum, StrEnum
 from typing import Any, Optional
 
@@ -129,7 +130,7 @@ class NormalizedFixture(BaseModel):
     fulltime_home_score: int | None = None
     fulltime_away_score: int | None = None
     is_finished: bool = False
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -142,7 +143,7 @@ class NormalizedFixture(BaseModel):
 class NormalizedFixtureList(BaseModel):
     fixtures: list[NormalizedFixture]
     provider: str
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ── Team Statistics -------------------------------------------------------- #
@@ -177,7 +178,7 @@ class NormalizedTeamStatistics(BaseModel):
     average_xga: float | None = None
     goals_per_game: float | None = None
     goals_conceded_per_game: float | None = None
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -202,7 +203,7 @@ class NormalizedForm(BaseModel):
     failed_to_score_rate: float | None = None
     average_xg: float | None = None
     average_xga: float | None = None
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -218,9 +219,11 @@ class NormalizedHeadToHead(BaseModel):
     team_b_wins: int | None = None
     draws: int | None = None
     avg_goals_per_game: float | None = None
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class InjurySeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
@@ -242,7 +245,7 @@ class NormalizedInjury(BaseModel):
     start_date: datetime | None = None
     return_date: datetime | None = None
     is_startingXI_impact: bool = False
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -259,7 +262,7 @@ class NormalizedSuspension(BaseModel):
     suspension_type: str | None = None
     suspended_from: datetime | None = None
     suspended_until: datetime | None = None
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -289,7 +292,7 @@ class NormalizedLineup(BaseModel):
     players: list[NormalizedLineupPlayer] = Field(default_factory=list)
     starting_xi: list[NormalizedLineupPlayer] = Field(default_factory=list)
     substitutes: list[NormalizedLineupPlayer] = Field(default_factory=list)
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -311,7 +314,7 @@ class NormalizedMatchStatistics(BaseModel):
     corners: dict[str, int] | None = None
     fouls: dict[str, int] | None = None
     is_finished: bool = False
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -330,7 +333,7 @@ class NormalizedOdds(BaseModel):
     provider_fixture_id: str
     fixture_id: str | None = None
     markets: list[NormalizedOddsMarket] = Field(default_factory=list)
-    retrieved_at: datetime = Field(default_factory=datetime.utcnow)
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     valid_until: datetime | None = None
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -423,4 +426,4 @@ class ProviderHealthInfo(BaseModel):
     rate_limit_remaining: int | None = None
     rate_limit_reset: str | None = None
     error: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))

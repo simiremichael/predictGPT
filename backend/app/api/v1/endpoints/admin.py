@@ -20,7 +20,7 @@ DELETE /api/v1/admin/leagues/all       -- delete all leagues
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -73,6 +73,7 @@ async def get_model_accuracy(
     """Measure saved 1X2 predictions against completed matches chronologically."""
     import math
     from collections import defaultdict
+
     from prediction.calibration import CALIBRATED_PREDICTION_VERSION
 
     stmt = (
@@ -163,7 +164,7 @@ async def get_model_accuracy(
                 "temperature calibration does not change the predicted 1X2 pick."
             ),
         },
-        "meta": {"generated_at": datetime.utcnow().isoformat()},
+        "meta": {"generated_at": datetime.now(UTC).isoformat()},
     }
 
 
@@ -256,7 +257,7 @@ async def get_admin_stats(
     return {
         "success": True,
         "data": stats,
-        "meta": {"generated_at": datetime.utcnow().isoformat()},
+        "meta": {"generated_at": datetime.now(UTC).isoformat()},
     }
 
 
@@ -338,7 +339,7 @@ async def admin_list_predictions(
     page_num = get_page(page)
     ps = get_page_size(page_size)
     offset = (page_num - 1) * ps
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     home_team = aliased(Team)
     away_team = aliased(Team)
@@ -521,7 +522,7 @@ async def trigger_batch_predictions(
     """
     from jobs.job_manager import create_job, update_job_status
 
-    target_date = kickoff_date or datetime.utcnow().date()
+    target_date = kickoff_date or datetime.now(UTC).date()
 
     job_id = await create_job(
         job_type="batch_prediction",
@@ -1049,8 +1050,8 @@ async def resync_fixtures(
         except Exception:
             return None
 
-    from_dt = _parse(date_from) or (datetime.utcnow() - timedelta(days=1))
-    to_dt = _parse(date_to) or datetime.utcnow()
+    from_dt = _parse(date_from) or (datetime.now(UTC) - timedelta(days=1))
+    to_dt = _parse(date_to) or datetime.now(UTC)
     counts: dict[str, int] = {}
     try:
         async with provider:

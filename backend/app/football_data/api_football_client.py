@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 import httpx
@@ -234,21 +234,21 @@ class APIFootballClient:
         Returns a dict with health metrics.
         """
         try:
-            start = datetime.utcnow()
+            start = datetime.now(UTC)
             await self._http.get("/leagues", params={"id": "39"})
-            duration_ms = (datetime.utcnow() - start).total_seconds() * 1000
+            duration_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             metrics = self._http.get_metrics()
             return {
                 "healthy": True,
                 "response_time_ms": round(duration_ms, 2),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 **metrics,
             }
         except Exception as exc:
             return {
                 "healthy": False,
                 "error": str(exc),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 **self._http.get_metrics(),
             }
 

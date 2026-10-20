@@ -55,6 +55,18 @@ class AIFeatureVector:
     research_available: bool = False
     data_quality: float = 0.0
     research_run_id: str | None = None
+    # Statistical context for AI adjustment layer
+    h2h_record: dict[str, Any] | None = None
+    home_league_position: int | None = None
+    away_league_position: int | None = None
+    home_standing_points_per_game: float | None = None
+    away_standing_points_per_game: float | None = None
+    home_avg_goals_per_game: float | None = None
+    away_avg_goals_per_game: float | None = None
+    h2h_avg_goals_per_game: float | None = None
+    league_position_advantage: int | None = None
+    standing_ppg_advantage: float | None = None
+    avg_goals_advantage: float | None = None
 
 
 class AIFeatureBuilder:
@@ -69,34 +81,90 @@ class AIFeatureBuilder:
         "midfielder", "midfield", "cm", "cam", "cdm", "lm", "rm",
     }
 
-    def build(self, research_result: MatchResearchResult | None) -> AIFeatureVector:
+    def build(
+        self,
+        research_result: MatchResearchResult | None,
+        match_input: Any = None,
+    ) -> AIFeatureVector:
         """Build AI features from a research result.
 
         If research_result is None, returns an empty AIFeatureVector with
-        research_available=False.
+        research_available=False. If match_input is provided, statistical
+        context (H2H, league positions, average goals) is included.
         """
         if research_result is None:
-            return AIFeatureVector(research_available=False)
+            vector = AIFeatureVector(research_available=False)
+        else:
+            vector = AIFeatureVector(
+                research_available=True,
+                data_quality=research_result.data_quality,
+                research_run_id=research_result.research_run_id,
+                source_count=len(research_result.sources),
+                average_credibility=self._avg_credibility(research_result.sources),
+                average_freshness=self._avg_freshness(research_result.sources),
+            )
 
-        vector = AIFeatureVector(
-            research_available=True,
-            data_quality=research_result.data_quality,
-            research_run_id=research_result.research_run_id,
-            source_count=len(research_result.sources),
-            average_credibility=self._avg_credibility(research_result.sources),
-            average_freshness=self._avg_freshness(research_result.sources),
-        )
+        if match_input is not None:
+            self._populate_match_context(match_input, vector)
 
-        self._process_injuries(research_result.injuries, vector)
-        self._process_suspensions(research_result.suspensions, vector)
-        self._process_lineups(research_result.lineups, vector)
-        self._process_team_news(research_result.team_news, vector)
-        vector.search_context = self._build_search_context(research_result.sources)
+        if research_result is not None:
+            self._process_injuries(research_result.injuries, vector)
+            self._process_suspensions(research_result.suspensions, vector)
+            self._process_lineups(research_result.lineups, vector)
+            self._process_team_news(research_result.team_news, vector)
+            vector.search_context = self._build_search_context(research_result.sources)
 
         vector.evidence_text = self._build_evidence_text(research_result, vector)
         vector.evidence_summary = self._build_evidence_summary(vector)
 
         return vector
+
+    def _populate_match_context(
+        self,
+        match_input: Any,
+        vector: AIFeatureVector,
+    ) -> None:
+        """Extract statistical context from match input and attach to vector."""
+        h2h = getattr(match_input, "h2h", None)
+
+        if h2h:
+            vector.h2h_record = h2h.model_dump()
+            vector.h2h_avg_goals_per_game = getattr(h2h, "avg_goals_per_game", None)
+
+        home_stats = getattr(match_input, "home_team_stats", None)
+        away_stats = getattr(match_input, "away_team_stats", None)
+
+        if home_stats:
+            vector.home_league_position = getattr(home_stats, "position", None)
+            vector.home_standing_points_per_game = getattr(home_stats, "points_per_game", None)
+            vector.home_avg_goals_per_game = getattr(home_stats, "goals_per_game", None)
+
+        if away_stats:
+            vector.away_league_position = getattr(away_stats, "position", None)
+            vector.away_standing_points_per_game = getattr(away_stats, "points_per_game", None)
+            vector.away_avg_goals_per_game = getattr(away_stats, "goals_per_game", None)
+
+        if vector.home_league_position is not None and vector.away_league_position is not None:
+            vector.league_position_advantage = (
+                vector.away_league_position - vector.home_league_position
+            )
+
+        if (
+            vector.home_standing_points_per_game is not None
+            and vector.away_standing_points_per_game is not None
+        ):
+            vector.standing_ppg_advantage = (
+                vector.home_standing_points_per_game
+                - vector.away_standing_points_per_game
+            )
+
+        if (
+            vector.home_avg_goals_per_game is not None
+            and vector.away_avg_goals_per_game is not None
+        ):
+            vector.avg_goals_advantage = (
+                vector.home_avg_goals_per_game - vector.away_avg_goals_per_game
+            )
 
     def _process_injuries(
         self, injuries: list[InjuryEvidence], vector: AIFeatureVector
@@ -183,10 +251,39 @@ class AIFeatureBuilder:
                 vector.fixture_congestion = True
 
     def _build_evidence_text(
-        self, research_result: MatchResearchResult, vector: AIFeatureVector
+        self, research_result: MatchResearchResult | None, vector: AIFeatureVector
     ) -> str:
         """Build a text summary of evidence for AI prompts."""
         parts: list[str] = []
+
+        # Statistical context from match input
+        if vector.h2h_avg_goals_per_game is not None:
+            parts.append(
+                f"H2H average goals per game: {vector.h2h_avg_goals_per_game:.2f}"
+            )
+        if vector.home_avg_goals_per_game is not None and vector.away_avg_goals_per_game is not None:
+            parts.append(
+                f"Home team goals per game: {vector.home_avg_goals_per_game:.2f}, "
+                f"Away team goals per game: {vector.away_avg_goals_per_game:.2f}"
+            )
+        if vector.home_league_position is not None and vector.away_league_position is not None:
+            parts.append(
+                f"Home league position: {vector.home_league_position}, "
+                f"Away league position: {vector.away_league_position}"
+            )
+        if vector.home_standing_points_per_game is not None and vector.away_standing_points_per_game is not None:
+            parts.append(
+                f"Home points per game: {vector.home_standing_points_per_game:.2f}, "
+                f"Away points per game: {vector.away_standing_points_per_game:.2f}"
+            )
+        if vector.league_position_advantage is not None:
+            parts.append(
+                f"League position advantage for home team: {vector.league_position_advantage} places"
+            )
+        if vector.avg_goals_advantage is not None:
+            parts.append(
+                f"Goals per game advantage for home team: {vector.avg_goals_advantage:.2f}"
+            )
 
         for injury in vector.injuries:
             parts.append(

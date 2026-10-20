@@ -96,6 +96,10 @@ class FeatureVector:
     h2h_signal: float | None = None
     # Difference in season points per game (home minus away)
     standing_signal: float | None = None
+    # Position-based signal: home position - away position (lower is better)
+    league_position_signal: float | None = None
+    # Average goals per game difference
+    avg_goals_signal: float | None = None
 
     # Data quality components
     data_quality: float = 0.0
@@ -194,6 +198,12 @@ class FeatureBuilder:
         standing_signal = self._compute_standing_signal(
             match_input.home_team_stats, match_input.away_team_stats
         )
+        league_position_signal = self._compute_league_position_signal(
+            match_input.home_team_stats, match_input.away_team_stats
+        )
+        avg_goals_signal = self._compute_avg_goals_signal(
+            match_input.home_team_stats, match_input.away_team_stats
+        )
 
         # Expected goal baselines (lambda priors)
         home_lambda_baseline = (
@@ -245,6 +255,8 @@ class FeatureBuilder:
             away_xga=away_xga,
             h2h_signal=h2h_signal,
             standing_signal=standing_signal,
+            league_position_signal=league_position_signal,
+            avg_goals_signal=avg_goals_signal,
             data_quality=data_quality,
             home_sample=home_strength.get("sample", 0) if home_strength else 0,
             away_sample=away_strength.get("sample", 0) if away_strength else 0,
@@ -542,6 +554,44 @@ class FeatureBuilder:
 
         return signal
 
+    def _compute_league_position_signal(
+        self,
+        home_stats: NormalizedTeamStatistics | None,
+        away_stats: NormalizedTeamStatistics | None,
+    ) -> float | None:
+        """Compute a league position advantage signal.
+
+        Teams with better league position (lower position number, top 10)
+        get a higher signal. Returns home_position - away_position;
+        negative means home team is higher in the table (better).
+        Returns None if positional data is unavailable.
+        """
+        if not home_stats or not away_stats:
+            return None
+        if home_stats.position is None or away_stats.position is None:
+            return None
+
+        position_diff = away_stats.position - home_stats.position
+        return float(position_diff)
+
+    def _compute_avg_goals_signal(
+        self,
+        home_stats: NormalizedTeamStatistics | None,
+        away_stats: NormalizedTeamStatistics | None,
+    ) -> float | None:
+        """Compute average goals per game difference (home - away)."""
+        if not home_stats or not away_stats:
+            return None
+
+        home_gpg = home_stats.goals_per_game
+        away_gpg = away_stats.goals_per_game
+        if home_gpg is None and away_gpg is None:
+            return None
+
+        home_rate = home_gpg if home_gpg is not None else 1.35
+        away_rate = away_gpg if away_gpg is not None else 1.35
+        return home_rate - away_rate
+
     def _compute_data_quality(
         self,
         match_input: PredictionInput,
@@ -632,4 +682,19 @@ class FeatureBuilder:
                 match_input.home_team_stats, match_input.away_team_stats
             ),
             "h2h_signal": self._compute_h2h_signal(match_input.h2h),
+            "league_position_signal": self._compute_league_position_signal(
+                match_input.home_team_stats, match_input.away_team_stats
+            ),
+            "avg_goals_signal": self._compute_avg_goals_signal(
+                match_input.home_team_stats, match_input.away_team_stats
+            ),
+            "h2h_avg_goals_per_game": match_input.h2h.avg_goals_per_game
+            if match_input.h2h
+            else None,
+            "home_avg_goals_per_game": match_input.home_team_stats.goals_per_game
+            if match_input.home_team_stats
+            else None,
+            "away_avg_goals_per_game": match_input.away_team_stats.goals_per_game
+            if match_input.away_team_stats
+            else None,
         }

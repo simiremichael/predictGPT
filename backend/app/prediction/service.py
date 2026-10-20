@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import math
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from core.config import get_settings
@@ -193,7 +193,7 @@ class PredictionService:
                 try:
                     from ai.feature_builder import AIFeatureBuilder
 
-                    ai_features = AIFeatureBuilder().build(research_result)
+                    ai_features = AIFeatureBuilder().build(research_result, match_input)
                     adjustment_result = await self._ai_adjustment_layer.apply_adjustment(
                         match_input, base_model_result, features, ai_features
                     )
@@ -245,14 +245,16 @@ class PredictionService:
             )
             if assessment and assessment.applied:
                 matrix.apply_result_probabilities(
-                    dict(zip(
-                        ("home", "draw", "away"),
-                        apply_temperature(
-                            [hda["home"], hda["draw"], hda["away"]],
-                            assessment.temperature,
-                        ),
-                        strict=True,
-                    ))
+                    dict(
+                        zip(
+                            ("home", "draw", "away"),
+                            apply_temperature(
+                                [hda["home"], hda["draw"], hda["away"]],
+                                assessment.temperature,
+                            ),
+                            strict=True,
+                        )
+                    )
                 )
                 market_calc = MarketCalculator(matrix)
                 markets = market_calc.get_all_markets()
@@ -719,7 +721,10 @@ class PredictionService:
         """Check that a match is eligible for prediction."""
         if match_input.kickoff_at is None:
             raise PredictionValidationError("Cannot predict match without kickoff time")
-        now = datetime.now(match_input.kickoff_at.tzinfo) if match_input.kickoff_at.tzinfo else datetime.utcnow()
+        if match_input.kickoff_at.tzinfo is not None:
+            now = datetime.now(match_input.kickoff_at.tzinfo)
+        else:
+            now = datetime.now(UTC)
         if match_input.kickoff_at <= now:
             raise PredictionValidationError("Cannot generate a pre-match prediction after kickoff")
 
@@ -903,7 +908,7 @@ class PredictionService:
             feature_explanations=explanations,
             feature_snapshot=features.raw_snapshot,
             model_parameters=model_result.model_parameters,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(UTC),
             match_id=match_input.match_id,
             match_home_team=match_input.home_team_name,
             match_away_team=match_input.away_team_name,
@@ -936,8 +941,12 @@ class PredictionService:
                 select(
                     Match.id,
                     Match.kickoff_at,
-                    func.coalesce(PredictionResult.home_score, Match.home_score).label("home_score"),
-                    func.coalesce(PredictionResult.away_score, Match.away_score).label("away_score"),
+                    func.coalesce(PredictionResult.home_score, Match.home_score).label(
+                        "home_score"
+                    ),
+                    func.coalesce(PredictionResult.away_score, Match.away_score).label(
+                        "away_score"
+                    ),
                     Prediction.generated_at,
                     Prediction.home_probability,
                     Prediction.draw_probability,
@@ -965,8 +974,10 @@ class PredictionService:
             per_match: dict[str, dict[str, Any]] = {}
             for row in rows:
                 outcome = (
-                    0 if row.home_score > row.away_score
-                    else 1 if row.home_score == row.away_score
+                    0
+                    if row.home_score > row.away_score
+                    else 1
+                    if row.home_score == row.away_score
                     else 2
                 )
                 per_match[row.id] = {
@@ -1082,7 +1093,7 @@ class PredictionService:
                 model_version=model_result.model_version,
                 prediction_version=output.prediction_version,
                 provider_used=match_input.provider,
-                generated_at=datetime.utcnow(),
+                generated_at=datetime.now(UTC),
                 lambda_home=model_result.lambda_home,
                 lambda_away=model_result.lambda_away,
                 home_probability=output.result_probabilities.home,

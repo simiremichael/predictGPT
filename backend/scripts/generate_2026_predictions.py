@@ -23,7 +23,7 @@ which is capped to a 7-day window and runs a per-match provider sync):
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -127,7 +127,7 @@ async def _predict_one(match_id: str, semaphore: asyncio.Semaphore) -> str:
 
 async def main() -> None:
     data_service = PredictionDataService()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     month_end = now + timedelta(days=WINDOW_DAYS)
 
     async with AsyncSessionLocal() as db:

@@ -17,7 +17,7 @@ the Phase 3 statistical model and Phase 4 research/AI layers.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -398,7 +398,7 @@ async def list_predictions(
     page_num = get_page(page)
     ps = get_page_size(page_size)
     offset = (page_num - 1) * ps
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     cache_key = cache_predictions_list_key(
         match_id=match_id,

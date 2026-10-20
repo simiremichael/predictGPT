@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from core.config import get_settings
@@ -122,7 +122,7 @@ class PredictionOrchestrator:
                     return existing
                 if (
                     not current_context_hash
-                    and existing.generated_at > datetime.utcnow() - timedelta(seconds=max_age)
+                    and existing.generated_at > datetime.now(UTC) - timedelta(seconds=max_age)
                 ):
                     logger.info(
                         "Returning fresh cached prediction",
@@ -322,7 +322,7 @@ class PredictionOrchestrator:
         if db_session is None:
             return {"error": "Database session required", "generated": 0, "failed": 0}
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         cutoff = now + timedelta(days=7)
         stmt = (
             select(Match)

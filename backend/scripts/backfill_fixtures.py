@@ -116,7 +116,7 @@ async def backfill(days_back: int, days_forward: int) -> int:
                     existing.is_finished = norm.is_finished
                     existing.kickoff_at = norm.kickoff_at
                     existing.season_id = season_id
-                    existing.retrieved_at = datetime.utcnow()
+                    existing.retrieved_at = datetime.now(timezone.utc)
                     total_updated += 1
 
             await db.commit()

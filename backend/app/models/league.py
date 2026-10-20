@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import UUID, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.base import Base
+
+if TYPE_CHECKING:
+    from models.match import HeadToHead, Match, TeamStatistics
 
 
 def _uuid() -> str:
@@ -29,16 +33,16 @@ class League(Base):
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     country_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     provider_league_id: Mapped[str] = mapped_column(String(100), nullable=False)
     # Relationships
-    head_to_heads: Mapped[list["HeadToHead"]] = relationship("HeadToHead", back_populates="league")
-    matches: Mapped[list["Match"]] = relationship("Match", back_populates="league")
-    provider_leagues: Mapped[list["ProviderLeague"]] = relationship(
+    head_to_heads: Mapped[list[HeadToHead]] = relationship("HeadToHead", back_populates="league")
+    matches: Mapped[list[Match]] = relationship("Match", back_populates="league")
+    provider_leagues: Mapped[list[ProviderLeague]] = relationship(
         "ProviderLeague", back_populates="league"
     )
-    seasons: Mapped[list["Season"]] = relationship("Season", back_populates="league")
-    team_statistics: Mapped[list["TeamStatistics"]] = relationship(
+    seasons: Mapped[list[Season]] = relationship("Season", back_populates="league")
+    team_statistics: Mapped[list[TeamStatistics]] = relationship(
         "TeamStatistics", back_populates="league"
     )
 
@@ -55,12 +59,12 @@ class Season(Base):
     )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     year: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    start_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    end_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    league: Mapped["League"] = relationship("League", back_populates="seasons")
+    league: Mapped[League] = relationship("League", back_populates="seasons")
 
 
 class ProviderLeague(Base):
@@ -76,9 +80,9 @@ class ProviderLeague(Base):
     provider_league_id: Mapped[str] = mapped_column(String(100), nullable=False)
     provider_season_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    league: Mapped["League"] = relationship("League", back_populates="provider_leagues")
+    league: Mapped[League] = relationship("League", back_populates="provider_leagues")
 
     __table_args__ = (
         # One row per (league, provider)
@@ -97,7 +101,7 @@ class Team(Base):
     venue_city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class ProviderTeam(Base):
@@ -114,7 +118,7 @@ class ProviderTeam(Base):
     provider_league_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     season_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # One mapping per (team, provider, league, season).  NULLS NOT DISTINCT so
     # that the NULL league/season rows written by an unfiltered team fetch

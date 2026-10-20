@@ -327,7 +327,7 @@ async def sync_fixtures(
                         "away_score": norm.away_score,
                         "status": status_val,
                         "is_finished": norm.is_finished,
-                        "retrieved_at": datetime.utcnow(),
+                        "retrieved_at": datetime.now(timezone.utc),
                         "kickoff_at": norm.kickoff_at,
                         "home_team_name": norm.home_team_name or Match.__table__.c.home_team_name,
                         "away_team_name": norm.away_team_name or Match.__table__.c.away_team_name,
@@ -396,7 +396,7 @@ async def sync_standings(
                 form_rating=standing.provider_metadata.get("form_rating")
                 if standing.provider_metadata
                 else None,
-                retrieved_at=datetime.utcnow(),
+                retrieved_at=datetime.now(timezone.utc),
                 provider_metadata=standing.provider_metadata or {},
             )
             await db.execute(stmt)

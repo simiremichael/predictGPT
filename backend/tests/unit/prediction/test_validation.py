@@ -12,7 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -53,7 +53,7 @@ def match_input(league_baseline: LeagueBaseline) -> PredictionInput:
         home_team_name="Home FC",
         away_team_name="Away FC",
         league_id="premier_league",
-        kickoff_at=datetime.utcnow() + timedelta(days=1),
+        kickoff_at=datetime.now(UTC) + timedelta(days=1),
     )
 
 
@@ -92,7 +92,7 @@ class TestPredictionValidation:
     def test_rejects_prediction_after_kickoff(self, match_input: PredictionInput) -> None:
         service = PredictionService()
         past_kickoff = replace(
-            match_input, kickoff_at=datetime.utcnow() - timedelta(minutes=1)
+            match_input, kickoff_at=datetime.now(UTC) - timedelta(minutes=1)
         )
 
         with pytest.raises(PredictionValidationError, match="after kickoff"):
@@ -181,13 +181,13 @@ class TestModelVersioning:
     def test_model_has_version(self) -> None:
         """PoissonModel should have a model_version."""
         model = PoissonModel()
-        assert model.model_version == "poisson-v1.2.0"
+        assert model.model_version == "poisson-v1.3.0"
 
     def test_model_version_in_result(self, match_input: PredictionInput) -> None:
         """Model result should include the model version."""
         model = PoissonModel()
         result = model.predict(match_input)
-        assert result.model_version == "poisson-v1.2.0"
+        assert result.model_version == "poisson-v1.3.0"
         assert result.model == "poisson"
 
     def test_model_parameters_stored_in_result(self, match_input: PredictionInput) -> None:

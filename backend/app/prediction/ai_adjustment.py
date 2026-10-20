@@ -157,8 +157,16 @@ class AIAdjustmentLayer:
             evidence_text=evidence_text,
         )
 
+        # Compute statistical adjustments from H2H and league context
+        # These are blended with the AI's adjustments to ensure statistical
+        # signals (league position, avg goals, H2H) have a consistent baseline
+        statistical_adjustment = self._compute_statistical_adjustments(ai_features)
+
         # Query the AI provider for adjustments
         adjustment = await self._get_ai_adjustment(system_prompt, user_prompt, match_input)
+
+        # Blend AI adjustments with statistical adjustments
+        adjustment = self._blend_adjustments(adjustment, statistical_adjustment)
 
         # Enforce caps
         adjustment = self._enforce_caps(adjustment)
@@ -290,6 +298,129 @@ class AIAdjustmentLayer:
     ) -> AIFeatureAdjustment:
         """Return no adjustment when AI cannot make an evidence-based call."""
         return AIFeatureAdjustment()
+
+    def _compute_statistical_adjustments(
+        self,
+        ai_features: AIFeatureVector,
+    ) -> AIFeatureAdjustment:
+        """Compute bounded adjustments from H2H and league context.
+
+        These adjustments are blended with the AI's response to ensure
+        statistical signals contribute consistently to the final prediction.
+        """
+        home_attack_adj = 0.0
+        away_attack_adj = 0.0
+        home_defense_adj = 0.0
+        away_defense_adj = 0.0
+        reason_codes: list[str] = []
+
+        # League position advantage (lower position number is better for home)
+        if ai_features.league_position_advantage is not None:
+            if ai_features.league_position_advantage > 0:
+                # Home team is higher in table (better position)
+                home_attack_adj += min(0.3, ai_features.league_position_advantage * 0.02)
+                away_defense_adj += min(0.3, ai_features.league_position_advantage * 0.02)
+                reason_codes.append("league_position_advantage")
+            elif ai_features.league_position_advantage < 0:
+                # Away team is higher in table
+                away_attack_adj += min(0.3, abs(ai_features.league_position_advantage) * 0.02)
+                home_defense_adj += min(0.3, abs(ai_features.league_position_advantage) * 0.02)
+                reason_codes.append("league_position_disadvantage")
+
+        # Standing PPG advantage
+        if ai_features.standing_ppg_advantage is not None:
+            ppg_adj = ai_features.standing_ppg_advantage * 0.08
+            if ppg_adj > 0:
+                home_attack_adj += min(0.35, ppg_adj)
+                away_defense_adj += min(0.35, ppg_adj)
+                reason_codes.append("standing_ppg_advantage")
+            elif ppg_adj < 0:
+                away_attack_adj += min(0.35, abs(ppg_adj))
+                home_defense_adj += min(0.35, abs(ppg_adj))
+                reason_codes.append("standing_ppg_disadvantage")
+
+        # Average goals per game advantage
+        if ai_features.avg_goals_advantage is not None:
+            gpg_adj = ai_features.avg_goals_advantage * 0.08
+            if gpg_adj > 0:
+                home_attack_adj += min(0.25, gpg_adj)
+                away_defense_adj += min(0.25, gpg_adj)
+                reason_codes.append("avg_goals_advantage")
+            elif gpg_adj < 0:
+                away_attack_adj += min(0.25, abs(gpg_adj))
+                home_defense_adj += min(0.25, abs(gpg_adj))
+                reason_codes.append("avg_goals_disadvantage")
+
+        # H2H head-to-head ratio
+        if ai_features.h2h_record is not None:
+            h2h_ratio = ai_features.h2h_record.get("home_win_ratio", None)
+            if h2h_ratio is not None:
+                h2h_adj = (h2h_ratio - 0.5) * 0.5  # -0.25 to +0.25 range
+                if h2h_adj > 0:
+                    home_attack_adj += min(0.25, h2h_adj)
+                    reason_codes.append("h2h_advantage")
+                elif h2h_adj < 0:
+                    away_attack_adj += min(0.25, abs(h2h_adj))
+                    reason_codes.append("h2h_disadvantage")
+
+        return AIFeatureAdjustment(
+            home_attack_adjustment=round(home_attack_adj, 4),
+            away_attack_adjustment=round(away_attack_adj, 4),
+            home_defense_adjustment=round(home_defense_adj, 4),
+            away_defense_adjustment=round(away_defense_adj, 4),
+            confidence=0.3,
+            reason_codes=reason_codes,
+            source_ids=[],
+        )
+
+    def _blend_adjustments(
+        self,
+        ai_adjustment: AIFeatureAdjustment,
+        statistical_adjustment: AIFeatureAdjustment,
+    ) -> AIFeatureAdjustment:
+        """Blend AI and statistical adjustments.
+
+        Statistical adjustments provide a baseline weight to H2H/league
+        signals, while the AI adjustment provides context-aware modifications.
+        The statistical adjustment is weighted at 60% when no AI adjustment
+        exists, and 20% otherwise (AI insight takes priority when available).
+        """
+        stat_weight = 0.2 if any([
+            ai_adjustment.home_attack_adjustment,
+            ai_adjustment.away_attack_adjustment,
+            ai_adjustment.home_defense_adjustment,
+            ai_adjustment.away_defense_adjustment,
+        ]) else 0.6
+
+        blended = AIFeatureAdjustment(
+            home_attack_adjustment=round(
+                ai_adjustment.home_attack_adjustment
+                + statistical_adjustment.home_attack_adjustment * stat_weight,
+                4,
+            ),
+            away_attack_adjustment=round(
+                ai_adjustment.away_attack_adjustment
+                + statistical_adjustment.away_attack_adjustment * stat_weight,
+                4,
+            ),
+            home_defense_adjustment=round(
+                ai_adjustment.home_defense_adjustment
+                + statistical_adjustment.home_defense_adjustment * stat_weight,
+                4,
+            ),
+            away_defense_adjustment=round(
+                ai_adjustment.away_defense_adjustment
+                + statistical_adjustment.away_defense_adjustment * stat_weight,
+                4,
+            ),
+            confidence=max(ai_adjustment.confidence, statistical_adjustment.confidence),
+            reason_codes=list(dict.fromkeys(
+                ai_adjustment.reason_codes + statistical_adjustment.reason_codes
+            )),
+            source_ids=ai_adjustment.source_ids,
+        )
+
+        return blended
 
     def _enforce_caps(self, adjustment: AIFeatureAdjustment) -> AIFeatureAdjustment:
         """Enforce configured maximum adjustment caps."""

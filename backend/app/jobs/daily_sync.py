@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -47,7 +47,7 @@ async def _prune_played_fixtures(db: AsyncSession, older_than_days: int) -> int:
     """
     from sqlalchemy import delete, func
 
-    cutoff = datetime.utcnow() - timedelta(days=older_than_days)
+    cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
     stmt = delete(Match).where(Match.kickoff_at < cutoff)
     result = await db.execute(stmt)
     pruned = result.rowcount
@@ -140,9 +140,9 @@ async def daily_sync_once() -> dict[str, Any]:
                     # the requested league, so fetch once and scope client-side
                     # to current seasons instead of re-downloading per league.
                     fixtures = await provider.get_fixtures(
-                        from_date=datetime.now(timezone.utc)
+                        from_date=datetime.now(UTC)
                         - timedelta(days=FIXTURE_RETENTION_DAYS),
-                        to_date=datetime.now(timezone.utc)
+                        to_date=datetime.now(UTC)
                         + timedelta(days=FIXTURE_WINDOW_DAYS),
                     )
                     counts["fixtures"] = len(fixtures) if fixtures else 0

@@ -49,6 +49,22 @@ async def _ensure_schema() -> None:
             tz_aware_columns = {
                 "subscriptions": ["current_period_end", "current_period_start", "created_at", "updated_at"],
                 "users": ["created_at", "updated_at"],
+                "matches": ["kickoff_at", "retrieved_at", "created_at"],
+                "predictions": ["generated_at", "created_at"],
+                "prediction_scorelines": ["created_at"],
+                "prediction_results": ["evaluated_at"],
+                "team_statistics": ["retrieved_at"],
+                "team_form": ["retrieved_at"],
+                "head_to_head": ["retrieved_at"],
+                "players": ["date_of_birth", "retrieved_at"],
+                "injuries": ["start_date", "return_date", "retrieved_at"],
+                "suspensions": ["suspended_from", "suspended_until", "retrieved_at"],
+                "predicted_lineups": ["retrieved_at"],
+                "match_statistics": ["retrieved_at"],
+                "research_runs": ["started_at", "completed_at", "cutoff_datetime"],
+                "research_evidence": ["retrieved_at", "created_at"],
+                "evidence_conflicts": ["detected_at"],
+                "web_sources_extended": ["published_at", "retrieved_at", "created_at"],
             }
             for table_name, columns in tz_aware_columns.items():
                 for col_name in columns:

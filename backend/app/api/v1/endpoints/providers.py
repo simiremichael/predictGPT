@@ -23,7 +23,7 @@ POST /api/v1/providers/sync/standings -- sync standings to database
 
 from __future__ import annotations
 
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -130,11 +130,11 @@ def _resolve_fixture_window(kwargs: dict[str, Any]) -> tuple[date | None, date |
         end = single
 
     if kwargs.get("today"):
-        today = datetime.utcnow().date()
+        today = datetime.now(UTC).date()
         start, end = today, today
 
     if kwargs.get("upcoming"):
-        today = datetime.utcnow().date()
+        today = datetime.now(UTC).date()
         try:
             days = int(kwargs.get("days") or 7)
         except (TypeError, ValueError):
@@ -546,7 +546,7 @@ async def _read_db_resource_payload(provider_method: str, **kwargs: Any) -> list
                 stmt = stmt.where(
                     Match.is_finished.is_(False),
                     Match.kickoff_at.is_not(None),
-                    Match.kickoff_at >= datetime.utcnow(),
+                    Match.kickoff_at >= datetime.now(UTC),
                 )
             window_start, window_end = _resolve_fixture_window(kwargs)
             if window_start is not None:
@@ -837,7 +837,7 @@ async def _save_seasons(db: AsyncSession, payload: list[Any]) -> None:
                 "start_date": item.get("start_date"),
                 "end_date": item.get("end_date"),
                 "is_current": item.get("is_current", False),
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(UTC),
             }
         )
 
@@ -1041,7 +1041,7 @@ async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
                     average_xga=item.get("average_xga"),
                     goals_per_game=item.get("goals_per_game"),
                     goals_conceded_per_game=item.get("goals_conceded_per_game"),
-                    retrieved_at=datetime.utcnow(),
+                    retrieved_at=datetime.now(UTC),
                     provider_metadata=item.get("provider_metadata", {}),
                 )
             )
@@ -1070,7 +1070,7 @@ async def _save_standings(db: AsyncSession, payload: list[Any]) -> None:
             existing.goals_conceded_per_game = item.get(
                 "goals_conceded_per_game", existing.goals_conceded_per_game
             )
-            existing.retrieved_at = datetime.utcnow()
+            existing.retrieved_at = datetime.now(UTC)
             existing.provider_metadata = item.get("provider_metadata", {})
 
 
@@ -1187,7 +1187,7 @@ async def _save_fixtures(db: AsyncSession, payload: list[Any]) -> None:
                 "home_score": item.get("home_score"),
                 "away_score": item.get("away_score"),
                 "is_finished": item.get("is_finished", False),
-                "retrieved_at": item.get("retrieved_at") or datetime.utcnow(),
+                "retrieved_at": item.get("retrieved_at") or datetime.now(UTC),
                 "provider_metadata": item.get("provider_metadata") or {},
             }
         )
@@ -1353,7 +1353,7 @@ async def _save_players(db: AsyncSession, payload: list[Any]) -> None:
                     height=item.get("height"),
                     weight=item.get("weight"),
                     footed=item.get("footed"),
-                    retrieved_at=datetime.utcnow(),
+                    retrieved_at=datetime.now(UTC),
                     provider_metadata=item.get("provider_metadata", {}),
                 )
             )
@@ -1386,7 +1386,7 @@ async def _save_injuries(db: AsyncSession, payload: list[Any]) -> None:
             start_date=item.get("start_date"),
             return_date=item.get("return_date"),
             is_startingXI_impact=item.get("is_startingXI_impact", False),
-            retrieved_at=datetime.utcnow(),
+            retrieved_at=datetime.now(UTC),
             provider_metadata=item.get("provider_metadata", {}),
         )
         db.add(injury)
@@ -1417,7 +1417,7 @@ async def _save_suspensions(db: AsyncSession, payload: list[Any]) -> None:
             suspension_type=item.get("suspension_type"),
             suspended_from=item.get("suspended_from"),
             suspended_until=item.get("suspended_until"),
-            retrieved_at=datetime.utcnow(),
+            retrieved_at=datetime.now(UTC),
             provider_metadata=item.get("provider_metadata", {}),
         )
         db.add(suspension)
@@ -1763,7 +1763,7 @@ def _transform_provider_data(provider_method: str, item: Any) -> dict[str, Any]:
             "home_score": item.get("home_score"),
             "away_score": item.get("away_score"),
             "is_finished": item.get("is_finished", False),
-            "retrieved_at": datetime.utcnow().isoformat(),
+            "retrieved_at": datetime.now(UTC).isoformat(),
         }
     elif provider_method == "get_fixture":
         return {
@@ -1780,7 +1780,7 @@ def _transform_provider_data(provider_method: str, item: Any) -> dict[str, Any]:
             "home_score": item.get("home_score"),
             "away_score": item.get("away_score"),
             "is_finished": item.get("is_finished", False),
-            "retrieved_at": datetime.utcnow().isoformat(),
+            "retrieved_at": datetime.now(UTC).isoformat(),
         }
     elif provider_method == "get_players":
         return {
@@ -1843,7 +1843,7 @@ async def providers_status() -> ProviderStatusResponse:
             name=provider_name,
             configured=configured,
             healthy=False,
-            last_checked=datetime.utcnow(),
+            last_checked=datetime.now(UTC),
         )
 
         if configured:

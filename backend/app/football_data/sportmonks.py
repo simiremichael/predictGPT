@@ -14,7 +14,7 @@ Sportmonks passes the token as a ``token`` query parameter.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from core.config import get_settings
@@ -282,13 +282,13 @@ class SportmonksProvider(FootballDataProvider):
         if kwargs.get("last_n"):
             params["last"] = str(kwargs["last_n"])
         if kwargs.get("today"):
-            today = datetime.utcnow().date()
+            today = datetime.now(UTC).date()
             params["from"] = today.strftime("%Y-%m-%d")
             params["to"] = today.strftime("%Y-%m-%d")
         if kwargs.get("upcoming"):
-            params["from"] = datetime.utcnow().strftime("%Y-%m-%d")
+            params["from"] = datetime.now(UTC).strftime("%Y-%m-%d")
             days = kwargs.get("days", 7)
-            params["to"] = (datetime.utcnow() + timedelta(days=days)).strftime("%Y-%m-%d")
+            params["to"] = (datetime.now(UTC) + timedelta(days=days)).strftime("%Y-%m-%d")
 
         # The flat `/fixtures` endpoint silently ignores its `from`/`to` query
         # params and returns the sport-wide corpus (a stale 2024 set in this

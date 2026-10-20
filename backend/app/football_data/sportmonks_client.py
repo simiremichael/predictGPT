@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import AsyncIterator
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -362,21 +362,21 @@ class SportmonksClient:
         Returns a dict with health metrics.
         """
         try:
-            start = datetime.utcnow()
+            start = datetime.now(UTC)
             await self._http.get("/leagues", params={"api_token": self.api_token, "per_page": 1})
-            duration_ms = (datetime.utcnow() - start).total_seconds() * 1000
+            duration_ms = (datetime.now(UTC) - start).total_seconds() * 1000
             metrics = self._http.get_metrics()
             return {
                 "healthy": True,
                 "response_time_ms": round(duration_ms, 2),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 **metrics,
             }
         except Exception as exc:
             return {
                 "healthy": False,
                 "error": str(exc),
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
                 **self._http.get_metrics(),
             }
 
@@ -483,7 +483,7 @@ class SportmonksClient:
         return await self.request_all_pages(f"/standings/seasons/{season_id}/corrections")
 
     async def get_live_standings_by_league_id(self, league_id: str) -> list[dict[str, Any]]:
-        return await self.request_all_pages(f"/standings/live", params={"league_id": league_id})
+        return await self.request_all_pages("/standings/live", params={"league_id": league_id})
 
     async def get_grouped_standings_by_round_id(self, round_id: str) -> list[dict[str, Any]]:
         return await self.request_all_pages(f"/standings/grouped/rounds/{round_id}")

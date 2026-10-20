@@ -13,7 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from core.config import get_settings
@@ -852,7 +852,7 @@ class PredictionDataService:
         data: Any,
     ) -> None:
         """Update a specific data type in the database."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         if data_type == "injuries":
             await self._sync_injuries(db_session, match_id, data, now)

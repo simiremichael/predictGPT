@@ -442,7 +442,7 @@ async def sync_fixtures_diff(
                     existing.away_score = norm.away_score
                     existing.status = status_val
                     existing.is_finished = norm.is_finished
-                    existing.retrieved_at = datetime.utcnow()
+                    existing.retrieved_at = datetime.now(timezone.utc)
                     existing.kickoff_at = norm.kickoff_at
                     existing.home_team_name = norm.home_team_name or existing.home_team_name
                     existing.away_team_name = norm.away_team_name or existing.away_team_name
@@ -519,7 +519,7 @@ async def sync_standings_diff(
                     form_rating=standing.provider_metadata.get("form_rating")
                     if standing.provider_metadata
                     else None,
-                    retrieved_at=datetime.utcnow(),
+                    retrieved_at=datetime.now(timezone.utc),
                     provider_metadata=standing.provider_metadata or {},
                 )
                 await db.execute(stmt)
@@ -540,7 +540,7 @@ async def sync_standings_diff(
                     existing.losses = standing.losses
                     existing.goals_for = standing.goals_for
                     existing.goals_against = standing.goals_against
-                    existing.retrieved_at = datetime.utcnow()
+                    existing.retrieved_at = datetime.now(timezone.utc)
                     existing.provider_metadata = standing.provider_metadata or {}
                     stored += 1
         except Exception as exc:

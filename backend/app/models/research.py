@@ -10,10 +10,11 @@ The design preserves the existing football provider injury/lineup tables
 (Phase 2) for provider data. These evidence tables store web-sourced
 information with traceability to research runs and source URLs.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
@@ -22,10 +23,11 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
-    Index,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,18 +44,16 @@ class ResearchRun(Base):
     match_id: Mapped[str] = mapped_column(
         String, ForeignKey("matches.id"), nullable=False, index=True
     )
-    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     source_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     query_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="running")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    cutoff_datetime: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    cutoff_datetime: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     data_quality: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    __table_args__ = (
-        Index("idx_research_runs_match_cutoff", "match_id", "cutoff_datetime"),
-    )
+    __table_args__ = (Index("idx_research_runs_match_cutoff", "match_id", "cutoff_datetime"),)
 
 
 class ResearchEvidence(Base):
@@ -75,9 +75,7 @@ class ResearchEvidence(Base):
     research_run_id: Mapped[str | None] = mapped_column(
         String, ForeignKey("research_runs.id"), nullable=True, index=True
     )
-    evidence_type: Mapped[str] = mapped_column(
-        String(50), nullable=False, index=True
-    )
+    evidence_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     subject: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     claim: Mapped[str | None] = mapped_column(Text, nullable=True)
     evidence_status: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
@@ -85,10 +83,10 @@ class ResearchEvidence(Base):
     source_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
     evidence_data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     __table_args__ = (
@@ -115,12 +113,10 @@ class EvidenceConflict(Base):
     source_a_id: Mapped[str] = mapped_column(String(255), nullable=False)
     source_b_id: Mapped[str] = mapped_column(String(255), nullable=False)
     detected_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    __table_args__ = (
-        Index("idx_evidence_conflicts_match", "match_id"),
-    )
+    __table_args__ = (Index("idx_evidence_conflicts_match", "match_id"),)
 
 
 class WebSourceExtended(Base):
@@ -138,9 +134,9 @@ class WebSourceExtended(Base):
     url_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     title: Mapped[str | None] = mapped_column(String(500), nullable=True)
     publisher: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     retrieved_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     source_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -154,7 +150,7 @@ class WebSourceExtended(Base):
         String, ForeignKey("matches.id"), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
     __table_args__ = (

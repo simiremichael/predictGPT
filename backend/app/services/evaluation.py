@@ -8,7 +8,7 @@ actual outcomes to original predictions.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from core.config import get_settings
@@ -77,7 +77,7 @@ class EvaluationService:
                 away_win_correct=hda_correct.get("away_win"),
                 over_25_correct=over_25_correct,
                 btts_correct=btts_correct,
-                evaluated_at=match_finished_at or datetime.utcnow(),
+                evaluated_at=match_finished_at or datetime.now(UTC),
             )
             self._db.add(pr)
             evaluated_ids.append(pred.id)
