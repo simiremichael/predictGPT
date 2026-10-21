@@ -6,6 +6,7 @@ import type {
   ApiResponseMeta,
 } from "@/types/api";
 import type {
+  AiEvidenceItem,
   AuthResponse,
   League,
   MatchBrief,
@@ -637,7 +638,7 @@ export const api = {
     news_snapshot: Record<string, unknown>;
     odds_snapshot: Record<string, unknown>;
     ai_explanation: string | null;
-    ai_evidence: unknown;
+    ai_evidence: AiEvidenceItem[];
     ai_adjustment: unknown;
     source_ids: string[];
     top_scorelines: Array<{

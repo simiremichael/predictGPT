@@ -92,7 +92,7 @@ export function PredictionSummary({
         </div>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-xs">
+      <div className="mt-3 flex flex-col gap-2 border-t border-border pt-2 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <AIGeneratedBadge />
         <Badge
           variant="outline"

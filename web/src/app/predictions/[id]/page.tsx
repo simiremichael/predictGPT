@@ -15,9 +15,10 @@ import { ProbabilityBars } from "@/components/probability-bars";
 import { TopScorelines } from "@/components/top-scorelines";
 import { ExpectedGoalsDisplay } from "@/components/expected-goals";
 import { MarketsDisplay, OverUnderChart } from "@/components/markets-display";
+import { AiEvidenceDisplay } from "@/components/ai-evidence-display";
 import { LoadingState } from "@/components/loading-states";
 import { RetryableError } from "@/components/retryable-error";
-import type { PredictionDetail } from "@/types/models";
+import type { AiEvidenceItem, PredictionDetail } from "@/types/models";
 
 interface PredictionDetailPageProps {
   params: Promise<{ id: string }>;
@@ -171,11 +172,12 @@ async function PredictionDetailContent({
          reason_codes: [],
          source_ids: [],
        },
-       ai_explanation: res.ai_explanation || null,
-       confidence: res.confidence ?? 0,
-       uncertainty: 1 - (res.confidence ?? 0),
-       source_ids: res.source_ids || [],
-       admin_verify_gg: res.admin_verify_gg ?? null,
+        ai_explanation: res.ai_explanation || null,
+        confidence: res.confidence ?? 0,
+        uncertainty: 1 - (res.confidence ?? 0),
+        source_ids: res.source_ids || [],
+        ai_evidence: (res.ai_evidence ?? []) as AiEvidenceItem[],
+        admin_verify_gg: res.admin_verify_gg ?? null,
        admin_verify_win: res.admin_verify_win ?? null,
        admin_verify_over_2_5: res.admin_verify_over_2_5 ?? null,
      };
@@ -190,7 +192,7 @@ async function PredictionDetailContent({
   if (!prediction) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-4 py-4 sm:p-0 sm:space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -267,14 +269,28 @@ async function PredictionDetailContent({
       </Card>
 
       {prediction.ai_explanation && (
+         <Card>
+           <CardHeader>
+             <CardTitle>AI Explanation</CardTitle>
+           </CardHeader>
+           <CardContent>
+             <p className="text-sm italic leading-relaxed">
+               &ldquo;{prediction.ai_explanation}&rdquo;
+             </p>
+           </CardContent>
+         </Card>
+      )}
+
+      {prediction.ai_evidence && prediction.ai_evidence.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>AI Explanation</CardTitle>
+            <CardTitle>AI Evidence Sources</CardTitle>
+            <CardDescription>
+              Research findings that influenced the AI adjustment
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm italic leading-relaxed">
-              &ldquo;{prediction.ai_explanation}&rdquo;
-            </p>
+            <AiEvidenceDisplay evidence={prediction.ai_evidence} />
           </CardContent>
         </Card>
       )}

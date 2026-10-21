@@ -226,6 +226,7 @@ export interface PredictionDetail {
   generated_at: string;
   lambda_home: number;
   lambda_away: number;
+  ai_evidence: AiEvidenceItem[];
   result_probabilities: ResultProbabilities;
   top_scoreline: Scoreline | null;
   top_4_scorelines: Scoreline[];
@@ -359,22 +360,34 @@ export interface ResearchEvidence {
   source_ids: string[];
 }
 
-export interface ResearchSource {
-  url: string;
-  title?: string | null;
-  publisher?: string | null;
-  published_at?: string | null;
-  source_type?: string | null;
-  credibility_score: number;
-  freshness_score: number;
-}
-
-export interface ResearchEvidence {
-  subject: string;
-  claim: string | null;
+export interface AiEvidenceItem {
+  kind: "injury" | "suspension" | "lineup" | "team_news";
   evidence_status: string;
   confidence: number;
   source_ids: string[];
+  player?: string;
+  team?: string | null;
+  position?: string | null;
+  status?: string | null;
+  injury_type?: string | null;
+  expected_return?: string | null;
+  competition?: string | null;
+  suspension_status?: string | null;
+  matches_remaining?: number | null;
+  return_date?: string | null;
+  formation?: string | null;
+  goalkeeper?: unknown;
+  defenders?: unknown[];
+  midfielders?: unknown[];
+  attackers?: unknown[];
+  bench?: unknown[];
+  unavailable_players?: string[];
+  news_type?: string;
+  summary?: string | null;
+  affected_players?: string[];
+  tactical_effect?: string | null;
+  importance?: string;
+  [key: string]: unknown;
 }
 
 export interface ResearchSource {

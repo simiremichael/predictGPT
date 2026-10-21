@@ -46,10 +46,10 @@ class PoissonModel:
     """
 
     model_name = "poisson"
-    model_version = "poisson-v1.4.0"
+    model_version = "poisson-v1.5.0"
     MAX_GOALS = 8
 
-    HOME_ADVANTAGE_MULTIPLIER = 1.05
+    HOME_ADVANTAGE_MULTIPLIER = 1.01
     HOME_FORM_WEIGHT = 0.15
     MIN_HOME_ADVANTAGE = 1.00
 
@@ -57,14 +57,14 @@ class PoissonModel:
     SHRINKAGE_FACTOR = 0.3
 
     # Weight factors for ranking signals (league position, H2H, standings)
-    STANDING_SIGNAL_WEIGHT = 0.12   # Points-per-game advantage weight
-    H2H_SIGNAL_WEIGHT = 0.15       # Head-to-head win ratio weight
-    POSITION_SIGNAL_WEIGHT = 0.12    # League table position advantage weight
-    AVG_GOALS_SIGNAL_WEIGHT = 0.08  # Average goals per game difference weight
+    STANDING_SIGNAL_WEIGHT = 0.13   # Points-per-game advantage weight
+    H2H_SIGNAL_WEIGHT = 0.16       # Head-to-head win ratio weight
+    POSITION_SIGNAL_WEIGHT = 0.13    # League table position advantage weight
+    AVG_GOALS_SIGNAL_WEIGHT = 0.09  # Average goals per game difference weight
 
     # BTTS / over-under differentiation weights
-    BTTS_SIGNAL_WEIGHT = 0.10       # BTTS rate difference weight
-    OVER_2_5_SIGNAL_WEIGHT = 0.12   # Over 2.5 rate difference weight
+    BTTS_SIGNAL_WEIGHT = 0.11       # BTTS rate difference weight
+    OVER_2_5_SIGNAL_WEIGHT = 0.13   # Over 2.5 rate difference weight
 
     def __init__(self, max_goals: int = 8) -> None:
         self.max_goals = max_goals

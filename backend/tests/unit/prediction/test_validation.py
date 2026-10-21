@@ -181,13 +181,13 @@ class TestModelVersioning:
     def test_model_has_version(self) -> None:
         """PoissonModel should have a model_version."""
         model = PoissonModel()
-        assert model.model_version == "poisson-v1.4.0"
+        assert model.model_version == "poisson-v1.5.0"
 
     def test_model_version_in_result(self, match_input: PredictionInput) -> None:
         """Model result should include the model version."""
         model = PoissonModel()
         result = model.predict(match_input)
-        assert result.model_version == "poisson-v1.4.0"
+        assert result.model_version == "poisson-v1.5.0"
         assert result.model == "poisson"
 
     def test_model_parameters_stored_in_result(self, match_input: PredictionInput) -> None:
