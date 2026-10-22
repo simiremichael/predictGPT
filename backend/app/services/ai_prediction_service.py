@@ -1,14 +1,15 @@
-"""AI-powered prediction service using DuckDuckGo research.
+"""AI-powered prediction service using web search research.
 
-This service fetches fixtures from the database, uses DuckDuckGo to search
-for team information (injuries, suspensions, lineups, news), then uses
-the existing prediction pipeline (Poisson model + AI adjustment) to produce
-research-adjusted predictions with varied outcome probabilities.
+This service fetches fixtures from the database, uses web search providers
+(Tavily, You.com, or Brave) to search for team information (injuries,
+suspensions, lineups, news), then uses the existing prediction pipeline
+(Poisson model + AI adjustment) to produce research-adjusted predictions
+with varied outcome probabilities.
 
 The pipeline:
   1. Fetch upcoming matches from the database (fixtures endpoint sources)
   2. Run the Poisson model for a baseline prediction (Phase 3)
-  3. Use DuckDuckGo to search team/player news (Phase 4)
+  3. Use web search to search team/player news (Phase 4)
   4. Apply bounded AI adjustment based on research evidence (Phase 4)
   5. Recalculate score matrix with adjusted lambdas
   6. Generate AI explanation (Phase 4)
@@ -30,11 +31,11 @@ logger = get_logger(__name__)
 
 
 class AIPredictionService:
-    """Generates predictions using DuckDuckGo research + AI adjustment.
+    """Generates predictions using web search research + AI adjustment.
 
     Fetches fixtures from the database, searches the web for team news,
-    injuries, suspensions, and lineups via DuckDuckGo, then runs the
-    existing Poisson statistical model with AI evidence adjustment to
+    injuries, suspensions, and lineups via web search providers, then runs
+    the existing Poisson statistical model with AI evidence adjustment to
     produce research-backed predictions with varied probabilities.
     """
 
@@ -57,7 +58,7 @@ class AIPredictionService:
             match_id: Internal match / fixture ID from the database.
             db_session: SQLAlchemy async session. If None, uses the service's
                 session or creates a new one.
-            include_research: If True, perform DuckDuckGo research before
+            include_research: If True, perform web search research before
                 generating the prediction.
             force_refresh: If True, bypass any caching of research results.
 
@@ -159,7 +160,7 @@ class AIPredictionService:
         """Fetch fixtures from DB and generate AI predictions for each.
 
         Retrieves scheduled matches on the requested kickoff date, runs
-        DuckDuckGo research + AI prediction for each, and saves results
+        web search research + AI prediction for each, and saves results
         to the database.
         """
         db = db_session or self._db_session

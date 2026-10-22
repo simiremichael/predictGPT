@@ -182,17 +182,22 @@ class Settings(BaseSettings):
         default="tavily",
         validation_alias=AliasChoices("WEB_SEARCH_PROVIDER", "web_search_provider"),
     )
+    web_search_supported_providers: tuple[str, ...] = (
+        "tavily",
+        "youcom",
+        "brave",
+    )
     tavily_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("TAVILY_API_KEY", "tavily_api_key"),
     )
-    web_search_api_key: str | None = Field(
+    you_api_key: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("WEB_SEARCH_API_KEY", "web_search_api_key"),
+        validation_alias=AliasChoices("YOU_API_KEY", "you_api_key"),
     )
-    web_search_base_url: str = Field(
-        default="https://api.duckduckgo.com",
-        validation_alias=AliasChoices("WEB_SEARCH_BASE_URL", "web_search_base_url"),
+    brave_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("BRAVE_API_KEY", "brave_api_key"),
     )
 
     # ------------------------------------------------------------------ #

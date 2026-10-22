@@ -247,14 +247,18 @@ async def get_analysis(
 
 
 class AIPredictionRequest(BaseModel):
-    include_research: bool = Field(default=True, description="Perform DuckDuckGo research before generating the prediction")
+    include_research: bool = Field(
+        default=True, description="Perform web search research before generating the prediction"
+    )
     force_refresh: bool = Field(default=False, description="Force a fresh research run even if cached")
 
 
 class AIBatchPredictionRequest(BaseModel):
     league_id: str | None = Field(default=None, description="Limit to a specific league")
     limit: int = Field(default=10, ge=1, le=100, description="Maximum number of fixtures to predict")
-    include_research: bool = Field(default=True, description="Perform DuckDuckGo research for each match")
+    include_research: bool = Field(
+        default=True, description="Perform web search research for each match"
+    )
 
 
 @router.post(
@@ -269,9 +273,9 @@ async def generate_ai_prediction(
     body: AIPredictionRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Generate a prediction using DuckDuckGo research + AI analysis.
+    """Generate a prediction using web search research + AI analysis.
 
-    Fetches the match from the database, searches DuckDuckGo for team news,
+    Fetches the match from the database, searches the web for team news,
     injuries, suspensions, and lineups, then uses the AI provider to produce
     a research-adjusted prediction with an explanation. The prediction and
     research run are saved to the database.
@@ -324,7 +328,7 @@ async def generate_ai_predictions_batch(
 ) -> dict[str, Any]:
     """Fetch fixtures from the DB and generate AI predictions for each.
 
-    Retrieves upcoming scheduled matches from the database, runs DuckDuckGo
+    Retrieves upcoming scheduled matches from the database, runs web search
     research + AI prediction for each, and saves results to the database.
 
     Requires admin authentication.

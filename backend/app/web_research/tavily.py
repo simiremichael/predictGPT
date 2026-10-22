@@ -1,4 +1,4 @@
-"""Tavily search provider with DuckDuckGo quota fallback."""
+"""Tavily search provider with You.com quota fallback."""
 from __future__ import annotations
 
 import logging
@@ -11,7 +11,6 @@ from web_research.base import SearchResult, WebSearchProvider
 from web_research.exceptions import SearchProviderError
 
 logger = logging.getLogger(__name__)
-
 _quota_state_lock = threading.Lock()
 _tavily_fallback_until: datetime | None = None
 
@@ -59,7 +58,7 @@ def _mark_tavily_quota_exhausted() -> bool:
 
 
 class TavilySearchProvider(WebSearchProvider):
-    """Search Tavily first, switching to DuckDuckGo after quota exhaustion."""
+    """Search Tavily first, switching to You.com after quota exhaustion."""
 
     provider_name = "tavily"
     endpoint = "https://api.tavily.com/search"
@@ -108,12 +107,12 @@ class TavilySearchProvider(WebSearchProvider):
         if response.status_code in {432, 433}:
             if _mark_tavily_quota_exhausted():
                 logger.warning(
-                    "Tavily quota exhausted (HTTP %s); switching to DuckDuckGo",
+                    "Tavily quota exhausted (HTTP %s); switching to You.com",
                     response.status_code,
                 )
             return await self._search_with_fallback(query, limit)
         if response.status_code == 429:
-            logger.warning("Tavily request rate limit reached; using DuckDuckGo for this query")
+            logger.warning("Tavily request rate limit reached; using You.com for this query")
             return await self._search_with_fallback(query, limit)
         if response.status_code != 200:
             raise SearchProviderError(

@@ -343,7 +343,9 @@ class AIFeatureBuilder:
         for lineup in vector.lineups:
             parts.append(
                 f"Lineup: team={lineup.get('team')}, status={lineup.get('status')}, "
-                f"confidence={lineup.get('confidence')}"
+                f"formation={lineup.get('formation') or 'unknown'}, "
+                f"confidence={lineup.get('confidence')}, "
+                f"sources={','.join(lineup.get('source_ids') or [])}"
             )
 
         for news in vector.team_news:
@@ -354,7 +356,7 @@ class AIFeatureBuilder:
 
         for item in vector.search_context:
             parts.append(
-                "Unverified DuckDuckGo search material "
+                f"Unverified web search material "
                 f"(category={item['category']}, credibility={item['credibility']}, "
                 f"source={item['url']}): "
                 f"{item['text']}"

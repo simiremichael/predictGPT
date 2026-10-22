@@ -304,6 +304,76 @@ class TestFormStrength:
         features = builder.build(match, league_baseline=league_baseline)
         assert features.home_form_strength < 1.0
 
+    def test_uses_last_five_completed_results_and_sorts_newest_last(self) -> None:
+        now = datetime.now(timezone.utc)
+
+        def fixture(day: int, outcome: str) -> NormalizedFixture:
+            team_is_home = day % 2 == 0
+            team_id = "h"
+            if outcome == "win":
+                home_score, away_score = (2, 0) if team_is_home else (0, 2)
+            elif outcome == "loss":
+                home_score, away_score = (0, 2) if team_is_home else (2, 0)
+            else:
+                home_score = away_score = 1
+            return NormalizedFixture(
+                provider="api_football",
+                provider_fixture_id=f"f{day}",
+                home_team_id=team_id if team_is_home else "opponent",
+                away_team_id="opponent" if team_is_home else team_id,
+                kickoff_at=now - timedelta(days=10 - day),
+                is_finished=True,
+                home_score=home_score,
+                away_score=away_score,
+            )
+
+        # Older wins must not outweigh five more recent losses. Reverse the
+        # input to model providers that return newest fixtures first.
+        fixtures = [fixture(day, "win" if day < 5 else "loss") for day in range(10)]
+        builder = FeatureBuilder()
+        chronological = builder._compute_form_strength(None, fixtures, True, "h")
+        newest_first = builder._compute_form_strength(None, list(reversed(fixtures)), True, "h")
+
+        assert chronological < 1.0
+        assert newest_first == pytest.approx(chronological)
+
+    def test_recent_results_change_poisson_prediction(self) -> None:
+        now = datetime.now(timezone.utc)
+        wins = [
+            NormalizedFixture(
+                provider="api_football",
+                provider_fixture_id=f"win-{i}",
+                home_team_id="h",
+                away_team_id="opponent",
+                kickoff_at=now - timedelta(days=5 - i),
+                is_finished=True,
+                home_score=2,
+                away_score=0,
+            )
+            for i in range(5)
+        ]
+        base = PredictionInput(
+            match_id="neutral",
+            home_team_id="h",
+            away_team_id="a",
+            home_team_name="H",
+            away_team_name="A",
+            league_id="premier_league",
+        )
+        in_form = PredictionInput(
+            match_id="form",
+            home_team_id="h",
+            away_team_id="a",
+            home_team_name="H",
+            away_team_name="A",
+            league_id="premier_league",
+            home_recent_fixture=wins,
+        )
+
+        from prediction.poisson import PoissonModel
+
+        assert PoissonModel().predict(in_form).lambda_home > PoissonModel().predict(base).lambda_home
+
     def test_form_strength_clamped(self, league_baseline: LeagueBaseline) -> None:
         """Form strength should be clamped to [0.5, 1.5]."""
         now = datetime.now(timezone.utc)

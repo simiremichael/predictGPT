@@ -507,7 +507,7 @@ async def trigger_batch_predictions(
     ),
     include_research: bool = Query(
         True,
-        description="Run DuckDuckGo research for team news before generating each prediction",
+        description="Run web search research for team news before generating each prediction",
     ),
     limit: int = Query(
         50,

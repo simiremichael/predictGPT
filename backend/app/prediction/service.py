@@ -188,8 +188,11 @@ class PredictionService:
                         extra={"match_id": match_id, "error": str(exc)},
                     )
 
-            # Apply AI adjustment if research is available
-            if research_result and self._ai_adjustment_layer:
+            # Apply AI adjustment layer — always runs to apply statistical
+            # adjustments from league standing, H2H, and recent form even
+            # when web research yields no evidence. When research is available,
+            # the AI layer also applies evidence-based market adjustments.
+            if self._ai_adjustment_layer:
                 try:
                     from ai.feature_builder import AIFeatureBuilder
 

@@ -76,6 +76,7 @@ class TestAIAdjustmentLayer:
                 "position": "forward",
                 "evidence_status": EvidenceStatus.REPORTED,
                 "confidence": 0.9,
+                "source_ids": ["s1"],
             }],
         )
 
@@ -139,6 +140,7 @@ class TestAIAdjustmentLayer:
                 "position": "forward",
                 "evidence_status": EvidenceStatus.CONFIRMED,
                 "confidence": 0.9,
+                "source_ids": ["src1"],
             }],
         )
 
@@ -163,6 +165,22 @@ class TestAIAdjustmentLayer:
             assert result.adjusted_model_result.model == "poisson-ai"
             # Base lambda should differ from adjusted
             assert result.adjusted_model_result.lambda_home != result.base_model_result.lambda_home
+
+    def test_unsupported_adjustment_citation_is_rejected(self) -> None:
+        from web_research.schemas import AIFeatureAdjustment
+
+        features = AIFeatureVector(
+            injuries=[{"player": "Player", "source_ids": ["actual-source"]}]
+        )
+        adjustment = AIFeatureAdjustment(
+            home_attack_adjustment=-0.1,
+            source_ids=["invented-source"],
+        )
+
+        result = AIAdjustmentLayer._validate_adjustment_sources(adjustment, features)
+
+        assert result.home_attack_adjustment == 0.0
+        assert result.source_ids == []
 
     @pytest.mark.asyncio
     async def test_ai_failure_falls_back_to_base(

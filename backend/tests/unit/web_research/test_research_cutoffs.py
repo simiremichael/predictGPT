@@ -82,6 +82,12 @@ class TestBacktestingCutoff:
         assert any("Arsenal" in q for q in query_strings)
         assert any("Chelsea" in q for q in query_strings)
 
+    def test_research_cache_refreshes_more_often_near_kickoff(
+        self, service: MatchResearchService
+    ) -> None:
+        assert service._research_cache_ttl(datetime.now(UTC) + timedelta(minutes=45)) <= 300
+        assert service._research_cache_ttl(datetime.now(UTC) + timedelta(hours=12)) <= 1800
+
 
 class TestAIAdjustmentCaps:
     """Tests that AI adjustments are bounded by configured caps."""
@@ -110,27 +116,38 @@ class TestAIAdjustmentCaps:
             model_version = "1.0.0"
             lambda_home = 1.5
             lambda_away = 1.0
-            home_goal_distribution = [0.2, 0.3, 0.2, 0.1, 0.1, 0.0]
-            away_goal_distribution = [0.3, 0.2, 0.2, 0.1, 0.1, 0.0]
+            home_goal_distribution = [0.2, 0.3, 0.2, 0.1, 0.1, 0.05, 0.03, 0.01, 0.01]
+            away_goal_distribution = [0.3, 0.2, 0.2, 0.1, 0.1, 0.05, 0.03, 0.01, 0.01]
             score_matrix = []
             max_goals = 8
             data_quality = 0.8
             model_parameters = {}
             feature_snapshot = {}
+            market_adjustments = None
 
         ai_features = AIFeatureVector(
             research_available=True,
             evidence_text="Evidence: key player injured",
-            injuries=[{"player": "Key Player", "position": "forward", "evidence_status": "confirmed"}],
+            injuries=[{
+                "player": "Key Player",
+                "position": "forward",
+                "evidence_status": "confirmed",
+                "source_ids": ["s1"],
+            }],
         )
 
         with patch.object(layer, "_ai_provider", AsyncMock()):
             layer._ai_provider.generate_structured = AsyncMock(
-                return_value={
+                 return_value={
                     "home_attack_adjustment": 100.0,
                     "away_attack_adjustment": -100.0,
                     "home_defense_adjustment": 100.0,
                     "away_defense_adjustment": -100.0,
+                    "home_win_adjustment": 0.0,
+                    "draw_win_adjustment": 0.0,
+                    "away_win_adjustment": 0.0,
+                    "btts_adjustment": 0.0,
+                    "over_2_5_adjustment": 0.0,
                     "confidence": 0.9,
                     "reason_codes": ["test"],
                     "source_ids": ["s1"],

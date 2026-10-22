@@ -213,5 +213,23 @@ class TestAIFeatureBuilder:
 
         assert len(features.search_context) == 1
         assert "Arsenal won 2-0" in features.evidence_text
-        assert "Unverified DuckDuckGo search material" in features.evidence_text
+        assert "Unverified web search material" in features.evidence_text
         assert "https://www.espn.com/football/results" in features.evidence_text
+
+    def test_lineup_formation_is_in_adjustment_evidence_text(self) -> None:
+        from web_research.schemas import LineupEvidence, LineupStatus
+
+        result = MatchResearchResult(
+            match_id="test",
+            lineups=[LineupEvidence(
+                team="Arsenal",
+                status=LineupStatus.PREDICTED,
+                formation="4-3-3",
+                source_ids=["https://club.example/preview"],
+            )],
+        )
+
+        features = AIFeatureBuilder().build(result)
+
+        assert "formation=4-3-3" in features.evidence_text
+        assert "https://club.example/preview" in features.evidence_text

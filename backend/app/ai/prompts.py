@@ -96,6 +96,9 @@ LINEUP_EXTRACTION_USER_PROMPT = (
     "- confidence: 0.0-1.0\n"
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
     '- source_ids: ["{source_id}"]\n\n'
+    "Only report a formation as match-specific when the source explicitly predicts or confirms "
+    "the setup for this fixture. Do not infer it from a team's usual formation, an older match, "
+    "or generic tactical analysis; use null when the match-specific formation is not stated.\n"
     "IMPORTANT: A 'predicted' lineup must NEVER be stored as confirmed. "
     'If no lineup is mentioned, return {{"lineup": null}}.'
 )
@@ -140,9 +143,11 @@ AI_ADJUSTMENT_SYSTEM_PROMPT = (
     "- League standing differences BETWEEN the two teams (not just home advantage) MUST be "
     "considered when evidence supports a change: a team significantly higher in the table "
     "may deserve a positive adjustment to win/BTTS/O2.5 markets, and vice versa.\n"
-    "- DuckDuckGo snippets are unverified leads, not confirmed facts. Use them only when the "
+    "- Web search snippets are unverified leads, not confirmed facts. Use them only when the "
     "exact teams, competition, and pre-match date are clear.\n"
     "- Do not treat search-result odds as team-performance evidence or copy them into adjustments.\n"
+    "- Formation evidence is actionable only when it refers to this exact fixture and date. "
+    "Use it only for a clear, specific tactical matchup; a formation by itself is not enough.\n"
     "- Do NOT invent adjustments to make different matches look different.\n"
     "- If the evidence does not support a change, return zero adjustments.\n"
     "- Adjustments must be small and evidence-based.\n\n"

@@ -115,10 +115,10 @@ class MatchResearchService:
         # Generate queries
         queries = self._query_builder.build_match_queries(context)
 
-        # DuckDuckGo can defer/challenge a burst of match queries with HTTP
-        # 202. Pace requests and stop after a rate-limit response; evidence
-        # already collected remains usable and the prediction can fall back
-        # to the structured match data.
+        # Search providers may defer/challenge a burst of match queries with
+        # HTTP 429 or quota exhaustion. Pace requests and stop after a rate-limit
+        # response; evidence already collected remains usable and the prediction
+        # can fall back to the structured match data.
         sources: list[ResearchSource] = []
         search_failures: list[dict[str, str]] = []
         searched_queries = 0
@@ -138,7 +138,7 @@ class MatchResearchService:
                 )
                 if isinstance(error, SearchRateLimitError):
                     logger.warning(
-                        "DuckDuckGo deferred match research; stopping further searches",
+                        "Search provider deferred match research; stopping further searches",
                         extra={
                             "match_id": match_id,
                             "query_name": query_name,
@@ -244,13 +244,15 @@ class MatchResearchService:
                         suspensions.extend(await self._ai_service.extract_suspensions(
                             content, source.url, home_team, away_team
                         ))
-                    if categories & {None, "predicted_lineup"}:
+                    if categories & {None, "predicted_lineup", "formation_analysis"}:
                         lineup = await self._ai_service.extract_lineup(
                             content, source.url, home_team, away_team
                         )
                         if lineup:
                             lineups.append(lineup)
-                    if categories & {None, "predicted_lineup", "match_preview"}:
+                    if categories & {
+                        None, "predicted_lineup", "formation_analysis", "match_preview"
+                    }:
                         team_news.extend(await self._ai_service.extract_team_news(
                             content, source.url, home_team, away_team
                         ))
@@ -284,7 +286,7 @@ class MatchResearchService:
 
         # Cache result
         if self._redis:
-            ttl = self._settings.redis_cache_ttl_default
+            ttl = self._research_cache_ttl(kickoff_at)
             try:
                 await self._redis.set_json(cache_key, result.model_dump(), ttl=ttl)
             except Exception:
@@ -337,6 +339,20 @@ class MatchResearchService:
             if pub_time <= cutoff:
                 filtered.append(source)
         return filtered
+
+    def _research_cache_ttl(self, kickoff_at: datetime | None) -> int:
+        """Refresh research more often when late lineup and formation news matters."""
+        default_ttl = self._settings.redis_cache_ttl_default
+        if kickoff_at is None:
+            return default_ttl
+        if kickoff_at.tzinfo is None:
+            kickoff_at = kickoff_at.replace(tzinfo=UTC)
+        hours_to_kickoff = (kickoff_at - datetime.now(UTC)).total_seconds() / 3600
+        if 0 < hours_to_kickoff <= 2:
+            return min(default_ttl, 300)
+        if 2 < hours_to_kickoff <= 24:
+            return min(default_ttl, 1800)
+        return default_ttl
 
     async def _detect_conflicts(
         self,

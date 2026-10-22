@@ -35,7 +35,7 @@ class QueryTemplate:
 DEFAULT_QUERY_TEMPLATES: list[QueryTemplate] = [
     QueryTemplate(
         name="injury_news",
-        template="{home_team} {away_team} {competition} injuries unavailable players suspensions bans",
+        template="{home_team} {away_team} {competition} injury injuries unavailable players suspensions bans",
         category="injury",
         priority=10,
     ),
@@ -44,6 +44,15 @@ DEFAULT_QUERY_TEMPLATES: list[QueryTemplate] = [
         template="{home_team} vs {away_team} {competition} predicted lineup team news",
         category="lineup",
         priority=9,
+    ),
+    QueryTemplate(
+        name="formation_analysis",
+        template=(
+            "{home_team} vs {away_team} {competition} "
+            "expected formation tactical setup match preview {kickoff_at}"
+        ),
+        category="lineup",
+        priority=7,
     ),
     QueryTemplate(
         name="match_preview",

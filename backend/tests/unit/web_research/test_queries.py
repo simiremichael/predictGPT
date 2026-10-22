@@ -73,16 +73,19 @@ class TestMatchResearchQueryBuilder:
         assert {
             "injury_news",
             "predicted_lineup",
+            "formation_analysis",
             "match_preview",
             "recent_form",
         } == names
-        assert len(queries) == 4
+        assert len(queries) == 5
         assert "Arsenal" in all_queries
         assert "Chelsea" in all_queries
         assert "2026-10-20" in all_queries
         assert "suspensions" in all_queries
         assert "head to head" in all_queries
         assert "league standings" in all_queries
+        formation_query = next(query for name, query, _ in queries if name == "formation_analysis")
+        assert "expected formation" in formation_query
 
     def test_build_team_queries(self) -> None:
         builder = MatchResearchQueryBuilder()

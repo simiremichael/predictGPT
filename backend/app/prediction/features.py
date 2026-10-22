@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from core.config import get_settings
@@ -140,6 +140,8 @@ class FeatureBuilder:
         )
         self.default_home_advantage = 1.0
         self.form_decay_rate = 0.1
+
+    RECENT_FORM_MATCHES = 5
 
     def build(
         self,
@@ -497,17 +499,35 @@ class FeatureBuilder:
         Uses recency weighting with exponential decay.  Returns a multiplier
         where 1.0 = neutral, >1 = positive form, <1 = negative form.
         """
-        matches: list[NormalizedFixture] = []
-        if form is not None and form.recent_matches:
-            matches = form.recent_matches
-        elif recent_fixture:
-            matches = list(recent_fixture)
+        # Prefer fixtures loaded for this prediction: they are filtered to be
+        # pre-kickoff and are associated with internal team IDs. Provider form
+        # data is a fallback when those fixture results are unavailable.
+        matches = list(recent_fixture or [])
+        if not matches and form is not None and form.recent_matches:
+            matches = list(form.recent_matches)
 
         if not matches:
             return 1.0
 
-        # Take last N matches
-        recent = matches[-self.history_window:]
+        valid_matches = [
+            fixture for fixture in matches
+            if fixture.is_finished
+            and fixture.home_score is not None
+            and fixture.away_score is not None
+        ]
+        # Provider payloads can be newest-first while the database loader is
+        # oldest-first. Sort when timestamps exist so decay always favours the
+        # latest played match.
+        if valid_matches and all(fixture.kickoff_at is not None for fixture in valid_matches):
+            def kickoff_timestamp(fixture: NormalizedFixture) -> float:
+                kickoff = fixture.kickoff_at
+                if kickoff.tzinfo is None:
+                    kickoff = kickoff.replace(tzinfo=UTC)
+                return kickoff.timestamp()
+
+            valid_matches.sort(key=kickoff_timestamp)
+
+        recent = valid_matches[-self.RECENT_FORM_MATCHES:]
         if not recent:
             return 1.0
 
@@ -520,38 +540,28 @@ class FeatureBuilder:
             recency_weight = math.exp(-self.form_decay_rate * (len(recent) - 1 - i))
             total_weight += recency_weight
 
-            if fixture.is_finished and fixture.home_score is not None and fixture.away_score is not None:
-                team_is_home = is_home
-                if team_id and fixture.home_team_id == team_id:
-                    team_is_home = True
-                elif team_id and fixture.away_team_id == team_id:
-                    team_is_home = False
+            team_is_home = is_home
+            if team_id and fixture.home_team_id == team_id:
+                team_is_home = True
+            elif team_id and fixture.away_team_id == team_id:
+                team_is_home = False
 
-                if team_is_home:
-                    if fixture.home_score > fixture.away_score:
-                        points = 3.0
-                    elif fixture.home_score == fixture.away_score:
-                        points = 1.0
-                    else:
-                        points = 0.0
-                else:
-                    if fixture.away_score > fixture.home_score:
-                        points = 3.0
-                    elif fixture.away_score == fixture.home_score:
-                        points = 1.0
-                    else:
-                        points = 0.0
-
-                total_weighted_points += recency_weight * points
+            team_goals = fixture.home_score if team_is_home else fixture.away_score
+            opponent_goals = fixture.away_score if team_is_home else fixture.home_score
+            points = 3.0 if team_goals > opponent_goals else 1.0 if team_goals == opponent_goals else 0.0
+            total_weighted_points += recency_weight * points
 
         if total_weight == 0:
             return 1.0
 
         weighted_ppg = total_weighted_points / total_weight
-        # Normalize: 1.36 ppg (all wins) = 1.0 multiplier, 0 ppg = 0.0
-        # Average is ~1.0, so we scale: strength = weighted_ppg / 1.36 * 0.4 + 0.8
+        # Map weighted points per game to a bounded multiplier around neutral.
         baseline_ppg = 1.36
-        normalized = (weighted_ppg / baseline_ppg) * 0.4 + 0.6
+        raw_strength = (weighted_ppg / baseline_ppg) * 0.4 + 0.6
+        # Shrink short form histories toward neutral rather than treating one
+        # or two results as a full five-match signal.
+        sample_weight = min(1.0, len(recent) / self.RECENT_FORM_MATCHES)
+        normalized = 1.0 + (raw_strength - 1.0) * sample_weight
 
         return max(0.5, min(1.5, normalized))
 
