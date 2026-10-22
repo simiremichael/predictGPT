@@ -155,12 +155,27 @@ class MatchResearchResult(BaseModel):
 
 
 class AIFeatureAdjustment(BaseModel):
-    """Bounded AI adjustment to prediction features."""
+    """Bounded AI adjustment to prediction features.
 
+    Lambda adjustments modify goal-rate parameters before score matrix recalculation.
+    Market adjustments directly shift specific market probabilities (1X2, BTTS, O/U 2.5)
+    after the adjusted score matrix has been computed.
+    """
+
+    # Lambda adjustments (goal-rate modifications)
     home_attack_adjustment: float = 0.0
     away_attack_adjustment: float = 0.0
     home_defense_adjustment: float = 0.0
     away_defense_adjustment: float = 0.0
+
+    # Market-level adjustments applied after lambda-driven score matrix recalculation
+    # Each value is a signed probability delta in the range [-0.25, +0.25]
+    home_win_adjustment: float = 0.0
+    draw_win_adjustment: float = 0.0
+    away_win_adjustment: float = 0.0
+    btts_adjustment: float = 0.0
+    over_2_5_adjustment: float = 0.0
+
     confidence: float = 0.0
     reason_codes: list[str] = Field(default_factory=list)
     source_ids: list[str] = Field(default_factory=list)

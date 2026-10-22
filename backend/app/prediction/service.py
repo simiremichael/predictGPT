@@ -225,6 +225,27 @@ class PredictionService:
                         top_4 = matrix.get_top_scorelines(n=4)
                         top_scoreline = matrix.get_top_scoreline()
 
+                        # Apply market-level adjustments (WIN, BTTS, O2.5)
+                        market_adjustments = adjusted.market_adjustments or {}
+                        hda["home"] = max(0.0, min(1.0, hda["home"] + market_adjustments.get("home_win", 0.0)))
+                        hda["draw"] = max(0.0, min(1.0, hda["draw"] + market_adjustments.get("draw_win", 0.0)))
+                        hda["away"] = max(0.0, min(1.0, hda["away"] + market_adjustments.get("away_win", 0.0)))
+
+                        # Renormalize H/D/A to sum to 1
+                        hda_total = hda["home"] + hda["draw"] + hda["away"]
+                        if hda_total > 0:
+                            hda["home"] /= hda_total
+                            hda["draw"] /= hda_total
+                            hda["away"] /= hda_total
+
+                        # Apply BTTS / Over 2.5 adjustments
+                        if market_adjustments.get("btts", 0) != 0:
+                            markets["btts_yes"] = max(0.0, min(1.0, markets["btts_yes"] + market_adjustments["btts"]))
+                            markets["btts_no"] = 1.0 - markets["btts_yes"]
+                        if market_adjustments.get("over_2_5", 0) != 0:
+                            markets["over_2_5"] = max(0.0, min(1.0, markets["over_2_5"] + market_adjustments["over_2_5"]))
+                            markets["under_2_5"] = 1.0 - markets["over_2_5"]
+
                         model_result = adjusted
                     else:
                         model_result = base_model_result

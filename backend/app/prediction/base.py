@@ -106,6 +106,7 @@ class ModelResult:
     data_quality: float
     model_parameters: dict[str, Any]
     feature_snapshot: dict[str, Any]
+    market_adjustments: dict[str, float] | None = None
 
 
 class PredictionModel:

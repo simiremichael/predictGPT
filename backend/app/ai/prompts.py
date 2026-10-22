@@ -4,6 +4,7 @@ These prompts are designed with strong prompt injection defense. The system
 prompts explicitly treat all web content as untrusted DATA, never as
 instructions.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -46,10 +47,10 @@ INJURY_EXTRACTION_USER_PROMPT = (
     "- expected_return: expected return date/description (or null)\n"
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
     "- confidence: 0.0-1.0\n"
-    "- source_ids: [\"{source_id}\"]\n\n"
+    '- source_ids: ["{source_id}"]\n\n'
     "IMPORTANT: Do not convert 'reported' to 'confirmed'. Do not invent injuries "
     "not mentioned in the evidence. If no injuries are mentioned, return "
-    "{{\"injuries\": []}}."
+    '{{"injuries": []}}.'
 )
 
 SUSPENSION_EXTRACTION_USER_PROMPT = (
@@ -69,9 +70,9 @@ SUSPENSION_EXTRACTION_USER_PROMPT = (
     "- return_date: date the player returns (or null)\n"
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
     "- confidence: 0.0-1.0\n"
-    "- source_ids: [\"{source_id}\"]\n\n"
+    '- source_ids: ["{source_id}"]\n\n'
     "IMPORTANT: Only extract what is stated in the evidence. If none mentioned, "
-    "return {{\"suspensions\": []}}."
+    'return {{"suspensions": []}}.'
 )
 
 LINEUP_EXTRACTION_USER_PROMPT = (
@@ -94,9 +95,9 @@ LINEUP_EXTRACTION_USER_PROMPT = (
     "- unavailable_players: array of player names\n"
     "- confidence: 0.0-1.0\n"
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
-    "- source_ids: [\"{source_id}\"]\n\n"
+    '- source_ids: ["{source_id}"]\n\n'
     "IMPORTANT: A 'predicted' lineup must NEVER be stored as confirmed. "
-    "If no lineup is mentioned, return {{\"lineup\": null}}."
+    'If no lineup is mentioned, return {{"lineup": null}}.'
 )
 
 TEAM_NEWS_EXTRACTION_USER_PROMPT = (
@@ -116,9 +117,9 @@ TEAM_NEWS_EXTRACTION_USER_PROMPT = (
     "- importance: high, medium, or low\n"
     "- evidence_status: confirmed, reported, probable, speculative, or unknown\n"
     "- confidence: 0.0-1.0\n"
-    "- source_ids: [\"{source_id}\"]\n\n"
+    '- source_ids: ["{source_id}"]\n\n'
     "IMPORTANT: Only extract what is stated in the evidence. If no relevant news, "
-    "return {{\"news\": []}}."
+    'return {{"news": []}}.'
 )
 
 
@@ -126,17 +127,22 @@ TEAM_NEWS_EXTRACTION_USER_PROMPT = (
 
 AI_ADJUSTMENT_SYSTEM_PROMPT = (
     "You are a football analytics assistant. Your task is to produce a structured "
-    "adjustment to a statistical prediction model based on extracted web evidence "
-    "and match context.\n\n"
+    "adjustment to a statistical prediction model based on extracted web evidence, "
+    "match context, and league standings.\n\n"
     "CRITICAL RULES:\n"
-    "- You are NOT a primary prediction engine. The Poisson statistical model makes the prediction.\n"
-    "- You may only produce bounded, explainable adjustments to model inputs (goal-rate lambda).\n"
+    "- You are NOT a primary prediction engine. The Poisson statistical model makes the base prediction.\n"
+    "- You may only produce bounded, explainable adjustments to model inputs (goal-rate lambda) "
+    "AND market probabilities (1X2 win, BTTS, Over/Under 2.5).\n"
     "- NEVER output a final score or match result directly.\n"
     "- NEVER convert 'reported' evidence to 'confirmed'.\n"
     "- Every adjustment must reference source IDs from the provided evidence.\n"
     "- Do NOT infer team quality, form, injuries, or reputation from team names.\n"
-    "- DuckDuckGo snippets are unverified leads, not confirmed facts. Use them only when the exact teams, competition, and pre-match date are clear.\n"
-    "- Do not treat search-result odds as team-performance evidence or copy them into goal adjustments.\n"
+    "- League standing differences BETWEEN the two teams (not just home advantage) MUST be "
+    "considered when evidence supports a change: a team significantly higher in the table "
+    "may deserve a positive adjustment to win/BTTS/O2.5 markets, and vice versa.\n"
+    "- DuckDuckGo snippets are unverified leads, not confirmed facts. Use them only when the "
+    "exact teams, competition, and pre-match date are clear.\n"
+    "- Do not treat search-result odds as team-performance evidence or copy them into adjustments.\n"
     "- Do NOT invent adjustments to make different matches look different.\n"
     "- If the evidence does not support a change, return zero adjustments.\n"
     "- Adjustments must be small and evidence-based.\n\n"
@@ -155,19 +161,58 @@ AI_ADJUSTMENT_SYSTEM_PROMPT = (
 AI_ADJUSTMENT_USER_PROMPT = (
     "Base statistical prediction for {home_team} vs {away_team} ({league}):\n"
     "- Home expected goals (lambda_home): {lambda_home}\n"
-    "- Away expected goals (lambda_away): {lambda_away}\n\n"
+    "- Away expected goals (lambda_away): {lambda_away}\n"
+    "- Home win probability: {home_win_prob}\n"
+    "- Draw probability: {draw_prob}\n"
+    "- Away win probability: {away_prob}\n"
+    "- Over 2.5 probability: {over_25_prob}\n"
+    "- BTTS probability: {btts_prob}\n\n"
+    "League standing context:\n"
+    "- Home team league position: {home_league_position}\n"
+    "- Away team league position: {away_league_position}\n"
+    "- Home team points per game: {home_ppg}\n"
+    "- Away team points per game: {away_ppg}\n\n"
+    "Season goal statistics:\n"
+    "- Home goals for / against: {home_season_goals_for} / {home_season_goals_against}\n"
+    "- Away goals for / against: {away_season_goals_for} / {away_season_goals_against}\n\n"
+    "Average goals per game:\n"
+    "- Home: {home_avg_goals_per_game}\n"
+    "- Away: {away_avg_goals_per_game}\n\n"
+    "Recent BTTS / Over 2.5 rates (last ~5 matches):\n"
+    "- Home BTTS rate: {home_btts_rate}\n"
+    "- Away BTTS rate: {away_btts_rate}\n"
+    "- Home over 2.5 rate: {home_over_2_5_rate}\n"
+    "- Away over 2.5 rate: {away_over_2_5_rate}\n\n"
+    "Head-to-head record (all available meetings):\n"
+    "- Home wins: {h2h_team_a_wins}\n"
+    "- Away wins: {h2h_team_b_wins}\n"
+    "- Draws: {h2h_draws}\n"
+    "- H2H avg goals per game: {h2h_avg_goals}\n\n"
+    "Last 5 games goal stats:\n"
+    "- Home: {home_last5_goals_for} goals for, {home_last5_goals_against} against\n"
+    "- Away: {away_last5_goals_for} goals for, {away_last5_goals_against} against\n\n"
     "Extracted evidence:\n"
     "{evidence_text}\n\n"
-    "Based ONLY on the extracted evidence above, produce small adjustments to the\n"
-    "model inputs when reliable, match-specific form, historical results, standings,\n"
-    "fixture congestion, or evidenced team news supports a change. Weak or ambiguous\n"
-    "search snippets should produce zero adjustment.\n"
+    "Based ONLY on the extracted evidence, league standing differences, head-to-head record, "
+    "recent form (last-5 goals for/against), average goals per game, BTTS/over-2.5 rates, "
+    "and season goal statistics above:\n"
+    "1. Produce small adjustments to the model input lambdas when reliable, match-specific form, "
+    "historical results, standings, fixture congestion, or evidenced team news supports a change. "
+    "A team's league standing (position and points-per-game gap) should carry meaningful weight — "
+    "especially when the away team has a clear standing advantage.\n"
+    "2. For WIN, BTTS, and Over 2.5 markets: if evidence, H2H patterns, or recent goal statistics "
+    "(e.g., a team consistently scoring/conceding more in recent games, or a history of both teams "
+    "scoring in H2H meetings) support a directional shift from the Poisson base probabilities, "
+    "apply a market-level adjustment. Weak or ambiguous search snippets should produce zero adjustment.\n"
     "Team names and league are labels for identifying the teams, not evidence.\n"
     "If no evidence affects the prediction, return zero adjustments.\n"
     "Remember: NEVER exceed the configured caps.\n\n"
-    "Return JSON: {{\"home_attack_adjustment\": float, \"away_attack_adjustment\": float, "
-    "\"home_defense_adjustment\": float, \"away_defense_adjustment\": float, "
-    "\"confidence\": float, \"reason_codes\": [string], \"source_ids\": [string]}}"
+    'Return JSON: {{"home_attack_adjustment": float, "away_attack_adjustment": float, '
+    '"home_defense_adjustment": float, "away_defense_adjustment": float, '
+    '"home_win_adjustment": float, "draw_win_adjustment": float, '
+    '"away_win_adjustment": float, "btts_adjustment": float, '
+    '"over_2_5_adjustment": float, '
+    '"confidence": float, "reason_codes": [string], "source_ids": [string]}}'
 )
 
 
@@ -237,5 +282,5 @@ CONFLICT_DETECTION_USER_PROMPT = (
     "{evidence_text}\n\n"
     "Return a JSON object with a 'conflicts' array of objects with fields: "
     "subject, claim_a, claim_b, source_a_id, source_b_id. "
-    "If no conflicts are found, return {{\"conflicts\": []}}."
+    'If no conflicts are found, return {{"conflicts": []}}.'
 )

@@ -82,7 +82,7 @@ class AIAdjustmentLayer:
     After adjustment, the score matrix is recalculated using the same Poisson model.
     """
 
-    VERSION = "ai-adjustment-v1.0.0"
+    VERSION = "ai-adjustment-v1.1.0"
 
     def __init__(
         self,
@@ -148,12 +148,100 @@ class AIAdjustmentLayer:
             max_defense_adjustment=self._max_defense_adjustment,
         )
 
+        # Compute base market probabilities for the prompt
+        base_matrix = ScoreMatrix(
+            home_distribution=base_result.home_goal_distribution,
+            away_distribution=base_result.away_goal_distribution,
+            max_goals=base_result.max_goals,
+        )
+        base_hda = base_matrix.get_result_probabilities()
+        base_markets = MarketCalculator(base_matrix).get_all_markets()
+
+        # Extract H2H and recent-form stats for the AI prompt
+        h2h = getattr(match_input, "h2h", None)
+        h2h_team_a_wins = h2h.team_a_wins if h2h else "unknown"
+        h2h_team_b_wins = h2h.team_b_wins if h2h else "unknown"
+        h2h_draws = h2h.draws if h2h else "unknown"
+        h2h_avg_goals = h2h.avg_goals_per_game if h2h else "unknown"
+
+        # Recent 5-game stats
+        home_recent = list(getattr(match_input, "home_recent_fixture", []))
+        away_recent = list(getattr(match_input, "away_recent_fixture", []))
+
+        home_last5_goals_for = sum(
+            (fx.home_score or 0) for fx in home_recent[-5:] if fx.is_finished
+        ) if home_recent else "unknown"
+        home_last5_goals_against = sum(
+            (fx.away_score or 0) for fx in home_recent[-5:] if fx.is_finished
+        ) if home_recent else "unknown"
+        away_last5_goals_for = sum(
+            (fx.away_score or 0) for fx in away_recent[-5:] if fx.is_finished
+        ) if away_recent else "unknown"
+        away_last5_goals_against = sum(
+            (fx.home_score or 0) for fx in away_recent[-5:] if fx.is_finished
+        ) if away_recent else "unknown"
+
+        # Season average goals
+        home_stats = getattr(match_input, "home_team_stats", None)
+        away_stats = getattr(match_input, "away_team_stats", None)
+        home_season_goals_for = home_stats.goals_for if home_stats else "unknown"
+        home_season_goals_against = home_stats.goals_against if home_stats else "unknown"
+        away_season_goals_for = away_stats.goals_for if away_stats else "unknown"
+        away_season_goals_against = away_stats.goals_against if away_stats else "unknown"
+
         user_prompt = AI_ADJUSTMENT_USER_PROMPT.format(
             home_team=match_input.home_team_name,
             away_team=match_input.away_team_name,
             league=match_input.league_id,
             lambda_home=base_result.lambda_home,
             lambda_away=base_result.lambda_away,
+            home_win_prob=round(base_hda["home"], 4),
+            draw_prob=round(base_hda["draw"], 4),
+            away_prob=round(base_hda["away"], 4),
+            over_25_prob=round(base_markets["over_2_5"], 4),
+            btts_prob=round(base_markets["btts_yes"], 4),
+            home_league_position=ai_features.home_league_position
+            if ai_features.home_league_position is not None
+            else "unknown",
+            away_league_position=ai_features.away_league_position
+            if ai_features.away_league_position is not None
+            else "unknown",
+            home_ppg=ai_features.home_standing_points_per_game
+            if ai_features.home_standing_points_per_game is not None
+            else "unknown",
+            away_ppg=ai_features.away_standing_points_per_game
+            if ai_features.away_standing_points_per_game is not None
+            else "unknown",
+            home_season_goals_for=home_season_goals_for,
+            home_season_goals_against=home_season_goals_against,
+            away_season_goals_for=away_season_goals_for,
+            away_season_goals_against=away_season_goals_against,
+            home_avg_goals_per_game=ai_features.home_avg_goals_per_game
+            if ai_features.home_avg_goals_per_game is not None
+            else "unknown",
+            away_avg_goals_per_game=ai_features.away_avg_goals_per_game
+            if ai_features.away_avg_goals_per_game is not None
+            else "unknown",
+            home_btts_rate=ai_features.home_btts_rate
+            if ai_features.home_btts_rate is not None
+            else "unknown",
+            away_btts_rate=ai_features.away_btts_rate
+            if ai_features.away_btts_rate is not None
+            else "unknown",
+            home_over_2_5_rate=ai_features.home_over_2_5_rate
+            if ai_features.home_over_2_5_rate is not None
+            else "unknown",
+            away_over_2_5_rate=ai_features.away_over_2_5_rate
+            if ai_features.away_over_2_5_rate is not None
+            else "unknown",
+            h2h_team_a_wins=h2h_team_a_wins,
+            h2h_team_b_wins=h2h_team_b_wins,
+            h2h_draws=h2h_draws,
+            h2h_avg_goals=h2h_avg_goals,
+            home_last5_goals_for=home_last5_goals_for,
+            home_last5_goals_against=home_last5_goals_against,
+            away_last5_goals_for=away_last5_goals_for,
+            away_last5_goals_against=away_last5_goals_against,
             evidence_text=evidence_text,
         )
 
@@ -171,12 +259,17 @@ class AIAdjustmentLayer:
         # Enforce caps
         adjustment = self._enforce_caps(adjustment)
 
-        # Check if there is any actual adjustment
+        # Check if there is any actual adjustment (lambda or market-level)
         has_adjustment = (
             abs(adjustment.home_attack_adjustment) > 0
             or abs(adjustment.away_attack_adjustment) > 0
             or abs(adjustment.home_defense_adjustment) > 0
             or abs(adjustment.away_defense_adjustment) > 0
+            or abs(adjustment.home_win_adjustment) > 0
+            or abs(adjustment.draw_win_adjustment) > 0
+            or abs(adjustment.away_win_adjustment) > 0
+            or abs(adjustment.btts_adjustment) > 0
+            or abs(adjustment.over_2_5_adjustment) > 0
         )
 
         if not has_adjustment:
@@ -230,6 +323,13 @@ class AIAdjustmentLayer:
                 "ai_features": ai_features.__dict__,
                 "ai_adjustment": adjustment.model_dump(),
             },
+            market_adjustments={
+                "home_win": adjustment.home_win_adjustment,
+                "draw_win": adjustment.draw_win_adjustment,
+                "away_win": adjustment.away_win_adjustment,
+                "btts": adjustment.btts_adjustment,
+                "over_2_5": adjustment.over_2_5_adjustment,
+            },
         )
 
         explanation = self._build_adjustment_explanation(
@@ -262,6 +362,11 @@ class AIAdjustmentLayer:
                 "away_attack_adjustment": {"type": "number"},
                 "home_defense_adjustment": {"type": "number"},
                 "away_defense_adjustment": {"type": "number"},
+                "home_win_adjustment": {"type": "number"},
+                "draw_win_adjustment": {"type": "number"},
+                "away_win_adjustment": {"type": "number"},
+                "btts_adjustment": {"type": "number"},
+                "over_2_5_adjustment": {"type": "number"},
                 "confidence": {"type": "number"},
                 "reason_codes": {"type": "array", "items": {"type": "string"}},
                 "source_ids": {"type": "array", "items": {"type": "string"}},
@@ -271,6 +376,11 @@ class AIAdjustmentLayer:
                 "away_attack_adjustment",
                 "home_defense_adjustment",
                 "away_defense_adjustment",
+                "home_win_adjustment",
+                "draw_win_adjustment",
+                "away_win_adjustment",
+                "btts_adjustment",
+                "over_2_5_adjustment",
                 "confidence",
                 "reason_codes",
                 "source_ids",
@@ -305,39 +415,54 @@ class AIAdjustmentLayer:
     ) -> AIFeatureAdjustment:
         """Compute bounded adjustments from H2H and league context.
 
-        These adjustments are blended with the AI's response to ensure
-        statistical signals contribute consistently to the final prediction.
+        League standing (position and points-per-game gap) carries more
+        weight than individual signals. A team with a clear standing
+        advantage — especially the away team — gets a positive adjustment.
         """
         home_attack_adj = 0.0
         away_attack_adj = 0.0
         home_defense_adj = 0.0
         away_defense_adj = 0.0
+        home_win_adj = 0.0
+        draw_win_adj = 0.0
+        away_win_adj = 0.0
         reason_codes: list[str] = []
 
         # League position advantage (lower position number is better for home)
+        # League standing should carry significant weight — a team higher in
+        # the table (whether home or away) is more likely to win, score BTTS,
+        # and play in over-2.5 games.
         if ai_features.league_position_advantage is not None:
             if ai_features.league_position_advantage > 0:
                 # Home team is higher in table (better position)
-                home_attack_adj += min(0.3, ai_features.league_position_advantage * 0.02)
-                away_defense_adj += min(0.3, ai_features.league_position_advantage * 0.02)
-                reason_codes.append("league_position_advantage")
+                # Use square-root weighting so large gaps are capped
+                pos_weight = min(8, ai_features.league_position_advantage * 0.15)
+                home_attack_adj += min(0.45, pos_weight)
+                away_defense_adj += min(0.45, pos_weight)
+                home_win_adj += min(0.05, pos_weight * 0.06)
+                reason_codes.append("home_league_position_advantage")
             elif ai_features.league_position_advantage < 0:
                 # Away team is higher in table
-                away_attack_adj += min(0.3, abs(ai_features.league_position_advantage) * 0.02)
-                home_defense_adj += min(0.3, abs(ai_features.league_position_advantage) * 0.02)
-                reason_codes.append("league_position_disadvantage")
+                pos_weight = min(8, abs(ai_features.league_position_advantage) * 0.15)
+                away_attack_adj += min(0.45, pos_weight)
+                home_defense_adj += min(0.45, pos_weight)
+                away_win_adj += min(0.05, pos_weight * 0.06)
+                reason_codes.append("away_league_position_advantage")
 
-        # Standing PPG advantage
+        # Standing PPG advantage — points per game is a stronger signal
+        # than position alone; weight it heavily.
         if ai_features.standing_ppg_advantage is not None:
-            ppg_adj = ai_features.standing_ppg_advantage * 0.08
+            ppg_adj = ai_features.standing_ppg_advantage * 0.15
             if ppg_adj > 0:
-                home_attack_adj += min(0.35, ppg_adj)
-                away_defense_adj += min(0.35, ppg_adj)
-                reason_codes.append("standing_ppg_advantage")
+                home_attack_adj += min(0.40, ppg_adj)
+                away_defense_adj += min(0.40, ppg_adj)
+                home_win_adj += min(0.05, ppg_adj * 0.05)
+                reason_codes.append("home_standing_ppg_advantage")
             elif ppg_adj < 0:
-                away_attack_adj += min(0.35, abs(ppg_adj))
-                home_defense_adj += min(0.35, abs(ppg_adj))
-                reason_codes.append("standing_ppg_disadvantage")
+                away_attack_adj += min(0.40, abs(ppg_adj))
+                home_defense_adj += min(0.40, abs(ppg_adj))
+                away_win_adj += min(0.05, abs(ppg_adj) * 0.05)
+                reason_codes.append("away_standing_ppg_advantage")
 
         # Average goals per game advantage
         if ai_features.avg_goals_advantage is not None:
@@ -351,17 +476,48 @@ class AIAdjustmentLayer:
                 home_defense_adj += min(0.25, abs(gpg_adj))
                 reason_codes.append("avg_goals_disadvantage")
 
-        # H2H head-to-head ratio
+        # H2H head-to-head ratio — also consider win counts and avg goals
         if ai_features.h2h_record is not None:
             h2h_ratio = ai_features.h2h_record.get("home_win_ratio", None)
+            h2h_team_a_wins = ai_features.h2h_record.get("team_a_wins", None)
+            h2h_team_b_wins = ai_features.h2h_record.get("team_b_wins", None)
+            h2h_avg_goals = ai_features.h2h_record.get("avg_goals_per_game", None)
+
+            # Win ratio adjustment
             if h2h_ratio is not None:
                 h2h_adj = (h2h_ratio - 0.5) * 0.5  # -0.25 to +0.25 range
                 if h2h_adj > 0:
                     home_attack_adj += min(0.25, h2h_adj)
+                    home_win_adj += min(0.03, h2h_adj * 0.06)
                     reason_codes.append("h2h_advantage")
                 elif h2h_adj < 0:
                     away_attack_adj += min(0.25, abs(h2h_adj))
+                    away_win_adj += min(0.03, abs(h2h_adj) * 0.06)
                     reason_codes.append("h2h_disadvantage")
+
+            # H2H goal volume: high-scoring H2H meetings suggest over-2.5
+            if h2h_avg_goals is not None and h2h_avg_goals > 2.5:
+                over_adj = min(0.10, (h2h_avg_goals - 2.5) * 0.04)
+                home_attack_adj += over_adj
+                away_attack_adj += over_adj
+                reason_codes.append("h2h_high_scoring")
+            elif h2h_avg_goals is not None and h2h_avg_goals < 2.5:
+                under_adj = min(0.10, (2.5 - h2h_avg_goals) * 0.04)
+                home_defense_adj -= under_adj
+                away_defense_adj -= under_adj
+                reason_codes.append("h2h_low_scoring")
+
+            # H2H win count differential
+            if h2h_team_a_wins is not None and h2h_team_b_wins is not None:
+                total = h2h_team_a_wins + h2h_team_b_wins + (ai_features.h2h_record.get("draws", 0) or 0)
+                if total >= 3:
+                    win_gap = h2h_team_a_wins - h2h_team_b_wins
+                    if win_gap > 0:
+                        home_win_adj += min(0.04, win_gap * 0.02)
+                        reason_codes.append("h2h_win_count_advantage")
+                    elif win_gap < 0:
+                        away_win_adj += min(0.04, abs(win_gap) * 0.02)
+                        reason_codes.append("h2h_win_count_disadvantage")
 
         # BTTS rate advantage — teams with higher recent BTTS may produce
         # more goals across both sides (affects both attack)
@@ -400,6 +556,11 @@ class AIAdjustmentLayer:
             away_attack_adjustment=round(away_attack_adj, 4),
             home_defense_adjustment=round(home_defense_adj, 4),
             away_defense_adjustment=round(away_defense_adj, 4),
+            home_win_adjustment=round(home_win_adj, 4),
+            draw_win_adjustment=round(draw_win_adj, 4),
+            away_win_adjustment=round(away_win_adj, 4),
+            btts_adjustment=0.0,
+            over_2_5_adjustment=0.0,
             confidence=0.3,
             reason_codes=reason_codes,
             source_ids=[],
@@ -422,6 +583,11 @@ class AIAdjustmentLayer:
             ai_adjustment.away_attack_adjustment,
             ai_adjustment.home_defense_adjustment,
             ai_adjustment.away_defense_adjustment,
+            ai_adjustment.home_win_adjustment,
+            ai_adjustment.draw_win_adjustment,
+            ai_adjustment.away_win_adjustment,
+            ai_adjustment.btts_adjustment,
+            ai_adjustment.over_2_5_adjustment,
         ]) else 0.6
 
         blended = AIFeatureAdjustment(
@@ -445,6 +611,23 @@ class AIAdjustmentLayer:
                 + statistical_adjustment.away_defense_adjustment * stat_weight,
                 4,
             ),
+            home_win_adjustment=round(
+                ai_adjustment.home_win_adjustment
+                + statistical_adjustment.home_win_adjustment * stat_weight,
+                4,
+            ),
+            draw_win_adjustment=round(
+                ai_adjustment.draw_win_adjustment
+                + statistical_adjustment.draw_win_adjustment * stat_weight,
+                4,
+            ),
+            away_win_adjustment=round(
+                ai_adjustment.away_win_adjustment
+                + statistical_adjustment.away_win_adjustment * stat_weight,
+                4,
+            ),
+            btts_adjustment=ai_adjustment.btts_adjustment,
+            over_2_5_adjustment=ai_adjustment.over_2_5_adjustment,
             confidence=max(ai_adjustment.confidence, statistical_adjustment.confidence),
             reason_codes=list(dict.fromkeys(
                 ai_adjustment.reason_codes + statistical_adjustment.reason_codes
@@ -461,11 +644,28 @@ class AIAdjustmentLayer:
         home_defense = max(-self._max_defense_adjustment, min(self._max_defense_adjustment, adjustment.home_defense_adjustment))
         away_defense = max(-self._max_defense_adjustment, min(self._max_defense_adjustment, adjustment.away_defense_adjustment))
 
+        # Market-level adjustments are bounded to ±0.25
+        market_cap = 0.25
         return AIFeatureAdjustment(
             home_attack_adjustment=round(home_attack, 4),
             away_attack_adjustment=round(away_attack, 4),
             home_defense_adjustment=round(home_defense, 4),
             away_defense_adjustment=round(away_defense, 4),
+            home_win_adjustment=round(
+                max(-market_cap, min(market_cap, adjustment.home_win_adjustment)), 4
+            ),
+            draw_win_adjustment=round(
+                max(-market_cap, min(market_cap, adjustment.draw_win_adjustment)), 4
+            ),
+            away_win_adjustment=round(
+                max(-market_cap, min(market_cap, adjustment.away_win_adjustment)), 4
+            ),
+            btts_adjustment=round(
+                max(-market_cap, min(market_cap, adjustment.btts_adjustment)), 4
+            ),
+            over_2_5_adjustment=round(
+                max(-market_cap, min(market_cap, adjustment.over_2_5_adjustment)), 4
+            ),
             confidence=adjustment.confidence,
             reason_codes=adjustment.reason_codes,
             source_ids=adjustment.source_ids,
@@ -480,7 +680,14 @@ class AIAdjustmentLayer:
         """Build a human-readable explanation of the AI adjustment."""
         if not adjustment.home_attack_adjustment and not adjustment.away_attack_adjustment:
             if not adjustment.home_defense_adjustment and not adjustment.away_defense_adjustment:
-                return "No AI adjustment applied based on available evidence."
+                if (
+                    not adjustment.home_win_adjustment
+                    and not adjustment.draw_win_adjustment
+                    and not adjustment.away_win_adjustment
+                    and not adjustment.btts_adjustment
+                    and not adjustment.over_2_5_adjustment
+                ):
+                    return "No AI adjustment applied based on available evidence."
 
         parts: list[str] = []
         parts.append(f"AI adjustment applied (confidence: {adjustment.confidence:.2f}).")
@@ -499,6 +706,28 @@ class AIAdjustmentLayer:
                 f"Away attack adjusted by {adjustment.away_attack_adjustment:+.4f} "
                 f"(lambda: {base_result.lambda_away:.4f} -> "
                 f"{base_result.lambda_away + adjustment.away_attack_adjustment:.4f})."
+            )
+
+        # Market-level adjustments
+        if (
+            adjustment.home_win_adjustment != 0
+            or adjustment.draw_win_adjustment != 0
+            or adjustment.away_win_adjustment != 0
+        ):
+            win_changes = []
+            if adjustment.home_win_adjustment != 0:
+                win_changes.append(f"home +{adjustment.home_win_adjustment:+.2%}")
+            if adjustment.draw_win_adjustment != 0:
+                win_changes.append(f"draw {adjustment.draw_win_adjustment:+.2%}")
+            if adjustment.away_win_adjustment != 0:
+                win_changes.append(f"away {adjustment.away_win_adjustment:+.2%}")
+            parts.append(f"Market-level WIN adjustments: {', '.join(win_changes)}.")
+
+        if adjustment.btts_adjustment != 0:
+            parts.append(f"BTTS adjusted by {adjustment.btts_adjustment:+.2%}")
+        if adjustment.over_2_5_adjustment != 0:
+            parts.append(
+                f"Over 2.5 adjusted by {adjustment.over_2_5_adjustment:+.2%}"
             )
 
         if adjustment.source_ids:
