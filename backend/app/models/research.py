@@ -152,7 +152,6 @@ class WebSourceExtended(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-
     __table_args__ = (
         Index("idx_web_sources_extended_match", "match_id"),
         Index("idx_web_sources_extended_type_score", "source_type", "credibility_score"),
