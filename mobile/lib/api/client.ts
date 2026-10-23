@@ -36,6 +36,11 @@ export interface MobileAuthResponse {
 export interface MobileSubscriptionStatus {
   is_subscribed: boolean;
   subscription_price_usd?: number;
+  subscription_price_ngn?: number;
+  subscription_price?: number;
+  subscription_currency?: string;
+  subscription?: { status: string; current_period_start?: string | null; current_period_end?: string | null } | null;
+  renewal_available?: boolean;
   free_predictions_remaining: number | null;
   total_free_predictions: number;
 }

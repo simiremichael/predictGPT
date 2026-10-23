@@ -35,6 +35,23 @@ class AuthLoginRequest(BaseModel):
         return password
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_reset_password_length(cls, password: str) -> str:
+        if len(password.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 UTF-8 bytes")
+        return password
+
+
 class TokenResponse(BaseModel):
     """Response containing the JWT access token."""
 
@@ -52,7 +69,6 @@ class UserResponse(BaseModel):
     is_active: bool
     is_subscribed: bool
     is_superuser: bool
-    country: str | None = None
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
@@ -89,8 +105,10 @@ class SubscriptionStatusResponse(BaseModel):
 
     is_subscribed: bool
     subscription_price_usd: float = 5.0
+    subscription_price_ngn: int = 7000
     subscription: SubscriptionResponse | None = None
     user: UserResponse
+    renewal_available: bool = False
 
 
 # Register forward refs

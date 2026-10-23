@@ -884,11 +884,23 @@ export const api = {
   authRegister: (
     email: string,
     password: string,
-    country?: string,
+    country: string,
   ): Promise<AuthResponse> =>
     requestRaw<AuthResponse>("/api/v1/auth/register", {
       method: "POST",
       body: JSON.stringify({ email, password, country }),
+    }),
+
+  requestPasswordReset: (email: string): Promise<{ message: string }> =>
+    requestRaw<{ message: string }>("/api/v1/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (email: string, code: string, newPassword: string): Promise<{ message: string }> =>
+    requestRaw<{ message: string }>("/api/v1/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ email, code, new_password: newPassword }),
     }),
 
   authGetCurrent: (): Promise<User> =>
@@ -905,16 +917,22 @@ export const api = {
    getSubscriptionStatus: (): Promise<{
     is_subscribed: boolean;
     subscription_price_usd: number;
+    subscription_price_ngn: number;
     subscription_price: number;
     subscription_currency: string;
+    subscription?: { status: string; current_period_start?: string | null; current_period_end?: string | null } | null;
+    renewal_available: boolean;
     free_predictions_remaining: number | null;
     total_free_predictions: number;
   }> =>
     requestRaw<{
       is_subscribed: boolean;
       subscription_price_usd: number;
+      subscription_price_ngn: number;
       subscription_price: number;
       subscription_currency: string;
+      subscription?: { status: string; current_period_start?: string | null; current_period_end?: string | null } | null;
+      renewal_available: boolean;
       free_predictions_remaining: number | null;
       total_free_predictions: number;
     }>("/api/v1/subscription/check", {

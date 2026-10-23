@@ -184,20 +184,32 @@ class Settings(BaseSettings):
     )
     web_search_supported_providers: tuple[str, ...] = (
         "tavily",
-        "youcom",
         "brave",
+        "youcom",
     )
     tavily_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("TAVILY_API_KEY", "tavily_api_key"),
     )
+    tavily_search_url: str = Field(
+        default="https://api.tavily.com/search",
+        validation_alias=AliasChoices("TAVILY_SEARCH_URL", "tavily_search_url"),
+    )
     you_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("YOU_API_KEY", "you_api_key"),
     )
+    you_search_url: str = Field(
+        default="https://ydc-index.io/v1/search",
+        validation_alias=AliasChoices("YOU_SEARCH_URL", "you_search_url"),
+    )
     brave_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("BRAVE_API_KEY", "brave_api_key"),
+    )
+    brave_search_url: str = Field(
+        default="https://api.search.brave.com/res/v1/web/search",
+        validation_alias=AliasChoices("BRAVE_SEARCH_URL", "brave_search_url"),
     )
 
     # ------------------------------------------------------------------ #
@@ -239,6 +251,9 @@ class Settings(BaseSettings):
         default=43200,
         validation_alias=AliasChoices("ACCESS_TOKEN_EXPIRE_MINUTES", "access_token_expire_minutes"),
     )
+    gmail_username: str | None = Field(default=None, validation_alias=AliasChoices("GMAIL_USERNAME", "gmail_username"))
+    gmail_app_password: str | None = Field(default=None, validation_alias=AliasChoices("GMAIL_APP_PASSWORD", "gmail_app_password"))
+    gmail_from_email: str | None = Field(default=None, validation_alias=AliasChoices("GMAIL_FROM_EMAIL", "gmail_from_email"))
 
     # ------------------------------------------------------------------ #
     # Flutterwave (v4 - OAuth 2.0)

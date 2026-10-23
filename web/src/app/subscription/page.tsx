@@ -35,6 +35,7 @@ export default function SubscriptionPage() {
   });
 
   const isPremium = status?.is_subscribed ?? isSubscribed;
+  const renewalAvailable = status?.renewal_available ?? false;
 
   const handleSubscribe = async () => {
     if (!user) {
@@ -87,7 +88,7 @@ export default function SubscriptionPage() {
     );
   }
 
-  if (isPremium) {
+  if (isPremium && !renewalAvailable) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -98,12 +99,23 @@ export default function SubscriptionPage() {
             </CardTitle>
             <CardDescription className="text-center">
               You have full access to all predictions and features.
+              {status?.subscription?.current_period_end && (
+                <> Your subscription renews or expires on {new Date(status.subscription.current_period_end).toLocaleDateString()}.</>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" asChild>
-              <a href="/predictions">View all predictions</a>
-            </Button>
+            <div className="space-y-3">
+              <Button variant="outline" className="w-full" asChild>
+                <a href="/predictions">View all predictions</a>
+              </Button>
+              {renewalAvailable && (
+                <Button className="w-full" onClick={handleSubscribe} disabled={initiating}>
+                  {initiating ? "Redirecting..." : "Renew subscription"}
+                  {!initiating && <ExternalLink className="ml-2 h-4 w-4" />}
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -123,8 +135,8 @@ export default function SubscriptionPage() {
           <div className="text-center">
             <p className="text-4xl font-bold text-primary">
               {status?.subscription_currency === "NGN"
-                ? `₦${status?.subscription_price ?? 7000}`
-                : `$${status?.subscription_price ?? status?.subscription_price_usd ?? 5}`}
+                ? `₦${status?.subscription_price ?? status?.subscription_price_ngn ?? 7000}`
+                : `$${status?.subscription_price_usd ?? 5}`}
             </p>
             <p className="text-sm text-muted-foreground">per month</p>
           </div>
@@ -155,7 +167,7 @@ export default function SubscriptionPage() {
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            Monthly recurring billing through your Flutterwave payment plan.
+            Monthly billing through Flutterwave.
           </p>
         </CardContent>
       </Card>

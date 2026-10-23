@@ -45,6 +45,7 @@ from models.research import (  # noqa: F401
     WebSourceExtended,
 )
 from models.user import (  # noqa: F401
+    PasswordResetCode,
     Subscription,
     SubscriptionStatus,
     User,
@@ -85,4 +86,5 @@ __all__ = [
     "User",
     "Subscription",
     "SubscriptionStatus",
+    "PasswordResetCode",
 ]

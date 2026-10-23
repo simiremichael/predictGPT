@@ -20,6 +20,9 @@ export default function SubscriptionScreen() {
   const { user, isSubscribed, loading: authLoading, refreshSubscription } = useAuth();
   const userId = user?.id;
   const [price, setPrice] = useState(5);
+  const [currency, setCurrency] = useState("USD");
+  const [renewalAvailable, setRenewalAvailable] = useState(false);
+  const [periodEnd, setPeriodEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,7 +31,12 @@ export default function SubscriptionScreen() {
     let checks = 0;
     const refresh = () => {
       void refreshSubscription()
-        .then((status) => setPrice(status.subscription_price_usd ?? 5))
+        .then((status) => {
+          setCurrency(status.subscription_currency ?? "USD");
+          setPrice(status.subscription_price ?? status.subscription_price_usd ?? 5);
+          setRenewalAvailable(status.renewal_available ?? false);
+          setPeriodEnd(status.subscription?.current_period_end ?? null);
+        })
         .catch(() => undefined);
     };
     refresh();
@@ -65,20 +73,22 @@ export default function SubscriptionScreen() {
             <Text style={[styles.text, { color: colors.mutedForeground }]}>Log in to manage your subscription or continue to checkout.</Text>
             <Link href="/(auth)/login" asChild><TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]}><Text style={[styles.buttonText, { color: colors.primaryForeground }]}>Log in</Text></TouchableOpacity></Link>
           </>
-        ) : isSubscribed ? (
+        ) : isSubscribed && !renewalAvailable ? (
           <>
             <CheckCircle size={40} color={colors.success} />
             <Text style={[styles.subtitle, { color: colors.foreground }]}>Premium is active</Text>
             <Text style={[styles.text, { color: colors.mutedForeground }]}>Your account has full access to premium predictions.</Text>
+            {!!periodEnd && <Text style={[styles.caption, { color: colors.mutedForeground }]}>Your subscription ends on {new Date(periodEnd).toLocaleDateString()}.</Text>}
+            <Link href="/(tabs)" asChild><TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]}><Text style={[styles.buttonText, { color: colors.primaryForeground }]}>View predictions</Text></TouchableOpacity></Link>
           </>
         ) : (
           <>
             <Text style={[styles.subtitle, { color: colors.foreground }]}>Upgrade to Premium</Text>
-            <Text style={[styles.price, { color: colors.primary }]}>${price}<Text style={[styles.priceSuffix, { color: colors.mutedForeground }]}> / month</Text></Text>
+            <Text style={[styles.price, { color: colors.primary }]}>{currency === "NGN" ? "₦" : "$"}{price}<Text style={[styles.priceSuffix, { color: colors.mutedForeground }]}> / month</Text></Text>
             {FEATURES.map((feature) => <View key={feature} style={styles.feature}><CheckCircle size={18} color={colors.success} /><Text style={[styles.text, { color: colors.foreground }]}>{feature}</Text></View>)}
             {!!error && <Text accessibilityRole="alert" style={[styles.error, { color: colors.error }]}>{error}</Text>}
             <TouchableOpacity accessibilityRole="button" disabled={loading} onPress={subscribe} style={[styles.button, { backgroundColor: colors.primary, opacity: loading ? 0.6 : 1 }]}>
-              {loading ? <ActivityIndicator color={colors.primaryForeground} /> : <><Text style={[styles.buttonText, { color: colors.primaryForeground }]}>Subscribe with Flutterwave</Text><ExternalLink size={16} color={colors.primaryForeground} /></>}
+              {loading ? <ActivityIndicator color={colors.primaryForeground} /> : <><Text style={[styles.buttonText, { color: colors.primaryForeground }]}>{isSubscribed ? "Renew subscription" : "Subscribe with Flutterwave"}</Text><ExternalLink size={16} color={colors.primaryForeground} /></>}
             </TouchableOpacity>
             <Text style={[styles.caption, { color: colors.mutedForeground }]}>Monthly recurring billing via Flutterwave.</Text>
           </>

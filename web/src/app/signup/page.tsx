@@ -25,19 +25,44 @@ import {
 import { useAuth } from "@/contexts/auth";
 
 const COUNTRIES = [
-  // { code: "US", name: "United States" },
-  { code: "NG", name: "Nigeria" },
-  // { code: "GB", name: "United Kingdom" },
-  // { code: "CA", name: "Canada" },
-  // { code: "AU", name: "Australia" },
-  // { code: "DE", name: "Germany" },
-  // { code: "FR", name: "France" },
-  // { code: "ZA", name: "South Africa" },
-  // { code: "KE", name: "Kenya" },
-  // { code: "IN", name: "India" },
-  // { code: "BR", name: "Brazil" },
-  { code: "US", name: "Others" },
-];
+  ["DZ", "Algeria"], ["AO", "Angola"], ["BJ", "Benin"], ["BW", "Botswana"],
+  ["BF", "Burkina Faso"], ["BI", "Burundi"], ["CV", "Cabo Verde"], ["CM", "Cameroon"],
+  ["CF", "Central African Republic"], ["TD", "Chad"], ["KM", "Comoros"], ["CG", "Congo"],
+  ["CD", "Democratic Republic of the Congo"], ["CI", "Côte d’Ivoire"], ["DJ", "Djibouti"],
+  ["EG", "Egypt"], ["GQ", "Equatorial Guinea"], ["ER", "Eritrea"], ["SZ", "Eswatini"],
+  ["ET", "Ethiopia"], ["GA", "Gabon"], ["GM", "Gambia"], ["GH", "Ghana"],
+  ["GN", "Guinea"], ["GW", "Guinea-Bissau"], ["KE", "Kenya"], ["LS", "Lesotho"],
+  ["LR", "Liberia"], ["LY", "Libya"], ["MG", "Madagascar"], ["MW", "Malawi"],
+  ["ML", "Mali"], ["MR", "Mauritania"], ["MU", "Mauritius"], ["MA", "Morocco"],
+  ["MZ", "Mozambique"], ["NA", "Namibia"], ["NE", "Niger"], ["NG", "Nigeria"],
+  ["RW", "Rwanda"], ["ST", "São Tomé and Príncipe"], ["SN", "Senegal"], ["SC", "Seychelles"],
+  ["SL", "Sierra Leone"], ["SO", "Somalia"], ["ZA", "South Africa"], ["SS", "South Sudan"],
+  ["SD", "Sudan"], ["TZ", "Tanzania"], ["TG", "Togo"], ["TN", "Tunisia"],
+  ["UG", "Uganda"], ["ZM", "Zambia"], ["ZW", "Zimbabwe"],
+  ["AL", "Albania"], ["AD", "Andorra"], ["AT", "Austria"], ["BY", "Belarus"],
+  ["BE", "Belgium"], ["BA", "Bosnia and Herzegovina"], ["BG", "Bulgaria"], ["HR", "Croatia"],
+  ["CY", "Cyprus"], ["CZ", "Czechia"], ["DK", "Denmark"], ["EE", "Estonia"],
+  ["FI", "Finland"], ["FR", "France"], ["DE", "Germany"], ["GR", "Greece"],
+  ["HU", "Hungary"], ["IS", "Iceland"], ["IE", "Ireland"], ["IT", "Italy"],
+  ["XK", "Kosovo"], ["LV", "Latvia"], ["LI", "Liechtenstein"], ["LT", "Lithuania"],
+  ["LU", "Luxembourg"], ["MT", "Malta"], ["MD", "Moldova"], ["MC", "Monaco"],
+  ["ME", "Montenegro"], ["NL", "Netherlands"], ["MK", "North Macedonia"], ["NO", "Norway"],
+  ["PL", "Poland"], ["PT", "Portugal"], ["RO", "Romania"], ["RU", "Russia"],
+  ["SM", "San Marino"], ["RS", "Serbia"], ["SK", "Slovakia"], ["SI", "Slovenia"],
+  ["ES", "Spain"], ["SE", "Sweden"], ["CH", "Switzerland"], ["TR", "Türkiye"],
+  ["UA", "Ukraine"], ["GB", "United Kingdom"], ["VA", "Vatican City"],
+  ["AG", "Antigua and Barbuda"], ["AR", "Argentina"], ["BS", "Bahamas"], ["BB", "Barbados"],
+  ["BZ", "Belize"], ["BO", "Bolivia"], ["BR", "Brazil"], ["CA", "Canada"],
+  ["CL", "Chile"], ["CO", "Colombia"], ["CR", "Costa Rica"], ["CU", "Cuba"],
+  ["DM", "Dominica"], ["DO", "Dominican Republic"], ["EC", "Ecuador"], ["SV", "El Salvador"],
+  ["GD", "Grenada"], ["GT", "Guatemala"], ["GY", "Guyana"], ["HT", "Haiti"],
+  ["HN", "Honduras"], ["JM", "Jamaica"], ["MX", "Mexico"], ["NI", "Nicaragua"],
+  ["PA", "Panama"], ["PY", "Paraguay"], ["PE", "Peru"], ["KN", "Saint Kitts and Nevis"],
+  ["LC", "Saint Lucia"], ["VC", "Saint Vincent and the Grenadines"], ["SR", "Suriname"],
+  ["TT", "Trinidad and Tobago"], ["US", "United States"], ["UY", "Uruguay"], ["VE", "Venezuela"],
+  ["AE", "United Arab Emirates"],
+  ["OTHER", "Others"],
+] as const;
 
 export default function SignupPage() {
   const router = useRouter();
@@ -47,22 +72,14 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [country, setCountry] = useState("");
-  const [countryError, setCountryError] = useState(false);
-
-  const handleCountryChange = (value: string) => {
-    setCountry(value);
-    setCountryError(false);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!country) {
-      setCountryError(true);
-      toast.error("Please select your country");
-      return;
-    }
     if (password.length < 8) {
       toast.error("Password must be at least 8 characters");
+      return;
+    }
+    if (!country) {
+      toast.error("Please select your country");
       return;
     }
     setIsSubmitting(true);
@@ -140,32 +157,19 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label
-                className="block text-sm font-medium mb-1"
-                htmlFor="country"
-              >
+              <label className="mb-1 block text-sm font-medium" htmlFor="country">
                 Country <span className="text-destructive">*</span>
               </label>
-              <Select value={country} onValueChange={handleCountryChange}>
-                <SelectTrigger
-                  id="country"
-                  className={countryError ? "border-destructive" : undefined}
-                >
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger id="country">
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
-                <SelectContent>
-                  {COUNTRIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
-                      {c.name}
-                    </SelectItem>
+                <SelectContent className="max-h-[min(20rem,60vh)] overflow-y-auto">
+                  {COUNTRIES.map(([code, name]) => (
+                    <SelectItem key={code} value={code}>{name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {countryError && (
-                <p className="text-xs text-destructive mt-1">
-                  Country is required
-                </p>
-              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>

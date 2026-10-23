@@ -9,7 +9,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
-from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from core.config import get_settings
@@ -54,13 +53,10 @@ def _create_subscription_record(
     flutterwave_customer_id: str | None = None,
     flutterwave_subscription_id: str | None = None,
     status: SubscriptionStatus = SubscriptionStatus.ACTIVE,
-    period_days: int = 30,
 ) -> Subscription:
     """Helper to create/update a subscription record."""
     now = datetime.now(UTC)
-    period_end = (
-        now + relativedelta(months=1) if period_days == 30 else now + timedelta(days=period_days)
-    )
+    period_end = now + timedelta(days=30)
 
     sub = Subscription(
         user_id=user.id,
@@ -102,35 +98,45 @@ async def initiate_subscription(
                 detail="User not found",
             )
 
-        # Check if already subscribed
-        if user.has_active_subscription:
+        sub = user.subscription
+        now = datetime.now(UTC)
+        period_start = sub.current_period_start if sub else None
+        period_end = sub.current_period_end if sub else None
+        if period_start is not None and period_start.tzinfo is None:
+            period_start = period_start.replace(tzinfo=UTC)
+        if period_end is not None and period_end.tzinfo is None:
+            period_end = period_end.replace(tzinfo=UTC)
+        renewal_open = bool(
+            user.has_active_subscription
+            and period_start is not None
+            and period_end is not None
+            and now >= period_start + timedelta(days=25)
+        )
+        if user.has_active_subscription and not renewal_open:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You already have an active subscription",
+                detail="Renewal is available during the final five days of your subscription.",
             )
 
-        # Create a pending subscription record
-        sub = _create_subscription_record(
-            user=user,
-            status=SubscriptionStatus.INCOMPLETE,
-        )
-
-        # Determine pricing based on user's country
-        if (user.country or "").upper() == settings.nigeria_country_code.upper():
-            amount = settings.subscription_price_ngn
-            currency = "NGN"
+        currency, amount = _get_currency_for_user(user, settings)
+        if sub is None:
+            sub = _create_subscription_record(
+                user=user,
+                status=SubscriptionStatus.INCOMPLETE,
+            )
+            sub.amount = amount
+            sub.currency = currency.lower()
+            session.add(sub)
+            await session.commit()
+            await session.refresh(sub)
         else:
-            amount = settings.subscription_price_usd
-            currency = "USD"
-
-        sub.amount = amount
-        sub.currency = currency.lower()
-        session.add(sub)
-        await session.commit()
-        await session.refresh(sub)
+            # Reuse the user's single subscription row for renewals and restarts.
+            sub.amount = amount
+            sub.currency = currency.lower()
+            await session.commit()
 
         # Generate a unique reference for the transaction
-        tx_ref = f"sub_{sub.id}_{int(datetime.now(UTC).timestamp())}_{secrets.token_hex(4)}"
+        tx_ref = f"sub_{sub.id}_{int(now.timestamp())}_{secrets.token_hex(4)}"
         sub.payment_reference = tx_ref
         await session.commit()
 
@@ -299,13 +305,26 @@ async def flutterwave_webhook(request: Request) -> dict[str, Any]:
             transaction_reference = str(verified.get("id") or charge_id)
             if sub.flutterwave_subscription_id != transaction_reference:
                 now = datetime.now(UTC)
+                was_active = sub.status == SubscriptionStatus.ACTIVE
                 sub.status = SubscriptionStatus.ACTIVE
                 current_end = sub.current_period_end
                 if current_end is not None and current_end.tzinfo is None:
                     current_end = current_end.replace(tzinfo=UTC)
-                period_start = current_end if current_end and current_end > now else now
+                current_start = sub.current_period_start
+                if current_start is not None and current_start.tzinfo is None:
+                    current_start = current_start.replace(tzinfo=UTC)
+                allow_early_renewal = bool(
+                    was_active
+                    and current_start is not None
+                    and now >= current_start + timedelta(days=25)
+                )
+                period_start = (
+                    current_end
+                    if current_end and current_end > now and allow_early_renewal
+                    else now
+                )
                 sub.current_period_start = period_start
-                sub.current_period_end = period_start + relativedelta(months=1)
+                sub.current_period_end = period_start + timedelta(days=30)
                 sub.flutterwave_subscription_id = transaction_reference
                 await session.execute(
                     update(User).where(User.id == sub.user_id).values(is_subscribed=True)
@@ -416,8 +435,23 @@ async def verify_subscription_payment(
         # whether the webhook already set the reference (handles race conditions)
         now = datetime.now(UTC)
         sub.status = SubscriptionStatus.ACTIVE
-        sub.current_period_start = now
-        sub.current_period_end = now + relativedelta(months=1)
+        current_end = sub.current_period_end
+        if current_end is not None and current_end.tzinfo is None:
+            current_end = current_end.replace(tzinfo=UTC)
+        renewal_extension = bool(
+            sub.status == SubscriptionStatus.ACTIVE
+            and sub.current_period_start is not None
+            and now >= (
+                sub.current_period_start.replace(tzinfo=UTC)
+                if sub.current_period_start.tzinfo is None
+                else sub.current_period_start
+            ) + timedelta(days=25)
+            and current_end is not None
+            and current_end > now
+        )
+        period_start = current_end if renewal_extension else now
+        sub.current_period_start = period_start
+        sub.current_period_end = period_start + timedelta(days=30)
         sub.flutterwave_subscription_id = transaction_reference
         await session.execute(update(User).where(User.id == user.id).values(is_subscribed=True))
         user.is_subscribed = True
@@ -427,7 +461,7 @@ async def verify_subscription_payment(
 
 
 def _get_currency_for_user(user: User, settings) -> tuple[str, float]:
-    """Return (currency, price) based on the user's country."""
+    """Choose the Flutterwave charge currency and amount by account country."""
     if (user.country or "").upper() == settings.nigeria_country_code.upper():
         return "NGN", float(settings.subscription_price_ngn)
     return "USD", settings.subscription_price_usd
@@ -445,6 +479,7 @@ async def check_subscription(
             "subscription_price_usd": settings.subscription_price_usd,
             "subscription_price": settings.subscription_price_usd,
             "subscription_currency": "USD",
+            "subscription_price_ngn": settings.subscription_price_ngn,
             "free_predictions_remaining": FREE_PREDICTION_LIMIT,
             "total_free_predictions": FREE_PREDICTION_LIMIT,
         }
@@ -454,14 +489,55 @@ async def check_subscription(
     async with DBSession() as session:
         result = await session.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
-        currency, price = _get_currency_for_user(user, settings) if user else ("USD", settings.subscription_price_usd)
+        currency, price = (
+            _get_currency_for_user(user, settings)
+            if user
+            else ("USD", settings.subscription_price_usd)
+        )
+        if user and user.subscription:
+            sub = user.subscription
+            period_end = sub.current_period_end
+            if period_end is not None and period_end.tzinfo is None:
+                period_end = period_end.replace(tzinfo=UTC)
+            if (
+                sub.status == SubscriptionStatus.ACTIVE
+                and period_end is not None
+                and period_end <= datetime.now(UTC)
+            ):
+                sub.status = SubscriptionStatus.EXPIRED
+                user.is_subscribed = False
+                await session.commit()
+
         subscription_active = bool(user and user.has_active_subscription)
+        renewal_available = False
+        period_start_value = user.subscription.current_period_start if user and user.subscription else None
+        period_end_value = user.subscription.current_period_end if user and user.subscription else None
+        if period_start_value is not None and period_start_value.tzinfo is None:
+            period_start_value = period_start_value.replace(tzinfo=UTC)
+        if period_end_value is not None and period_end_value.tzinfo is None:
+            period_end_value = period_end_value.replace(tzinfo=UTC)
+        if subscription_active and period_start_value and period_end_value:
+            now = datetime.now(UTC)
+            renewal_available = (
+                now >= period_start_value + timedelta(days=25)
+                and now < period_end_value
+            )
+        subscription_info = None
+        if user and user.subscription:
+            subscription_info = {
+                "status": user.subscription.status.value,
+                "current_period_start": period_start_value.isoformat() if period_start_value else None,
+                "current_period_end": period_end_value.isoformat() if period_end_value else None,
+            }
         if subscription_active:
             return {
                 "is_subscribed": True,
                 "subscription_price_usd": settings.subscription_price_usd,
+                "subscription_price_ngn": settings.subscription_price_ngn,
                 "subscription_price": price,
                 "subscription_currency": currency,
+                "subscription": subscription_info,
+                "renewal_available": renewal_available,
                 "free_predictions_remaining": None,
                 "total_free_predictions": FREE_PREDICTION_LIMIT,
             }
@@ -476,7 +552,11 @@ async def check_subscription(
                     return {
                         "is_subscribed": False,
                         "subscription_price": price,
+                        "subscription_price_usd": settings.subscription_price_usd,
+                        "subscription_price_ngn": settings.subscription_price_ngn,
                         "subscription_currency": currency,
+                        "subscription": subscription_info,
+                        "renewal_available": False,
                         "free_predictions_remaining": FREE_PREDICTION_LIMIT,
                         "total_free_predictions": FREE_PREDICTION_LIMIT,
                     }
@@ -484,8 +564,11 @@ async def check_subscription(
         return {
             "is_subscribed": False,
             "subscription_price_usd": settings.subscription_price_usd,
+            "subscription_price_ngn": settings.subscription_price_ngn,
             "subscription_price": price,
             "subscription_currency": currency,
+            "subscription": subscription_info,
+            "renewal_available": False,
             "free_predictions_remaining": FREE_PREDICTION_LIMIT,
             "total_free_predictions": FREE_PREDICTION_LIMIT,
         }

@@ -1,4 +1,4 @@
-"""Tavily search provider with You.com quota fallback."""
+"""Tavily search provider with ordered Brave/You.com fallbacks."""
 from __future__ import annotations
 
 import logging
@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 from web_research.base import SearchResult, WebSearchProvider
-from web_research.exceptions import SearchProviderError
+from web_research.exceptions import SearchProviderError, SearchRateLimitError
 
 logger = logging.getLogger(__name__)
 _quota_state_lock = threading.Lock()
@@ -58,18 +58,19 @@ def _mark_tavily_quota_exhausted() -> bool:
 
 
 class TavilySearchProvider(WebSearchProvider):
-    """Search Tavily first, switching to You.com after quota exhaustion."""
+    """Search Tavily first, switching to Brave and then You.com if unavailable."""
 
     provider_name = "tavily"
-    endpoint = "https://api.tavily.com/search"
 
     def __init__(
         self,
         api_key: str,
-        fallback_provider: WebSearchProvider,
+        fallback_provider: WebSearchProvider | None = None,
+        base_url: str | None = None,
         timeout: float = 20.0,
     ) -> None:
         self._fallback_provider = fallback_provider
+        self._endpoint = base_url or "https://api.tavily.com/search"
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
             headers={
@@ -85,7 +86,7 @@ class TavilySearchProvider(WebSearchProvider):
 
         try:
             response = await self._client.post(
-                self.endpoint,
+                self._endpoint,
                 json={
                     "query": query,
                     "search_depth": "basic",
@@ -96,41 +97,41 @@ class TavilySearchProvider(WebSearchProvider):
                 },
             )
         except httpx.TimeoutException as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "Tavily search request timed out", details={"query": query}
-            ) from exc
+            ), query, limit)
         except httpx.HTTPError as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 f"Tavily search request failed: {exc}", details={"query": query}
-            ) from exc
+            ), query, limit)
 
         if response.status_code in {432, 433}:
             if _mark_tavily_quota_exhausted():
                 logger.warning(
-                    "Tavily quota exhausted (HTTP %s); switching to You.com",
+                    "Tavily quota exhausted (HTTP %s); switching to fallback",
                     response.status_code,
                 )
             return await self._search_with_fallback(query, limit)
         if response.status_code == 429:
-            logger.warning("Tavily request rate limit reached; using You.com for this query")
+            logger.warning("Tavily request rate limit reached; using fallback for this query")
             return await self._search_with_fallback(query, limit)
         if response.status_code != 200:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 f"Tavily search returned HTTP {response.status_code}",
                 details={"query": query, "status_code": response.status_code},
-            )
+            ), query, limit)
 
         try:
             data: Any = response.json()
         except ValueError as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "Tavily search returned invalid JSON", details={"query": query}
-            ) from exc
+            ), query, limit)
         if not isinstance(data, dict):
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "Tavily search returned an unexpected response",
                 details={"query": query},
-            )
+            ), query, limit)
 
         results: list[SearchResult] = []
         for item in data.get("results", []):
@@ -155,8 +156,22 @@ class TavilySearchProvider(WebSearchProvider):
     async def _search_with_fallback(
         self, query: str, limit: int
     ) -> list[SearchResult]:
+        if self._fallback_provider is None:
+            raise SearchRateLimitError(
+                "Tavily is unavailable and no fallback provider is configured",
+                details={"query": query},
+            )
+        return await self._fallback_provider.search(query, limit=limit)
+
+    async def _fallback_or_raise(
+        self, error: SearchProviderError, query: str, limit: int
+    ) -> list[SearchResult]:
+        if self._fallback_provider is None:
+            raise error
+        logger.warning("Tavily search failed; switching to configured fallback")
         return await self._fallback_provider.search(query, limit=limit)
 
     async def close(self) -> None:
         await self._client.aclose()
-        await self._fallback_provider.close()
+        if self._fallback_provider is not None:
+            await self._fallback_provider.close()

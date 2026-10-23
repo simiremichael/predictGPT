@@ -66,14 +66,17 @@ class BraveSearchProvider(WebSearchProvider):
     """
 
     provider_name = "brave"
-    endpoint = "https://api.search.brave.com/res/v1/web/search"
 
     def __init__(
         self,
         api_key: str,
+        base_url: str | None = None,
+        fallback_provider: WebSearchProvider | None = None,
         timeout: float = 20.0,
     ) -> None:
+        self._fallback_provider = fallback_provider
         self._api_key = api_key
+        self._endpoint = base_url or "https://api.search.brave.com/res/v1/web/search"
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
             headers={
@@ -85,14 +88,11 @@ class BraveSearchProvider(WebSearchProvider):
 
     async def search(self, query: str, limit: int = 10) -> list[SearchResult]:
         if _is_brave_quota_exhausted():
-            raise SearchRateLimitError(
-                "Brave Search API quota exhausted for this month",
-                details={"query": query},
-            )
+            return await self._search_with_fallback(query, limit)
 
         try:
             response = await self._client.post(
-                self.endpoint,
+                self._endpoint,
                 json={
                     "q": query,
                     "count": max(1, min(limit, 20)),
@@ -100,52 +100,46 @@ class BraveSearchProvider(WebSearchProvider):
                 },
             )
         except httpx.TimeoutException as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "Brave Search API request timed out", details={"query": query}
-            ) from exc
+            ), query, limit)
         except httpx.HTTPError as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 f"Brave Search API request failed: {exc}", details={"query": query}
-            ) from exc
+            ), query, limit)
 
         if response.status_code in {401, 403}:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 f"Brave Search API authentication failed (HTTP {response.status_code})",
                 details={"query": query, "status_code": response.status_code},
-            )
+            ), query, limit)
         if response.status_code in {402, 432, 433}:
             if _mark_brave_quota_exhausted():
                 logger.warning(
                     "Brave Search API quota exhausted (HTTP %s)",
                     response.status_code,
                 )
-            raise SearchRateLimitError(
-                f"Brave Search API quota exhausted (HTTP {response.status_code})",
-                details={"query": query, "status_code": response.status_code},
-            )
+            return await self._search_with_fallback(query, limit)
         if response.status_code == 429:
             logger.warning("Brave Search API request rate limit reached")
-            raise SearchRateLimitError(
-                "Brave Search API rate limit reached",
-                details={"query": query},
-            )
+            return await self._search_with_fallback(query, limit)
         if response.status_code != 200:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 f"Brave Search API returned HTTP {response.status_code}",
                 details={"query": query, "status_code": response.status_code},
-            )
+            ), query, limit)
 
         try:
             data: Any = response.json()
         except ValueError as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "Brave Search API returned invalid JSON", details={"query": query}
-            ) from exc
+            ), query, limit)
         if not isinstance(data, dict):
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "Brave Search API returned an unexpected response",
                 details={"query": query},
-            )
+            ), query, limit)
 
         results: list[SearchResult] = []
         for item in data.get("web", {}).get("results", []):
@@ -172,3 +166,22 @@ class BraveSearchProvider(WebSearchProvider):
 
     async def close(self) -> None:
         await self._client.aclose()
+        if self._fallback_provider is not None:
+            await self._fallback_provider.close()
+
+    async def _search_with_fallback(self, query: str, limit: int) -> list[SearchResult]:
+        if self._fallback_provider is None:
+            raise SearchRateLimitError(
+                "Brave Search API quota exhausted or rate limited; no fallback provider is configured",
+                details={"query": query},
+            )
+        logger.warning("Brave search unavailable; switching to You.com")
+        return await self._fallback_provider.search(query, limit=limit)
+
+    async def _fallback_or_raise(
+        self, error: SearchProviderError, query: str, limit: int
+    ) -> list[SearchResult]:
+        if self._fallback_provider is None:
+            raise error
+        logger.warning("Brave search failed; switching to You.com")
+        return await self._fallback_provider.search(query, limit=limit)

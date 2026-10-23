@@ -101,6 +101,11 @@ function LoginPageContent() {
               {isSubmitting ? "Logging in..." : "Log in"}
             </Button>
           </form>
+          <p className="mt-3 text-center text-sm">
+            <Link href="/forgot-password" className="font-medium text-primary hover:underline">
+              Forgot your password?
+            </Link>
+          </p>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Don&rsquo;t have an account?{" "}
             <Link href="/signup" className="font-medium text-primary hover:underline">

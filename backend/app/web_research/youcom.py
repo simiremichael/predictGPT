@@ -61,15 +61,16 @@ class YouComSearchProvider(WebSearchProvider):
     """Search You.com and fall back to a secondary provider after quota exhaustion."""
 
     provider_name = "youcom"
-    endpoint = "https://ydc-index.io/v1/search"
 
     def __init__(
         self,
         api_key: str,
-        fallback_provider: WebSearchProvider,
+        fallback_provider: WebSearchProvider | None = None,
+        base_url: str | None = None,
         timeout: float = 20.0,
     ) -> None:
         self._fallback_provider = fallback_provider
+        self._endpoint = base_url or "https://ydc-index.io/v1/search"
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(timeout),
             headers={
@@ -85,7 +86,7 @@ class YouComSearchProvider(WebSearchProvider):
 
         try:
             response = await self._client.post(
-                self.endpoint,
+                self._endpoint,
                 json={
                     "query": query,
                     "count": max(0, min(limit, 20)),
@@ -152,8 +153,14 @@ class YouComSearchProvider(WebSearchProvider):
     async def _search_with_fallback(
         self, query: str, limit: int
     ) -> list[SearchResult]:
+        if self._fallback_provider is None:
+            raise SearchRateLimitError(
+                "You.com is unavailable and no fallback provider is configured",
+                details={"query": query},
+            )
         return await self._fallback_provider.search(query, limit=limit)
 
     async def close(self) -> None:
         await self._client.aclose()
-        await self._fallback_provider.close()
+        if self._fallback_provider is not None:
+            await self._fallback_provider.close()
