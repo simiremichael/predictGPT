@@ -35,6 +35,8 @@ class OpenAIProvider(AIProvider):
         self._client = AsyncOpenAI(
             api_key=self._api_key,
             base_url=self._base_url,
+            timeout=settings.openai_timeout_seconds,
+            max_retries=settings.openai_max_retries,
         )
 
     async def generate_structured(
@@ -74,7 +76,7 @@ class OpenAIProvider(AIProvider):
                     ],
                     response_format=response_format,
                     temperature=0.3,
-                    max_tokens=3000,
+                    max_tokens=1500,
                 )
 
                 content = response.choices[0].message.content
@@ -104,7 +106,9 @@ class OpenAIProvider(AIProvider):
 
             return {}
         except Exception as exc:
-            logger.error("AI generation failed: %s", exc)
+            logger.error(
+                "AI generation failed (%s): %s", type(exc).__name__, exc
+            )
             return {}
 
     async def generate_text(
@@ -122,11 +126,13 @@ class OpenAIProvider(AIProvider):
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.7,
-                max_tokens=max_tokens,
+                max_tokens=min(max_tokens, 1200),
             )
             return response.choices[0].message.content or ""
         except Exception as exc:
-            logger.error("AI text generation failed: %s", exc)
+            logger.error(
+                "AI text generation failed (%s): %s", type(exc).__name__, exc
+            )
             return ""
 
     async def close(self) -> None:

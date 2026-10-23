@@ -66,3 +66,34 @@ class TestAIProviderFactory:
         monkeypatch.setenv("OPENAI_API_KEY", "")
         with pytest.raises((ValueError, Exception)):
             get_ai_provider()
+
+
+class TestOpenAIProviderTimeouts:
+    def test_client_uses_bounded_timeout_and_retry_settings(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from ai.providers import openai as openai_module
+
+        client_factory = MagicMock()
+        monkeypatch.setattr(openai_module, "AsyncOpenAI", client_factory)
+
+        openai_module.OpenAIProvider(api_key="test-key")
+
+        options = client_factory.call_args.kwargs
+        assert options["timeout"] == 30.0
+        assert options["max_retries"] == 1
+
+    @pytest.mark.asyncio
+    async def test_structured_timeout_returns_fallback_without_raising(self) -> None:
+        from ai.providers.openai import OpenAIProvider
+
+        provider = OpenAIProvider(api_key="test-key")
+        provider._client = MagicMock()
+        provider._client.chat.completions.create = AsyncMock(
+            side_effect=TimeoutError("Request timed out")
+        )
+
+        result = await provider.generate_structured("system", "user")
+
+        assert result == {}
+        provider._client.chat.completions.create.assert_awaited_once()

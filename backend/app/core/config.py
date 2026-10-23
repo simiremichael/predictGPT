@@ -174,6 +174,20 @@ class Settings(BaseSettings):
         default="gpt-4o-mini",
         validation_alias=AliasChoices("AI_MODEL", "ai_model"),
     )
+    openai_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        le=180,
+        validation_alias=AliasChoices(
+            "OPENAI_TIMEOUT_SECONDS", "openai_timeout_seconds"
+        ),
+    )
+    openai_max_retries: int = Field(
+        default=1,
+        ge=0,
+        le=3,
+        validation_alias=AliasChoices("OPENAI_MAX_RETRIES", "openai_max_retries"),
+    )
 
     # ------------------------------------------------------------------ #
     # Web Search / Research
