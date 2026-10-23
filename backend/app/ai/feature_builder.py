@@ -150,12 +150,12 @@ class AIFeatureBuilder:
 
         if home_stats:
             vector.home_league_position = getattr(home_stats, "position", None)
-            vector.home_standing_points_per_game = getattr(home_stats, "points_per_game", None)
+            vector.home_standing_points_per_game = self._points_per_game(home_stats)
             vector.home_avg_goals_per_game = getattr(home_stats, "goals_per_game", None)
 
         if away_stats:
             vector.away_league_position = getattr(away_stats, "position", None)
-            vector.away_standing_points_per_game = getattr(away_stats, "points_per_game", None)
+            vector.away_standing_points_per_game = self._points_per_game(away_stats)
             vector.away_avg_goals_per_game = getattr(away_stats, "goals_per_game", None)
 
         if vector.home_league_position is not None and vector.away_league_position is not None:
@@ -188,6 +188,18 @@ class AIFeatureBuilder:
             vector.away_over_2_5_rate = features.away_over_2_5_rate
             vector.home_avg_total_goals = features.home_avg_total_goals
             vector.away_avg_total_goals = features.away_avg_total_goals
+
+    @staticmethod
+    def _points_per_game(team_stats: Any) -> float | None:
+        """Get PPG from normalized standings or derive it from record totals."""
+        explicit = getattr(team_stats, "points_per_game", None)
+        if explicit is not None:
+            return explicit
+        games = getattr(team_stats, "games_played", None)
+        points = getattr(team_stats, "points", None)
+        if games and points is not None and games > 0:
+            return points / games
+        return None
 
     def _process_injuries(
         self, injuries: list[InjuryEvidence], vector: AIFeatureVector

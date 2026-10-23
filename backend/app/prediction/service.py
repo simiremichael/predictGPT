@@ -250,8 +250,25 @@ class PredictionService:
                             markets["under_2_5"] = 1.0 - markets["over_2_5"]
 
                         model_result = adjusted
+                        logger.info(
+                            "Prediction adjustment applied",
+                            extra={
+                                "match_id": match_id,
+                                "source": "ai_and_statistical" if adj.source_ids else "statistical",
+                                "reason_codes": adj.reason_codes,
+                                "source_count": len(adj.source_ids),
+                            },
+                        )
                     else:
                         model_result = base_model_result
+                        logger.info(
+                            "Prediction adjustment not applied",
+                            extra={
+                                "match_id": match_id,
+                                "reason": adjustment_result.explanation,
+                                "research_available": research_summary.available,
+                            },
+                        )
                 except Exception as exc:
                     logger.warning(
                         "AI adjustment failed, using base prediction",

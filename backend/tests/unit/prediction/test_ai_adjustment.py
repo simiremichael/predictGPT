@@ -10,6 +10,7 @@ import pytest
 from ai.feature_builder import AIFeatureBuilder, AIFeatureVector
 from prediction.base import PredictionInput
 from prediction.ai_adjustment import AIAdjustmentLayer
+from prediction.features import FeatureBuilder
 from prediction.poisson import PoissonModel
 from web_research.schemas import (
     EvidenceStatus,
@@ -62,6 +63,47 @@ class TestAIAdjustmentLayer:
         assert result.adjustment_applied is False
         assert result.ai_adjustment.home_attack_adjustment == 0.0
         assert result.ai_adjustment.away_attack_adjustment == 0.0
+
+    @pytest.mark.asyncio
+    async def test_applies_available_form_statistics_without_web_research(
+        self, match_input: PredictionInput, base_result: Any
+    ) -> None:
+        ai_provider = AsyncMock()
+        ai_provider.generate_structured = AsyncMock(return_value={
+            "home_attack_adjustment": 0.05,
+            "reason_codes": ["home_standing_form_advantage"],
+            "source_ids": ["match_context:league_standings"],
+        })
+        layer = AIAdjustmentLayer(ai_provider=ai_provider)
+        match_input.home_team_stats = MagicMock(
+            position=2,
+            points_per_game=None,
+            points=60,
+            games_played=25,
+            goals_per_game=1.9,
+        )
+        match_input.away_team_stats = MagicMock(
+            position=10,
+            points_per_game=None,
+            points=35,
+            games_played=25,
+            goals_per_game=1.2,
+        )
+        match_input.home_recent_fixture = []
+        match_input.away_recent_fixture = []
+        features = AIFeatureBuilder().build(
+            None, match_input, FeatureBuilder().build(match_input)
+        )
+
+        result = await layer.apply_adjustment(
+            match_input, base_result, MagicMock(), features
+        )
+
+        assert result.adjustment_applied is True
+        assert result.ai_adjustment.home_attack_adjustment > 0
+        assert "home_standing_form_advantage" in result.ai_adjustment.reason_codes
+        ai_provider.generate_structured.assert_awaited_once()
+        assert "match_context:league_standings" in ai_provider.generate_structured.await_args.kwargs["user_prompt"]
 
     @pytest.mark.asyncio
     async def test_adjustment_caps_enforced(self, match_input: PredictionInput, base_result: Any) -> None:
