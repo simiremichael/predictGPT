@@ -10,19 +10,28 @@ interface NavItem {
 interface MobileNavProps {
   items: NavItem[];
   currentPath: string;
+  open: boolean;
+  onNavigate: () => void;
 }
 
-export function MobileNav({ items, currentPath }: MobileNavProps) {
+export function MobileNav({ items, currentPath, open, onNavigate }: MobileNavProps) {
+  if (!open) return null;
+
   return (
-    <nav className="md:hidden border-t border-border/80 bg-background/95 backdrop-blur-xl">
-      <div className="page-shell mx-auto flex items-center gap-1 overflow-x-auto py-2.5">
+    <nav aria-label="Mobile navigation" className="border-b border-border/80 bg-background/95 backdrop-blur-xl md:hidden">
+      <div className="page-shell mx-auto grid grid-cols-2 gap-2 py-3 sm:grid-cols-3">
         {items.map((item) => (
-          <Link key={item.href} href={item.href}>
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            aria-current={currentPath === item.href ? "page" : undefined}
+          >
             <Button
               variant={currentPath === item.href ? "default" : "ghost"}
               size="sm"
               className={cn(
-                "whitespace-nowrap text-sm font-semibold shadow-sm",
+                "w-full whitespace-nowrap text-sm font-semibold shadow-sm",
                 currentPath === item.href
                   ? "ring-1 ring-primary/15 shadow-[0_10px_20px_rgba(13,128,87,0.18)]"
                   : "hover:bg-accent/80",

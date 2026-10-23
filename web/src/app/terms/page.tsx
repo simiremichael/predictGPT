@@ -7,12 +7,12 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <article className="mx-auto max-w-3xl space-y-8 py-8">
+    <article className="mx-auto max-w-3xl space-y-8 py-5 sm:py-8">
       <header className="space-y-3">
         <p className="text-sm font-semibold uppercase tracking-widest text-primary">Terms</p>
-        <h1 className="text-4xl font-black tracking-tight">Terms of Service</h1>
+        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Terms of Service</h1>
         <p className="text-sm text-muted-foreground">Last updated: October 15, 2026</p>
-        <p className="text-lg leading-8 text-muted-foreground">
+        <p className="text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
           These terms apply when you access or use Football AI. By using the
           service, you agree to follow them. If you do not agree, do not use the
           service.

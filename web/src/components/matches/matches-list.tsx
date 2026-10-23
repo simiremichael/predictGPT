@@ -219,7 +219,7 @@ export function MatchesList({
       {/* Filters */}
       <div className="surface-card rounded-[1.5rem] p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
             <Select
               value={pageSize.toString()}
               onValueChange={(value) => {
@@ -229,7 +229,7 @@ export function MatchesList({
                 void fetchMatches(1, nextPageSize);
               }}
             >
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px]">
                 <SelectValue placeholder="Per page" />
               </SelectTrigger>
               <SelectContent>
@@ -243,22 +243,22 @@ export function MatchesList({
               placeholder="League ID"
               value={leagueId}
               onChange={(e) => setLeagueId(e.target.value)}
-              className="w-[180px]"
+              className="w-full min-w-0 sm:w-[180px]"
             />
             <Input
               placeholder="Team ID"
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
-              className="w-[180px]"
+              className="w-full min-w-0 sm:w-[180px]"
             />
             <Input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-[180px]"
+              className="w-full min-w-0 sm:w-[180px]"
             />
             <Select value={status} onValueChange={(value) => setStatus(value)}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>

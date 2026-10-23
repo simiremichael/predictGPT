@@ -97,8 +97,8 @@ export function LeaguesList({
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="grid min-w-0 grid-cols-2 gap-2 sm:flex sm:items-center">
               <Select
                 value={country || ALL_COUNTRIES}
                 onValueChange={(value) => {
@@ -106,7 +106,7 @@ export function LeaguesList({
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="All Countries" />
                 </SelectTrigger>
                 <SelectContent>
@@ -125,7 +125,7 @@ export function LeaguesList({
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -140,7 +140,7 @@ export function LeaguesList({
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="col-span-2 w-full sm:w-[140px] sm:col-span-1">
                   <SelectValue placeholder="Per page" />
                 </SelectTrigger>
                 <SelectContent>

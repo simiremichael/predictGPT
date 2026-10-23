@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
@@ -532,8 +533,12 @@ async def list_predictions(
             Match.kickoff_at >= now - timedelta(minutes=max_elapsed_minutes)
         )
     if kickoff_date:
-        start = datetime.combine(kickoff_date, datetime.min.time(), tzinfo=UTC)
-        end = start + timedelta(days=1)
+        # Date filters follow the app's primary calendar (Nigeria/Lagos), not
+        # UTC midnight, so a home-page "today" query includes the full local day.
+        local_tz = ZoneInfo("Africa/Lagos")
+        local_start = datetime.combine(kickoff_date, datetime.min.time(), tzinfo=local_tz)
+        start = local_start.astimezone(UTC)
+        end = (local_start + timedelta(days=1)).astimezone(UTC)
         stmt = stmt.where(Match.kickoff_at >= start).where(Match.kickoff_at < end)
 
     # Free (non-subscribed) users see at most 2 predictions

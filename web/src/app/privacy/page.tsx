@@ -7,12 +7,12 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <article className="mx-auto max-w-3xl space-y-8 py-8">
+    <article className="mx-auto max-w-3xl space-y-8 py-5 sm:py-8">
       <header className="space-y-3">
         <p className="text-sm font-semibold uppercase tracking-widest text-primary">Privacy</p>
-        <h1 className="text-4xl font-black tracking-tight">Privacy Policy</h1>
+        <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Privacy Policy</h1>
         <p className="text-sm text-muted-foreground">Last updated: October 15, 2026</p>
-        <p className="text-lg leading-8 text-muted-foreground">
+        <p className="text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
           This policy explains what information Football AI may handle when you
           use the website and how it is used to provide and protect the service.
         </p>

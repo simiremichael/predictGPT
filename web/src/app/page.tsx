@@ -15,6 +15,7 @@ import {
 import { api } from "@/lib/api";
 import { MatchCard } from "@/components/match-card";
 import { AIGeneratedBadge } from "@/components/ai-generated-badge";
+import { PredictionGuaranteeBadge } from "@/components/prediction-guarantee-badge";
 import { EmptyState } from "@/components/loading-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,11 +44,22 @@ const countryHighlights = [
 ];
 
 export default async function HomePage() {
+  const todayParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Lagos",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const today = `${todayParts.find((part) => part.type === "year")?.value}-${todayParts.find((part) => part.type === "month")?.value}-${todayParts.find((part) => part.type === "day")?.value}`;
   const [leaguesResult, upcomingResult, predictionsResult, teamsResult] =
     await Promise.allSettled([
       api.listLeagues({ is_active: true, page_size: 6 }),
       api.getUpcomingMatches({ days: 7, page_size: 6 }),
-      api.getPredictions({ page_size: 6, played: false }),
+      api.getPredictions({
+        page_size: 6,
+        kickoff_date: today,
+        newest_first: true,
+      }),
       api.listTeams({ is_active: true, page_size: 6 }),
     ]);
 
@@ -59,6 +71,7 @@ export default async function HomePage() {
     predictionsResult.status === "fulfilled"
       ? predictionsResult.value.data
       : [];
+  const predictionsUnavailable = predictionsResult.status === "rejected";
   const featuredTeams =
     teamsResult.status === "fulfilled" ? teamsResult.value.data : [];
 
@@ -69,7 +82,7 @@ export default async function HomePage() {
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="surface-card rounded-[1.9rem] p-5 sm:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <p className="section-kicker mb-2">Leagues</p>
               <h2 className="text-2xl font-black tracking-[-0.06em] text-foreground">
@@ -189,7 +202,7 @@ export default async function HomePage() {
 
       <section className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="surface-card rounded-[1.9rem] p-5 sm:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <p className="section-kicker mb-2">Clubs</p>
               <h2 className="text-2xl font-black tracking-[-0.06em] text-foreground">
@@ -240,7 +253,7 @@ export default async function HomePage() {
         </div>
 
         <div className="surface-card rounded-[1.9rem] p-5 sm:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="mb-5 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <p className="section-kicker mb-2">Model</p>
               <h2 className="text-2xl font-black tracking-[-0.06em] text-foreground">
@@ -263,7 +276,7 @@ export default async function HomePage() {
                   href={`/predictions/${item.prediction_id}`}
                   className="block rounded-2xl border border-border bg-background/60 p-3 transition-all hover:border-primary/20 hover:bg-primary/5"
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
                     <div>
                       <AIGeneratedBadge />
                       <p className="font-semibold text-foreground">
@@ -329,10 +342,15 @@ export default async function HomePage() {
                   </div>
                 </Link>
               ))
+            ) : predictionsUnavailable ? (
+              <EmptyState
+                title="Today's predictions unavailable"
+                description="We could not load today's AI predictions right now. Please try again later."
+              />
             ) : (
               <EmptyState
-                title="No predictions yet"
-                description="No model-generated predictions are available."
+                title="Prediction not generated yet by AI"
+                description="There are no AI-generated predictions for today's matches yet."
               />
             )}
           </div>
@@ -346,7 +364,7 @@ function HeroSection() {
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_left_top,rgba(16,185,129,0.18),transparent_25%),radial-gradient(circle_at_right_center,rgba(59,130,246,0.12),transparent_28%),radial-gradient(circle_at_bottom,rgba(250,204,21,0.08),transparent_22%)]" />
-      <div className="glass-panel relative overflow-hidden rounded-[2rem] p-6 shadow-[0_30px_80px_rgba(15,23,42,0.09)] sm:p-8 lg:p-10">
+      <div className="glass-panel relative overflow-hidden rounded-[2rem] p-4 shadow-[0_30px_80px_rgba(15,23,42,0.09)] sm:p-8 lg:p-10">
         <div className="grid items-center gap-8 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-6 text-center lg:text-left">
             <Badge
@@ -407,6 +425,8 @@ function HeroSection() {
                 </span>
               ))}
             </div>
+
+            <PredictionGuaranteeBadge />
           </div>
 
           <div className="relative">

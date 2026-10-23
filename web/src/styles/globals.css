@@ -64,6 +64,12 @@ body {
   background-attachment: fixed;
 }
 
+@media (max-width: 640px) {
+  body {
+    background-attachment: scroll;
+  }
+}
+
 [data-theme="dark"] body {
   background:
     radial-gradient(circle at top left, rgb(16 185 129 / 0.18), transparent 26rem),

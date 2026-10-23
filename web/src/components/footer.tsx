@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 const footerLinks = [
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
@@ -15,9 +16,13 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[1.4fr_1fr_1fr]">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-emerald-500 text-sm font-bold text-primary-foreground shadow-[0_12px_24px_rgba(13,128,87,0.3)]">
-                FA
-              </span>
+              <Image
+                src="/logo.png"
+                alt="Football AI logo"
+                width={36}
+                height={36}
+                className="h-9 w-9 shrink-0 rounded-xl object-contain"
+              />
               <span className="text-xl font-black tracking-[-0.06em] text-foreground">
                 Football<span className="text-primary">AI</span>
               </span>

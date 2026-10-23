@@ -88,9 +88,9 @@ export default async function LeaguePage({
                 Leagues
               </Link>
               <span>/</span>
-              <span>{league.name}</span>
+              <span className="min-w-0 truncate">{league.name}</span>
             </div>
-            <h1 className="mt-2 text-3xl font-black tracking-[-0.06em] text-foreground">
+            <h1 className="mt-2 break-words text-2xl font-black tracking-[-0.06em] text-foreground sm:text-3xl">
               {league.name}
             </h1>
             {league.country && (
@@ -129,7 +129,7 @@ export default async function LeaguePage({
       )}
 
       <Tabs defaultValue={activeTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList>
           <TabsTrigger value="standings">Standings</TabsTrigger>
           <TabsTrigger value="teams">Teams ({teams.length})</TabsTrigger>
           <TabsTrigger value="matches">Matches</TabsTrigger>

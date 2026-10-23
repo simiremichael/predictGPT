@@ -53,7 +53,7 @@ export default async function TeamPage({ params }: TeamDetailPageProps) {
     <div className="space-y-6">
       <section className="surface-card rounded-[1.75rem] p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
               href="/teams"
               className="text-sm text-muted-foreground hover:text-foreground"
@@ -61,7 +61,7 @@ export default async function TeamPage({ params }: TeamDetailPageProps) {
               Teams
             </Link>
             <span className="text-sm text-muted-foreground">/</span>
-            <h1 className="text-3xl font-black tracking-[-0.06em] text-foreground">
+            <h1 className="min-w-0 break-words text-2xl font-black tracking-[-0.06em] text-foreground sm:text-3xl">
               {team.name}
             </h1>
           </div>
@@ -75,7 +75,7 @@ export default async function TeamPage({ params }: TeamDetailPageProps) {
           )}
         </div>
 
-        <div className="mt-5 flex items-start gap-5">
+        <div className="mt-5 flex items-start gap-3 sm:gap-5">
           {team.logo_url ? (
             <Image
               src={team.logo_url}
@@ -90,7 +90,7 @@ export default async function TeamPage({ params }: TeamDetailPageProps) {
             </div>
           )}
 
-          <div className="space-y-1">
+          <div className="min-w-0 space-y-1 break-words">
             <p className="text-sm text-muted-foreground">{team.country}</p>
             {team.venue_name && (
               <p className="text-sm text-foreground">
@@ -108,7 +108,7 @@ export default async function TeamPage({ params }: TeamDetailPageProps) {
       </section>
 
       <Tabs defaultValue="info" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList>
           <TabsTrigger value="info">Info</TabsTrigger>
           <TabsTrigger value="statistics">Statistics</TabsTrigger>
           <TabsTrigger value="seasons">Seasons ({seasons.length || 0})</TabsTrigger>

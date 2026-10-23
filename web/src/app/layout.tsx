@@ -52,7 +52,6 @@ export const metadata: Metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   themeColor: {
     light: "#f4f4f2",
     dark: "#0f0f12",
@@ -66,9 +65,6 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-      </head>
       <body className="antialiased">
         <QueryProvider>
           <AuthProvider>
@@ -83,7 +79,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
 
               <div className="flex min-h-screen flex-1 flex-col">
                 <Header />
-                <main className="page-shell mx-auto flex-1 pb-8 pt-6 sm:pt-8">
+                <main className="page-shell mx-auto min-w-0 flex-1 pb-8 pt-5 sm:pt-8">
                   {children}
                 </main>
                 <Footer />

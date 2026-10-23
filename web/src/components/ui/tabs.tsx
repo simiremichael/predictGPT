@@ -51,7 +51,7 @@ function useTabsContext() {
 }
 
 export function TabsList({ children, className }: TabsListProps) {
-  return <div className={cn("grid w-full grid-cols-4 gap-1", className)}>{children}</div>;
+  return <div role="tablist" className={cn("grid w-full grid-cols-2 gap-1 sm:grid-cols-4", className)}>{children}</div>;
 }
 
 export function TabsTrigger({ value, children, className, disabled }: TabsTriggerProps) {
@@ -66,7 +66,7 @@ export function TabsTrigger({ value, children, className, disabled }: TabsTrigge
       disabled={disabled}
       onClick={() => !disabled && setValue(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex min-w-0 items-center justify-center whitespace-normal break-words rounded-sm px-2 py-2 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 sm:whitespace-nowrap sm:px-3 sm:py-1.5 sm:text-sm",
         isActive
           ? "bg-background text-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground hover:bg-accent",

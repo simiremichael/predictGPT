@@ -14,7 +14,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       variant="ghost"
       size="icon"
       className={cn(
-        "fixed bottom-4 right-4 z-50 h-11 w-11 rounded-full border border-border/80 bg-card/80 shadow-[0_18px_32px_rgba(15,23,42,0.12)] backdrop-blur-xl",
+        "fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-50 h-11 w-11 rounded-full border border-border/80 bg-card/80 shadow-[0_18px_32px_rgba(15,23,42,0.12)] backdrop-blur-xl",
         className,
       )}
       onClick={() => setTheme(isDark ? "light" : "dark")}

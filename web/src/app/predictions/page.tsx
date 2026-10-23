@@ -1,6 +1,7 @@
-import { History } from "lucide-react";
+import { History, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PredictionsList } from "@/components/predictions/predictions-list";
+import { PredictionGuaranteeBadge } from "@/components/prediction-guarantee-badge";
 import { fetchCachedPredictions } from "@/lib/cached-api";
 
 interface PredictionsPageProps {
@@ -50,6 +51,18 @@ export default async function PredictionsPage({
             <p className="mt-2 text-sm text-muted-foreground">
               Upcoming matches and unfinished matches within 100 minutes of kickoff
             </p>
+               <div
+              role="note"
+              className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm leading-6 text-muted-foreground"
+            >
+              <span className="font-semibold text-foreground">Accumulator tip:</span>{" "}
+              Keep your slip to a few games. Adding more selections usually lowers
+              the chance of every pick being correct. You can also compare the
+              same match across 1X2, goals, and BTTS markets instead of adding
+              more games.
+            </div>
+
+            <PredictionGuaranteeBadge />
           </div>
 
           <Badge
