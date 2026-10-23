@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -13,6 +13,7 @@ from web_research.exceptions import SearchProviderError, SearchRateLimitError
 logger = logging.getLogger(__name__)
 _quota_state_lock = threading.Lock()
 _brave_fallback_until: datetime | None = None
+_BRAVE_FAILURE_COOLDOWN = timedelta(minutes=10)
 
 
 def _next_month_start(now: datetime) -> datetime:
@@ -57,12 +58,23 @@ def _mark_brave_quota_exhausted() -> bool:
         return newly_exhausted
 
 
+def _mark_brave_temporarily_unavailable() -> bool:
+    global _brave_fallback_until
+    now = datetime.now(UTC)
+    with _quota_state_lock:
+        if _brave_fallback_until and now >= _brave_fallback_until:
+            _brave_fallback_until = None
+        newly_unavailable = _brave_fallback_until is None
+        if newly_unavailable:
+            _brave_fallback_until = now + _BRAVE_FAILURE_COOLDOWN
+        return newly_unavailable
+
+
 class BraveSearchProvider(WebSearchProvider):
     """Search Brave Search API.
 
-    This is a terminal provider — it does not fall back to another provider.
-    When Brave quota or rate limits are exhausted, a SearchRateLimitError is
-    raised so the caller can decide how to proceed.
+    When Brave is unavailable or returns no usable results, search continues
+    with the configured You.com provider.
     """
 
     provider_name = "brave"
@@ -121,8 +133,14 @@ class BraveSearchProvider(WebSearchProvider):
                 )
             return await self._search_with_fallback(query, limit)
         if response.status_code == 429:
-            logger.warning("Brave Search API request rate limit reached")
-            return await self._search_with_fallback(query, limit)
+            return await self._fallback_or_raise(
+                SearchRateLimitError(
+                    "Brave Search API request rate limit reached",
+                    details={"query": query, "status_code": response.status_code},
+                ),
+                query,
+                limit,
+            )
         if response.status_code != 200:
             return await self._fallback_or_raise(SearchProviderError(
                 f"Brave Search API returned HTTP {response.status_code}",
@@ -141,13 +159,25 @@ class BraveSearchProvider(WebSearchProvider):
                 details={"query": query},
             ), query, limit)
 
+        web_results = data.get("web")
+        if not isinstance(web_results, dict) or not isinstance(web_results.get("results", []), list):
+            return await self._fallback_or_raise(SearchProviderError(
+                "Brave Search API returned malformed web results",
+                details={"query": query},
+            ), query, limit)
+
         results: list[SearchResult] = []
-        for item in data.get("web", {}).get("results", []):
+        items = web_results.get("results")
+        if not isinstance(items, list):
+            items = []
+        for item in items:
             if not isinstance(item, dict) or not item.get("url"):
                 continue
             title = item.get("title")
             snippet = item.get("snippet")
-            extra_snippets = (item.get("extra_snippets") or [])
+            extra_snippets = item.get("extra_snippets") or []
+            if not isinstance(extra_snippets, list):
+                extra_snippets = []
             combined_snippet = snippet
             if not combined_snippet and extra_snippets:
                 combined_snippet = extra_snippets[0]
@@ -161,6 +191,14 @@ class BraveSearchProvider(WebSearchProvider):
                         "extra_snippets": extra_snippets[:5],
                     } if len(extra_snippets) > 1 else None,
                 )
+            )
+        if not results and self._fallback_provider is not None:
+            return await self._fallback_or_raise(
+                SearchProviderError(
+                    "Brave Search API returned no results", details={"query": query}
+                ),
+                query,
+                limit,
             )
         return results[:limit]
 
@@ -183,5 +221,10 @@ class BraveSearchProvider(WebSearchProvider):
     ) -> list[SearchResult]:
         if self._fallback_provider is None:
             raise error
-        logger.warning("Brave search failed; switching to You.com")
+        if _mark_brave_temporarily_unavailable():
+            logger.warning(
+                "Brave Search failed (%s); switching to You.com for %s minutes",
+                error,
+                int(_BRAVE_FAILURE_COOLDOWN.total_seconds() // 60),
+            )
         return await self._fallback_provider.search(query, limit=limit)

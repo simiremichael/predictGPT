@@ -1218,7 +1218,7 @@ class PredictionService:
     def _build_research_summary(self, research_result: Any) -> ResearchSummarySchema:
         """Build a research summary schema from a research result."""
         return ResearchSummarySchema(
-            available=True,
+            available=bool(research_result.sources),
             data_quality=research_result.data_quality,
             sources_count=len(research_result.sources),
             injuries_count=len(research_result.injuries),

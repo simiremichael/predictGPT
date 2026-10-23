@@ -94,13 +94,13 @@ class YouComSearchProvider(WebSearchProvider):
                 },
             )
         except httpx.TimeoutException as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "You.com search request timed out", details={"query": query}
-            ) from exc
+            ), query, limit)
         except httpx.HTTPError as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 f"You.com search request failed: {exc}", details={"query": query}
-            ) from exc
+            ), query, limit)
 
         if response.status_code in {402, 432, 433}:
             if _mark_youcom_quota_exhausted():
@@ -110,31 +110,45 @@ class YouComSearchProvider(WebSearchProvider):
                 )
             return await self._search_with_fallback(query, limit)
         if response.status_code == 429:
-            logger.warning("You.com request rate limit reached; using fallback for this query")
-            return await self._search_with_fallback(query, limit)
+            return await self._fallback_or_raise(
+                SearchRateLimitError(
+                    "You.com request rate limit reached",
+                    details={"query": query, "status_code": response.status_code},
+                ),
+                query,
+                limit,
+            )
         if response.status_code != 200:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 f"You.com search returned HTTP {response.status_code}",
                 details={"query": query, "status_code": response.status_code},
-            )
+            ), query, limit)
 
         try:
             data: Any = response.json()
         except ValueError as exc:
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "You.com search returned invalid JSON", details={"query": query}
-            ) from exc
+            ), query, limit)
         if not isinstance(data, dict):
-            raise SearchProviderError(
+            return await self._fallback_or_raise(SearchProviderError(
                 "You.com search returned an unexpected response",
                 details={"query": query},
-            )
+            ), query, limit)
 
         results: list[SearchResult] = []
-        for item in data.get("results", {}).get("web", []):
+        result_data = data.get("results")
+        if not isinstance(result_data, dict):
+            result_data = {}
+        items = result_data.get("web")
+        if not isinstance(items, list):
+            items = []
+        for item in items:
             if not isinstance(item, dict) or not item.get("url"):
                 continue
             snippets = item.get("snippets", [])
+            if not isinstance(snippets, list):
+                snippets = []
             results.append(
                 SearchResult(
                     title=item.get("title"),
@@ -148,7 +162,23 @@ class YouComSearchProvider(WebSearchProvider):
                     } if len(snippets) > 1 else None,
                 )
             )
+        if not results and self._fallback_provider is not None:
+            return await self._fallback_or_raise(
+                SearchProviderError(
+                    "You.com returned no search results", details={"query": query}
+                ),
+                query,
+                limit,
+            )
         return results[:limit]
+
+    async def _fallback_or_raise(
+        self, error: SearchProviderError, query: str, limit: int
+    ) -> list[SearchResult]:
+        if self._fallback_provider is None:
+            raise error
+        logger.warning("You.com search failed (%s); switching to fallback", error)
+        return await self._fallback_provider.search(query, limit=limit)
 
     async def _search_with_fallback(
         self, query: str, limit: int

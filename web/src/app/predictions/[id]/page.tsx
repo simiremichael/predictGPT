@@ -161,8 +161,12 @@ async function PredictionDetailContent({
       model_parameters: {},
       research: {
         available:
-          savedResearch?.available ??
-          (researchSources.length > 0 || (res.ai_evidence?.length ?? 0) > 0),
+          savedResearch?.sources_count != null
+            ? savedResearch.sources_count > 0
+            : Array.isArray(newsSnapshot.sources)
+              ? researchSources.length > 0
+              : (savedResearch?.available ??
+                ((res.ai_evidence?.length ?? 0) > 0)),
         data_quality: savedResearch?.data_quality ?? 0,
         sources_count: savedResearch?.sources_count ?? researchSources.length,
         injuries_count: savedResearch?.injuries_count ?? 0,

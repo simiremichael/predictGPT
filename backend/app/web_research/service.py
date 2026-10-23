@@ -187,6 +187,17 @@ class MatchResearchService:
 
         # Deduplicate
         sources = deduplicate_sources(sources)
+        logger.info(
+            "Match web research searches completed",
+            extra={
+                "match_id": match_id,
+                "queries_attempted": searched_queries,
+                "queries_total": len(queries),
+                "source_count": len(sources),
+                "failed_queries": len(search_failures),
+                "provider": getattr(self._search_provider, "provider_name", "unknown"),
+            },
+        )
 
         # A match's kickoff is always the information cutoff. This prevents a
         # stale scheduled fixture from using a post-match article as evidence.

@@ -65,6 +65,23 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+def _prediction_has_research(prediction: Any) -> bool:
+    snapshot = getattr(prediction, "news_snapshot", None)
+    evidence = getattr(prediction, "ai_evidence_json", None)
+    if not isinstance(snapshot, dict):
+        return bool(evidence)
+    research = snapshot.get("research")
+    if isinstance(research, dict) and isinstance(research.get("available"), bool):
+        source_count = research.get("sources_count")
+        if isinstance(source_count, int):
+            return research["available"] and source_count > 0
+        sources = snapshot.get("sources")
+        if isinstance(sources, list):
+            return research["available"] and bool(sources)
+        return research["available"]
+    return bool(snapshot.get("sources") or evidence)
+
+
 @router.get("/model-accuracy", response_model=dict[str, Any])
 async def get_model_accuracy(
     _admin: str = Depends(verify_admin_api_key),
@@ -429,6 +446,7 @@ async def admin_list_predictions(
             over_2_5_probability=p.over_2_5_probability,
             under_2_5_probability=p.under_2_5_probability,
             btts_probability=p.btts_probability,
+            research_available=_prediction_has_research(p),
             ai_adjustment_applied=bool(p.ai_adjustment_json),
             context_hash=p.context_hash,
             admin_verify_gg=p.admin_verify_gg,

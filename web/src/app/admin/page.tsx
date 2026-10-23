@@ -1288,6 +1288,13 @@ function AdminPredictions() {
                     <ScorelineList predictionId={p.prediction_id} />
                   </td>
                   <td className="px-3 py-2">
+                    {p.research_available ? (
+                      <span className="text-xs text-green-600">Yes</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
                     {p.ai_adjustment_applied ? (
                       <span className="text-xs text-green-600">Yes</span>
                     ) : (

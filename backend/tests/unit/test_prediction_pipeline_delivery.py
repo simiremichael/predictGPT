@@ -193,3 +193,19 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
 
     assert response["data"][0]["match_home_team"] == "Home FC"
     assert response["data"][0]["match_away_team"] == "Away FC"
+
+
+def test_research_status_requires_saved_search_sources() -> None:
+    from api.v1.endpoints.predictions import _prediction_has_research
+
+    no_sources = SimpleNamespace(
+        news_snapshot={"research": {"available": True, "sources_count": 0}, "sources": []},
+        ai_evidence_json=[],
+    )
+    with_sources = SimpleNamespace(
+        news_snapshot={"research": {"available": True, "sources_count": 1}, "sources": [{}]},
+        ai_evidence_json=[],
+    )
+
+    assert _prediction_has_research(no_sources) is False
+    assert _prediction_has_research(with_sources) is True

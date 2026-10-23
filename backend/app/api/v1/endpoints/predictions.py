@@ -58,15 +58,22 @@ router = APIRouter(tags=["predictions"])
 
 def _prediction_has_research(prediction: Any) -> bool:
     """Return whether web research ran or produced sources for a prediction."""
-    snapshot = prediction.news_snapshot
+    snapshot = getattr(prediction, "news_snapshot", None)
+    evidence = getattr(prediction, "ai_evidence_json", None)
     if not isinstance(snapshot, dict):
-        return bool(prediction.ai_evidence_json)
+        return bool(evidence)
 
     research = snapshot.get("research")
     if isinstance(research, dict) and isinstance(research.get("available"), bool):
+        source_count = research.get("sources_count")
+        if isinstance(source_count, int):
+            return research["available"] and source_count > 0
+        sources = snapshot.get("sources")
+        if isinstance(sources, list):
+            return research["available"] and bool(sources)
         return research["available"]
 
-    return bool(snapshot.get("sources") or prediction.ai_evidence_json)
+    return bool(snapshot.get("sources") or evidence)
 
 
 async def _is_subscribed(user_email: str | None) -> bool:
@@ -597,6 +604,7 @@ async def list_predictions(
             over_2_5_probability=p.over_2_5_probability,
             under_2_5_probability=p.under_2_5_probability,
             btts_probability=p.btts_probability,
+            research_available=_prediction_has_research(p),
             ai_adjustment_applied=bool(p.ai_adjustment_json),
             context_hash=p.context_hash,
             admin_verify_gg=p.admin_verify_gg,

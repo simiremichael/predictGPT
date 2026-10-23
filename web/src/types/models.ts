@@ -272,6 +272,7 @@ export interface PredictionDetail {
   over_2_5_probability?: number | null;
   under_2_5_probability?: number | null;
    btts_probability?: number | null;
+   research_available: boolean;
    ai_adjustment_applied: boolean;
    admin_verify_gg?: boolean | null;
    admin_verify_win?: boolean | null;
