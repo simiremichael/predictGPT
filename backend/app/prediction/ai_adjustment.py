@@ -113,189 +113,155 @@ class AIAdjustmentLayer:
         Returns:
             AIAdjustedPrediction with the adjusted model result.
         """
-        # The Poisson baseline is the starting point. The AI may make a small,
-        # auditable adjustment when web evidence or structured match context
-        # provides a signal that merits changing that baseline.
+        # The Poisson baseline is the starting point. Always ask the AI to
+        # evaluate it; without supporting data, the prompt directs it to zero.
         statistical_adjustment = self._compute_statistical_adjustments(ai_features)
 
-        has_research_evidence = any((
-            ai_features.injuries,
-            ai_features.suspensions,
-            ai_features.lineups,
-            ai_features.team_news,
-            ai_features.search_context,
-        ))
         context_source_ids = self._available_context_source_ids(ai_features, match_input)
-        evidence_available = has_research_evidence or bool(context_source_ids)
 
-        if not evidence_available:
-            # No actionable research or structured match context. Preserve the
-            # deterministic adjustment when available, but do not ask the AI
-            # to guess from team names or the base probabilities alone.
-            has_stat_adj = any([
-                statistical_adjustment.home_attack_adjustment,
-                statistical_adjustment.away_attack_adjustment,
-                statistical_adjustment.home_defense_adjustment,
-                statistical_adjustment.away_defense_adjustment,
-                statistical_adjustment.home_win_adjustment,
-                statistical_adjustment.draw_win_adjustment,
-                statistical_adjustment.away_win_adjustment,
-            ])
-            if not has_stat_adj:
-                return AIAdjustedPrediction(
-                    base_model_result=base_result,
-                    ai_adjustment=AIFeatureAdjustment(),
-                    adjusted_model_result=base_result,
-                    adjustment_applied=False,
-                    explanation="No actionable research or structured match context; using Poisson model only.",
-                )
+        # Ask the configured AI to evaluate the baseline, even when evidence
+        # and structured match context are unavailable.
+        evidence_text = ai_features.evidence_text or "No web evidence extracted."
+        evidence_text += (
+            "\nStructured match context IDs available for citation: "
+            + ", ".join(context_source_ids)
+        )
 
-            adjustment = statistical_adjustment
-            adjustment = self._enforce_caps(adjustment)
-        else:
-            # Research evidence or structured match context is available —
-            # ask the configured AI to evaluate it against the baseline.
-            evidence_text = ai_features.evidence_text or "No web evidence extracted."
-            evidence_text += (
-                "\nStructured match context IDs available for citation: "
-                + ", ".join(context_source_ids)
-            )
+        system_prompt = AI_ADJUSTMENT_SYSTEM_PROMPT.format(
+            max_attack_adjustment=self._max_attack_adjustment,
+            max_defense_adjustment=self._max_defense_adjustment,
+        )
 
-            system_prompt = AI_ADJUSTMENT_SYSTEM_PROMPT.format(
-                max_attack_adjustment=self._max_attack_adjustment,
-                max_defense_adjustment=self._max_defense_adjustment,
-            )
+        # Compute base market probabilities for the prompt
+        base_matrix = ScoreMatrix(
+            home_distribution=base_result.home_goal_distribution,
+            away_distribution=base_result.away_goal_distribution,
+            max_goals=base_result.max_goals,
+        )
+        base_hda = base_matrix.get_result_probabilities()
+        base_markets = MarketCalculator(base_matrix).get_all_markets()
 
-            # Compute base market probabilities for the prompt
-            base_matrix = ScoreMatrix(
-                home_distribution=base_result.home_goal_distribution,
-                away_distribution=base_result.away_goal_distribution,
-                max_goals=base_result.max_goals,
-            )
-            base_hda = base_matrix.get_result_probabilities()
-            base_markets = MarketCalculator(base_matrix).get_all_markets()
+        # Extract H2H and recent-form stats for the AI prompt
+        h2h = getattr(match_input, "h2h", None)
+        h2h_team_a_wins = h2h.team_a_wins if h2h else "unknown"
+        h2h_team_b_wins = h2h.team_b_wins if h2h else "unknown"
+        h2h_draws = h2h.draws if h2h else "unknown"
+        h2h_avg_goals = h2h.avg_goals_per_game if h2h else "unknown"
 
-            # Extract H2H and recent-form stats for the AI prompt
-            h2h = getattr(match_input, "h2h", None)
-            h2h_team_a_wins = h2h.team_a_wins if h2h else "unknown"
-            h2h_team_b_wins = h2h.team_b_wins if h2h else "unknown"
-            h2h_draws = h2h.draws if h2h else "unknown"
-            h2h_avg_goals = h2h.avg_goals_per_game if h2h else "unknown"
+        # Recent 5-game stats. Scores are stored from each fixture's
+        # home/away perspective, so resolve the team's role per match.
+        home_recent = list(getattr(match_input, "home_recent_fixture", []))
+        away_recent = list(getattr(match_input, "away_recent_fixture", []))
 
-            # Recent 5-game stats. Scores are stored from each fixture's
-            # home/away perspective, so resolve the team's role per match.
-            home_recent = list(getattr(match_input, "home_recent_fixture", []))
-            away_recent = list(getattr(match_input, "away_recent_fixture", []))
+        def recent_goal_totals(recent: list[Any], team_id: str | None, is_home: bool) -> tuple[int | str, int | str]:
+            goals_for = 0
+            goals_against = 0
+            counted = 0
+            for fixture in recent:
+                if (
+                    not fixture.is_finished
+                    or fixture.home_score is None
+                    or fixture.away_score is None
+                ):
+                    continue
+                if team_id and fixture.home_team_id == team_id:
+                    team_played_home = True
+                elif team_id and fixture.away_team_id == team_id:
+                    team_played_home = False
+                else:
+                    team_played_home = is_home
+                if team_played_home:
+                    goals_for += fixture.home_score
+                    goals_against += fixture.away_score
+                else:
+                    goals_for += fixture.away_score
+                    goals_against += fixture.home_score
+                counted += 1
+            return (goals_for, goals_against) if counted else ("unknown", "unknown")
 
-            def recent_goal_totals(recent: list[Any], team_id: str | None, is_home: bool) -> tuple[int | str, int | str]:
-                goals_for = 0
-                goals_against = 0
-                counted = 0
-                for fixture in recent:
-                    if (
-                        not fixture.is_finished
-                        or fixture.home_score is None
-                        or fixture.away_score is None
-                    ):
-                        continue
-                    if team_id and fixture.home_team_id == team_id:
-                        team_played_home = True
-                    elif team_id and fixture.away_team_id == team_id:
-                        team_played_home = False
-                    else:
-                        team_played_home = is_home
-                    if team_played_home:
-                        goals_for += fixture.home_score
-                        goals_against += fixture.away_score
-                    else:
-                        goals_for += fixture.away_score
-                        goals_against += fixture.home_score
-                    counted += 1
-                return (goals_for, goals_against) if counted else ("unknown", "unknown")
+        home_last5_goals_for, home_last5_goals_against = recent_goal_totals(
+            home_recent[-5:], match_input.home_team_id, True
+        )
+        away_last5_goals_for, away_last5_goals_against = recent_goal_totals(
+            away_recent[-5:], match_input.away_team_id, False
+        )
 
-            home_last5_goals_for, home_last5_goals_against = recent_goal_totals(
-                home_recent[-5:], match_input.home_team_id, True
-            )
-            away_last5_goals_for, away_last5_goals_against = recent_goal_totals(
-                away_recent[-5:], match_input.away_team_id, False
-            )
+        # Season average goals
+        home_stats = getattr(match_input, "home_team_stats", None)
+        away_stats = getattr(match_input, "away_team_stats", None)
+        home_season_goals_for = home_stats.goals_for if home_stats else "unknown"
+        home_season_goals_against = home_stats.goals_against if home_stats else "unknown"
+        away_season_goals_for = away_stats.goals_for if away_stats else "unknown"
+        away_season_goals_against = away_stats.goals_against if away_stats else "unknown"
 
-            # Season average goals
-            home_stats = getattr(match_input, "home_team_stats", None)
-            away_stats = getattr(match_input, "away_team_stats", None)
-            home_season_goals_for = home_stats.goals_for if home_stats else "unknown"
-            home_season_goals_against = home_stats.goals_against if home_stats else "unknown"
-            away_season_goals_for = away_stats.goals_for if away_stats else "unknown"
-            away_season_goals_against = away_stats.goals_against if away_stats else "unknown"
+        user_prompt = AI_ADJUSTMENT_USER_PROMPT.format(
+            home_team=match_input.home_team_name,
+            away_team=match_input.away_team_name,
+            league=match_input.league_id,
+            lambda_home=base_result.lambda_home,
+            lambda_away=base_result.lambda_away,
+            home_win_prob=round(base_hda["home"], 4),
+            draw_prob=round(base_hda["draw"], 4),
+            away_prob=round(base_hda["away"], 4),
+            over_25_prob=round(base_markets["over_2_5"], 4),
+            btts_prob=round(base_markets["btts_yes"], 4),
+            home_league_position=ai_features.home_league_position
+            if ai_features.home_league_position is not None
+            else "unknown",
+            away_league_position=ai_features.away_league_position
+            if ai_features.away_league_position is not None
+            else "unknown",
+            home_ppg=ai_features.home_standing_points_per_game
+            if ai_features.home_standing_points_per_game is not None
+            else "unknown",
+            away_ppg=ai_features.away_standing_points_per_game
+            if ai_features.away_standing_points_per_game is not None
+            else "unknown",
+            home_season_goals_for=home_season_goals_for,
+            home_season_goals_against=home_season_goals_against,
+            away_season_goals_for=away_season_goals_for,
+            away_season_goals_against=away_season_goals_against,
+            home_avg_goals_per_game=ai_features.home_avg_goals_per_game
+            if ai_features.home_avg_goals_per_game is not None
+            else "unknown",
+            away_avg_goals_per_game=ai_features.away_avg_goals_per_game
+            if ai_features.away_avg_goals_per_game is not None
+            else "unknown",
+            home_btts_rate=ai_features.home_btts_rate
+            if ai_features.home_btts_rate is not None
+            else "unknown",
+            away_btts_rate=ai_features.away_btts_rate
+            if ai_features.away_btts_rate is not None
+            else "unknown",
+            home_over_2_5_rate=ai_features.home_over_2_5_rate
+            if ai_features.home_over_2_5_rate is not None
+            else "unknown",
+            away_over_2_5_rate=ai_features.away_over_2_5_rate
+            if ai_features.away_over_2_5_rate is not None
+            else "unknown",
+            h2h_team_a_wins=h2h_team_a_wins,
+            h2h_team_b_wins=h2h_team_b_wins,
+            h2h_draws=h2h_draws,
+            h2h_avg_goals=h2h_avg_goals,
+            home_last5_goals_for=home_last5_goals_for,
+            home_last5_goals_against=home_last5_goals_against,
+            away_last5_goals_for=away_last5_goals_for,
+            away_last5_goals_against=away_last5_goals_against,
+            evidence_text=evidence_text,
+            context_source_ids=", ".join(context_source_ids) or "none",
+        )
 
-            user_prompt = AI_ADJUSTMENT_USER_PROMPT.format(
-                home_team=match_input.home_team_name,
-                away_team=match_input.away_team_name,
-                league=match_input.league_id,
-                lambda_home=base_result.lambda_home,
-                lambda_away=base_result.lambda_away,
-                home_win_prob=round(base_hda["home"], 4),
-                draw_prob=round(base_hda["draw"], 4),
-                away_prob=round(base_hda["away"], 4),
-                over_25_prob=round(base_markets["over_2_5"], 4),
-                btts_prob=round(base_markets["btts_yes"], 4),
-                home_league_position=ai_features.home_league_position
-                if ai_features.home_league_position is not None
-                else "unknown",
-                away_league_position=ai_features.away_league_position
-                if ai_features.away_league_position is not None
-                else "unknown",
-                home_ppg=ai_features.home_standing_points_per_game
-                if ai_features.home_standing_points_per_game is not None
-                else "unknown",
-                away_ppg=ai_features.away_standing_points_per_game
-                if ai_features.away_standing_points_per_game is not None
-                else "unknown",
-                home_season_goals_for=home_season_goals_for,
-                home_season_goals_against=home_season_goals_against,
-                away_season_goals_for=away_season_goals_for,
-                away_season_goals_against=away_season_goals_against,
-                home_avg_goals_per_game=ai_features.home_avg_goals_per_game
-                if ai_features.home_avg_goals_per_game is not None
-                else "unknown",
-                away_avg_goals_per_game=ai_features.away_avg_goals_per_game
-                if ai_features.away_avg_goals_per_game is not None
-                else "unknown",
-                home_btts_rate=ai_features.home_btts_rate
-                if ai_features.home_btts_rate is not None
-                else "unknown",
-                away_btts_rate=ai_features.away_btts_rate
-                if ai_features.away_btts_rate is not None
-                else "unknown",
-                home_over_2_5_rate=ai_features.home_over_2_5_rate
-                if ai_features.home_over_2_5_rate is not None
-                else "unknown",
-                away_over_2_5_rate=ai_features.away_over_2_5_rate
-                if ai_features.away_over_2_5_rate is not None
-                else "unknown",
-                h2h_team_a_wins=h2h_team_a_wins,
-                h2h_team_b_wins=h2h_team_b_wins,
-                h2h_draws=h2h_draws,
-                h2h_avg_goals=h2h_avg_goals,
-                home_last5_goals_for=home_last5_goals_for,
-                home_last5_goals_against=home_last5_goals_against,
-                away_last5_goals_for=away_last5_goals_for,
-                away_last5_goals_against=away_last5_goals_against,
-                evidence_text=evidence_text,
-                context_source_ids=", ".join(context_source_ids) or "none",
-            )
+        # Query the AI provider for adjustments
+        ai_adjustment = await self._get_ai_adjustment(system_prompt, user_prompt, match_input)
+        ai_adjustment = self._validate_adjustment_sources(
+            ai_adjustment, ai_features, context_source_ids
+        )
 
-            # Query the AI provider for adjustments
-            ai_adjustment = await self._get_ai_adjustment(system_prompt, user_prompt, match_input)
-            ai_adjustment = self._validate_adjustment_sources(
-                ai_adjustment, ai_features, context_source_ids
-            )
+        # Blend AI adjustments with statistical adjustments
+        adjustment = self._blend_adjustments(ai_adjustment, statistical_adjustment)
 
-            # Blend AI adjustments with statistical adjustments
-            adjustment = self._blend_adjustments(ai_adjustment, statistical_adjustment)
-
-            # Enforce caps
-            adjustment = self._enforce_caps(adjustment)
+        # Enforce caps
+        adjustment = self._enforce_caps(adjustment)
 
         # Check if there is any actual adjustment (lambda or market-level)
         has_adjustment = (
@@ -522,10 +488,10 @@ class AIAdjustmentLayer:
             adjustment.btts_adjustment,
             adjustment.over_2_5_adjustment,
         )
-        if any(value != 0 for value in adjustment_values):
-            if not adjustment.source_ids or not set(adjustment.source_ids).issubset(valid_source_ids):
+        if any(value != 0 for value in adjustment_values) and adjustment.source_ids:
+            if not set(adjustment.source_ids).issubset(valid_source_ids):
                 logger.warning(
-                    "Discarding AI adjustment with missing or unsupported source IDs; "
+                    "Discarding AI adjustment with unsupported source IDs; "
                     "using the statistical prediction"
                 )
                 return AIFeatureAdjustment()

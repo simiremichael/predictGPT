@@ -53,7 +53,9 @@ class TestAIAdjustmentLayer:
         self, match_input: PredictionInput, base_result: Any
     ) -> None:
         """When no research is available, no adjustment is applied."""
-        layer = AIAdjustmentLayer()
+        ai_provider = AsyncMock()
+        ai_provider.generate_structured = AsyncMock(return_value={})
+        layer = AIAdjustmentLayer(ai_provider=ai_provider)
         ai_features = AIFeatureBuilder().build(None)
 
         result = await layer.apply_adjustment(
@@ -63,6 +65,8 @@ class TestAIAdjustmentLayer:
         assert result.adjustment_applied is False
         assert result.ai_adjustment.home_attack_adjustment == 0.0
         assert result.ai_adjustment.away_attack_adjustment == 0.0
+        ai_provider.generate_structured.assert_awaited_once()
+        assert "none" in ai_provider.generate_structured.await_args.kwargs["user_prompt"]
 
     @pytest.mark.asyncio
     async def test_applies_available_form_statistics_without_web_research(
@@ -72,7 +76,6 @@ class TestAIAdjustmentLayer:
         ai_provider.generate_structured = AsyncMock(return_value={
             "home_attack_adjustment": 0.05,
             "reason_codes": ["home_standing_form_advantage"],
-            "source_ids": ["match_context:league_standings"],
         })
         layer = AIAdjustmentLayer(ai_provider=ai_provider)
         match_input.home_team_stats = MagicMock(
@@ -224,6 +227,20 @@ class TestAIAdjustmentLayer:
         assert result.home_attack_adjustment == 0.0
         assert result.source_ids == []
 
+    def test_adjustment_without_source_ids_is_allowed(self) -> None:
+        from web_research.schemas import AIFeatureAdjustment
+
+        features = AIFeatureVector()
+        adjustment = AIFeatureAdjustment(
+            home_attack_adjustment=-0.05,
+            reason_codes=["recent_form_signal"],
+        )
+
+        result = AIAdjustmentLayer._validate_adjustment_sources(adjustment, features)
+
+        assert result.home_attack_adjustment == -0.05
+        assert result.source_ids == []
+
     @pytest.mark.asyncio
     async def test_ai_failure_falls_back_to_base(
         self, match_input: PredictionInput, base_result: Any
@@ -257,10 +274,12 @@ class TestAIAdjustmentLayer:
             assert result.ai_adjustment.away_defense_adjustment == 0.0
 
     @pytest.mark.asyncio
-    async def test_research_without_actionable_evidence_skips_ai_adjustment(
+    async def test_research_without_actionable_evidence_still_calls_ai(
         self, match_input: PredictionInput, base_result: Any
     ) -> None:
-        layer = AIAdjustmentLayer(ai_provider=AsyncMock())
+        ai_provider = AsyncMock()
+        ai_provider.generate_structured = AsyncMock(return_value={})
+        layer = AIAdjustmentLayer(ai_provider=ai_provider)
         ai_features = AIFeatureVector(
             research_available=True,
             evidence_text="No evidence found.",
@@ -271,4 +290,4 @@ class TestAIAdjustmentLayer:
         )
 
         assert result.adjustment_applied is False
-        layer._ai_provider.generate_structured.assert_not_awaited()
+        ai_provider.generate_structured.assert_awaited_once()
