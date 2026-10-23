@@ -455,7 +455,7 @@ async def list_predictions(
 ) -> dict[str, Any]:
     """List prediction history with filters and pagination.
 
-    Free (non-subscribed) users are limited to the first 2 predictions.
+    Free users are limited to 2 upcoming predictions; completed results are public.
     """
     is_subscribed = await _is_subscribed(user_email)
 
@@ -485,7 +485,7 @@ async def list_predictions(
         is_subscribed=is_subscribed,
         page=page_num,
         page_size=ps,
-    )}:league-v1"
+    )}:league-v2-public-results"
 
     try:
         cached = await get_cached(cache_key)
@@ -563,8 +563,8 @@ async def list_predictions(
         end = (local_start + timedelta(days=1)).astimezone(UTC)
         stmt = stmt.where(Match.kickoff_at >= start).where(Match.kickoff_at < end)
 
-    # Free (non-subscribed) users see at most 2 predictions
-    free_limit = 2 if not is_subscribed else None
+    # Completed results are public; only upcoming predictions use the free cap.
+    free_limit = 2 if not is_subscribed and played is not True else None
 
     total_stmt = select(func.count()).select_from(stmt.subquery())
     total_result = await db.execute(total_stmt)
@@ -636,7 +636,11 @@ async def list_predictions(
             "total_pages": max(1, -(-total // ps)) if ps > 0 else 1,
             "upcoming_only": upcoming_only,
             "is_subscribed": is_subscribed,
-            "free_predictions_remaining": max(0, 2 - len(items)) if not is_subscribed else None,
+            "free_predictions_remaining": (
+                max(0, 2 - len(items))
+                if not is_subscribed and played is not True
+                else None
+            ),
         },
     }
 

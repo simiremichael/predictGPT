@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, Search, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
@@ -25,23 +25,19 @@ export function Header() {
   const pathname = usePathname();
   const [showSearch, setShowSearch] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const { user, isSubscribed, logout } = useAuth();
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   return (
     <>
+      <a
+        href="#main-content"
+        className="sr-only fixed left-3 top-3 z-[60] rounded-lg bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-lg focus:not-sr-only"
+      >
+        Skip to content
+      </a>
       <header
         className={cn(
-          "sticky top-0 z-40 border-b border-border/70 bg-background/70 backdrop-blur-xl transition-all duration-300",
-          scrolled ? "shadow-[0_18px_40px_rgba(15,23,42,0.08)]" : "",
+          "sticky top-0 z-40 border-b border-border/70 bg-background/90 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-md",
         )}
       >
         <div className="page-shell mx-auto flex h-[4.75rem] items-center justify-between">

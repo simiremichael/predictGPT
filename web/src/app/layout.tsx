@@ -117,7 +117,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
 
               <div className="flex min-h-screen flex-1 flex-col">
                 <Header />
-                <main className="page-shell mx-auto min-w-0 flex-1 pb-8 pt-5 sm:pt-8">
+                <main id="main-content" className="page-shell mx-auto min-w-0 flex-1 pb-8 pt-5 sm:pt-8">
                   {children}
                 </main>
                 <Footer />

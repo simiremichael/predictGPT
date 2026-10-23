@@ -47,7 +47,13 @@ export function PredictionsList({
   const { user } = useAuth();
   const [filterDate, setFilterDate] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayParts = new Intl.DateTimeFormat("en", {
+    timeZone: "Africa/Lagos",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const todayStr = `${todayParts.find((part) => part.type === "year")?.value}-${todayParts.find((part) => part.type === "month")?.value}-${todayParts.find((part) => part.type === "day")?.value}`;
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMs(Date.now()), 60_000);
@@ -76,7 +82,7 @@ export function PredictionsList({
       user?.id,
     ],
     initialPageParam: 1,
-    initialData: filterDate === null && !user && initialData
+    initialData: filterDate === null && initialData && (played || !user)
       ? {
           pages: [initialData],
           pageParams: [1],
@@ -96,6 +102,7 @@ export function PredictionsList({
         newest_first: newestFirst,
       }),
     refetchOnWindowFocus: false,
+    staleTime: played ? 30_000 : 10_000,
     getNextPageParam: (lastPage) =>
       lastPage.meta.page < lastPage.meta.total_pages
         ? lastPage.meta.page + 1
@@ -164,7 +171,7 @@ export function PredictionsList({
           </Button>
         )}
        </div>}
-      {(!isSubscribed || freeRemaining !== undefined) && (
+      {!played && (!isSubscribed || freeRemaining !== undefined) && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
           <p className="font-semibold text-foreground">
             Showing first {FREE_LIMIT} predictions
