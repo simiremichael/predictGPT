@@ -109,6 +109,11 @@ class YouComSearchProvider(WebSearchProvider):
                     response.status_code,
                 )
             return await self._search_with_fallback(query, limit)
+        if response.status_code in {401, 403}:
+            return await self._fallback_or_raise(SearchProviderError(
+                f"You.com authentication failed (HTTP {response.status_code}); verify YOU_API_KEY and YOU_SEARCH_URL",
+                details={"query": query, "status_code": response.status_code},
+            ), query, limit)
         if response.status_code == 429:
             return await self._fallback_or_raise(
                 SearchRateLimitError(
