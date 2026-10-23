@@ -357,8 +357,13 @@ class PredictionService:
 
             return output
 
-        except Exception:
-            logger.exception("Prediction generation failed", extra={"match_id": match_id})
+        except Exception as exc:
+            logger.exception(
+                "Prediction generation failed for match %s: %s",
+                match_id,
+                exc,
+                extra={"match_id": match_id},
+            )
             raise
         finally:
             _active_predictions.discard(match_id)

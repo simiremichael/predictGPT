@@ -25,7 +25,6 @@ import {
   ApiError,
   type AdminLeague,
   type AdminTeam,
-  type ModelAccuracyReport,
 } from "@/lib/api";
 import {
   revalidateLeagues,
@@ -1339,66 +1338,6 @@ function AdminPredictions() {
   );
 }
 
-function PredictionAccuracyTab() {
-  const { data, error, isPending } = useQuery({
-    queryKey: ["admin-model-accuracy"],
-    queryFn: api.admin.modelAccuracy,
-    staleTime: 60_000,
-  });
-
-  if (isPending) return <LoadingState message="Measuring completed predictions..." />;
-  if (error) {
-    return <EmptyState title="Failed to load prediction accuracy" description={errMsg(error)} />;
-  }
-
-  const accuracyPct = (value: number | null) =>
-    value == null ? "—" : `${(value * 100).toFixed(1)}%`;
-  const score = (
-    label: string,
-    result: ModelAccuracyReport["models"][number]["all"],
-  ) => (
-    <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-2 text-sm">1X2 accuracy: <strong>{accuracyPct(result.accuracy)}</strong></p>
-      <p className="mt-1 text-sm">Brier score: <strong>{result.multiclass_brier_score?.toFixed(4) ?? "—"}</strong></p>
-      <p className="mt-1 text-sm">Log loss: <strong>{result.log_loss?.toFixed(4) ?? "—"}</strong></p>
-      <p className="mt-1 text-xs text-muted-foreground">{result.matches} matches</p>
-    </div>
-  );
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Uses the latest prediction per match and model, generated before kickoff. Lower Brier score and log loss are better.
-      </p>
-      {data.eligible_matches === 0 ? (
-        <EmptyState
-          title="No completed predictions to measure yet"
-          description="Accuracy and calibration will appear after predicted matches have final scores in the database."
-        />
-      ) : (
-        data.models.map((model) => (
-          <section key={model.model_version} className="surface-card space-y-4 rounded-2xl p-4">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-bold">{model.model_version}</h2>
-              <p className="text-xs text-muted-foreground">
-                {new Date(model.date_start).toLocaleDateString()} – {new Date(model.date_end).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {score("All eligible matches", model.all)}
-              {score("Latest chronological 20%", model.chronological_holdout)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {model.calibrated_matches} calibrated predictions. Calibration adjusts probabilities; it does not change the 1X2 pick.
-            </p>
-          </section>
-        ))
-      )}
-    </div>
-  );
-}
-
 export default function AdminPage() {
   return (
     <div className="space-y-6">
@@ -1419,7 +1358,6 @@ export default function AdminPage() {
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
           <TabsTrigger value="predictions">Predictions</TabsTrigger>
-          <TabsTrigger value="accuracy">Accuracy</TabsTrigger>
         </TabsList>
         <TabsContent value="leagues">
           <AdminLeagues />
@@ -1432,9 +1370,6 @@ export default function AdminPage() {
         </TabsContent>
         <TabsContent value="predictions">
           <AdminPredictions />
-        </TabsContent>
-        <TabsContent value="accuracy">
-          <PredictionAccuracyTab />
         </TabsContent>
       </Tabs>
     </div>

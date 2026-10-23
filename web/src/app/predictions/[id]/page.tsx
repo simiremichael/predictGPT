@@ -88,6 +88,14 @@ async function PredictionDetailContent({
     const awayName =
       match.away_team_name || match.away_team?.name || "Away Team";
 
+    const newsSnapshot = res.news_snapshot || {};
+    const savedResearch = newsSnapshot.research as
+      | Partial<PredictionDetail["research"]>
+      | undefined;
+    const researchSources = Array.isArray(newsSnapshot.sources)
+      ? newsSnapshot.sources
+      : [];
+
     prediction = {
       prediction_id: res.prediction_id,
       match_id: res.match_id,
@@ -152,16 +160,19 @@ async function PredictionDetailContent({
       feature_snapshot: res.feature_snapshot || {},
       model_parameters: {},
       research: {
-        available: false,
-        data_quality: 0,
-        sources_count: 0,
-        injuries_count: 0,
-        suspensions_count: 0,
-        lineups_count: 0,
-        team_news_count: 0,
-        conflicts_count: 0,
-        average_credibility: 0,
-        average_freshness: 0,
+        available:
+          savedResearch?.available ??
+          (researchSources.length > 0 || (res.ai_evidence?.length ?? 0) > 0),
+        data_quality: savedResearch?.data_quality ?? 0,
+        sources_count: savedResearch?.sources_count ?? researchSources.length,
+        injuries_count: savedResearch?.injuries_count ?? 0,
+        suspensions_count: savedResearch?.suspensions_count ?? 0,
+        lineups_count: savedResearch?.lineups_count ?? 0,
+        team_news_count: savedResearch?.team_news_count ?? 0,
+        conflicts_count: savedResearch?.conflicts_count ?? 0,
+        average_credibility: savedResearch?.average_credibility ?? 0,
+        average_freshness: savedResearch?.average_freshness ?? 0,
+        researched_at: savedResearch?.researched_at,
       },
       ai_adjustment: {
         applied: !!res.ai_adjustment,

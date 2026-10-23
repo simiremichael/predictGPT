@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -13,6 +13,7 @@ from web_research.exceptions import SearchProviderError, SearchRateLimitError
 logger = logging.getLogger(__name__)
 _quota_state_lock = threading.Lock()
 _tavily_fallback_until: datetime | None = None
+_TAVILY_FAILURE_COOLDOWN = timedelta(minutes=10)
 
 
 def _next_month_start(now: datetime) -> datetime:
@@ -55,6 +56,19 @@ def _mark_tavily_quota_exhausted() -> bool:
         if newly_exhausted:
             _tavily_fallback_until = _next_month_start(now)
         return newly_exhausted
+
+
+def _mark_tavily_temporarily_unavailable() -> bool:
+    """Route subsequent searches around transient Tavily failures briefly."""
+    global _tavily_fallback_until
+    now = datetime.now(UTC)
+    with _quota_state_lock:
+        if _tavily_fallback_until and now >= _tavily_fallback_until:
+            _tavily_fallback_until = None
+        newly_unavailable = _tavily_fallback_until is None
+        if newly_unavailable:
+            _tavily_fallback_until = now + _TAVILY_FAILURE_COOLDOWN
+        return newly_unavailable
 
 
 class TavilySearchProvider(WebSearchProvider):
@@ -113,8 +127,14 @@ class TavilySearchProvider(WebSearchProvider):
                 )
             return await self._search_with_fallback(query, limit)
         if response.status_code == 429:
-            logger.warning("Tavily request rate limit reached; using fallback for this query")
-            return await self._search_with_fallback(query, limit)
+            return await self._fallback_or_raise(
+                SearchRateLimitError(
+                    "Tavily request rate limit reached",
+                    details={"query": query, "status_code": response.status_code},
+                ),
+                query,
+                limit,
+            )
         if response.status_code != 200:
             return await self._fallback_or_raise(SearchProviderError(
                 f"Tavily search returned HTTP {response.status_code}",
@@ -151,6 +171,14 @@ class TavilySearchProvider(WebSearchProvider):
                     },
                 )
             )
+        if not results and self._fallback_provider is not None:
+            return await self._fallback_or_raise(
+                SearchProviderError(
+                    "Tavily returned no search results", details={"query": query}
+                ),
+                query,
+                limit,
+            )
         return results[:limit]
 
     async def _search_with_fallback(
@@ -168,7 +196,12 @@ class TavilySearchProvider(WebSearchProvider):
     ) -> list[SearchResult]:
         if self._fallback_provider is None:
             raise error
-        logger.warning("Tavily search failed; switching to configured fallback")
+        if _mark_tavily_temporarily_unavailable():
+            logger.warning(
+                "Tavily search failed (%s); switching to fallback for %s minutes",
+                error,
+                int(_TAVILY_FAILURE_COOLDOWN.total_seconds() // 60),
+            )
         return await self._fallback_provider.search(query, limit=limit)
 
     async def close(self) -> None:

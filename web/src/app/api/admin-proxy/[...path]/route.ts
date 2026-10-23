@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  "https://football-ai.fastapicloud.dev";
+  (process.env.NODE_ENV === "development"
+    ? "http://localhost:8000"
+    : "https://football-ai.fastapicloud.dev");
 
 const ADMIN_API_KEY =
   process.env.ADMIN_API_KEY || process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";

@@ -56,6 +56,19 @@ from services.prediction_orchestrator import PredictionOrchestrator
 router = APIRouter(tags=["predictions"])
 
 
+def _prediction_has_research(prediction: Any) -> bool:
+    """Return whether web research ran or produced sources for a prediction."""
+    snapshot = prediction.news_snapshot
+    if not isinstance(snapshot, dict):
+        return bool(prediction.ai_evidence_json)
+
+    research = snapshot.get("research")
+    if isinstance(research, dict) and isinstance(research.get("available"), bool):
+        return research["available"]
+
+    return bool(snapshot.get("sources") or prediction.ai_evidence_json)
+
+
 async def _is_subscribed(user_email: str | None) -> bool:
     """Check if the user has an active subscription (or is a superuser)."""
     if not user_email:
@@ -807,7 +820,7 @@ async def get_match_predictions(
                 "away_probability": pred.away_probability,
                 "over_2_5_probability": pred.over_2_5_probability,
                 "btts_probability": pred.btts_probability,
-                "research_available": bool(pred.ai_evidence_json),
+                "research_available": _prediction_has_research(pred),
                 "ai_adjustment_applied": bool(pred.ai_adjustment_json),
                 "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
                 if isinstance(pred.feature_snapshot, dict)
@@ -911,7 +924,7 @@ async def compare_match_predictions(
                 "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
                 if isinstance(pred.feature_snapshot, dict)
                 else 0.0,
-                "research": {"available": bool(pred.ai_evidence_json)},
+                "research": {"available": _prediction_has_research(pred)},
                 "ai_adjustment": {"applied": bool(pred.ai_adjustment_json)},
             }
 

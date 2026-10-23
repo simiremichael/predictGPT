@@ -492,7 +492,10 @@ class AIAdjustmentLayer:
         )
         if any(value != 0 for value in adjustment_values):
             if not adjustment.source_ids or not set(adjustment.source_ids).issubset(valid_source_ids):
-                logger.warning("Discarding AI adjustment with missing or unsupported source IDs")
+                logger.warning(
+                    "Discarding AI adjustment with missing or unsupported source IDs; "
+                    "using the statistical prediction"
+                )
                 return AIFeatureAdjustment()
         return adjustment.model_copy(
             update={"source_ids": [

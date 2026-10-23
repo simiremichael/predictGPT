@@ -579,6 +579,7 @@ async def trigger_batch_predictions(
                     },
                 )
         except Exception as exc:
+            logger.exception("Batch prediction job failed", extra={"job_id": job_id})
             await update_job_status(job_id, "failed", errors=[str(exc)])
 
     import asyncio

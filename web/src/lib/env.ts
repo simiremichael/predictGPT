@@ -8,7 +8,11 @@ interface Env {
 }
 
 export const env: Env = {
-  apiUrl: process.env.NEXT_PUBLIC_API_URL || "https://football-ai.fastapicloud.dev",
+  apiUrl:
+    process.env.NEXT_PUBLIC_API_URL ||
+    (process.env.NODE_ENV === "development"
+      ? "http://localhost:8000"
+      : "https://football-ai.fastapicloud.dev"),
   apiFallbackUrl:
     process.env.NEXT_PUBLIC_API_FALLBACK_URL || "http://localhost:8000",
   appName: process.env.NEXT_PUBLIC_APP_NAME || "Football AI",

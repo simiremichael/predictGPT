@@ -117,8 +117,10 @@ class AIPredictionService:
                 force_new=True,
             )
         except Exception as exc:
-            logger.error(
-                "Prediction generation failed",
+            logger.exception(
+                "Prediction generation failed for match %s: %s",
+                match_id,
+                exc,
                 extra={"match_id": match_id, "error": str(exc)},
             )
             return {
