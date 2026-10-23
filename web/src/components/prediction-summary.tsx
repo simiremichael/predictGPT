@@ -30,8 +30,10 @@ export function PredictionSummary({
     >
       {showMatchInfo && (
         <div className="mb-3 text-center">
-          <h3 className="font-semibold">
-            {prediction.match_home_team} vs {prediction.match_away_team}
+          <h3 className="min-w-0 text-balance font-semibold">
+            <span className="[overflow-wrap:anywhere]">{prediction.match_home_team}</span>{" "}
+            <span className="whitespace-nowrap text-muted-foreground">vs</span>{" "}
+            <span className="[overflow-wrap:anywhere]">{prediction.match_away_team}</span>
           </h3>
           <p className="text-xs text-muted-foreground">
             {prediction.match_kickoff

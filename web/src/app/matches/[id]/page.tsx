@@ -342,16 +342,20 @@ async function PredictionSection({ matchId }: { matchId: string }) {
         </CardContent>
       </Card>
 
-      {prediction.ai_explanation && (
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Explanation</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm italic">{prediction.ai_explanation}</p>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Match Analysis</CardTitle>
+          <CardDescription>
+            AI-generated context for this match prediction.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm leading-6">
+            {prediction.ai_explanation ||
+              "AI analysis is not available for this prediction yet."}
+          </p>
+        </CardContent>
+      </Card>
 
       {prediction.ai_adjustment && prediction.ai_adjustment.applied && (
         <Card>

@@ -464,7 +464,7 @@ async def list_predictions(
     offset = (page_num - 1) * ps
     now = datetime.now(UTC)
 
-    cache_key = cache_predictions_list_key(
+    cache_key = f"{cache_predictions_list_key(
         match_id=match_id,
         league_id=league_id,
         team_id=team_id,
@@ -485,7 +485,7 @@ async def list_predictions(
         is_subscribed=is_subscribed,
         page=page_num,
         page_size=ps,
-    )
+    )}:league-v1"
 
     try:
         cached = await get_cached(cache_key)
@@ -494,7 +494,7 @@ async def list_predictions(
     except Exception:
         pass
 
-    from models.league import Team
+    from models.league import League, Team
 
     home_team = aliased(Team)
     away_team = aliased(Team)
@@ -503,6 +503,7 @@ async def list_predictions(
             Prediction,
             func.coalesce(Match.home_team_name, home_team.name, "Home team"),
             func.coalesce(Match.away_team_name, away_team.name, "Away team"),
+            League.name,
             Match.kickoff_at,
             Match.status,
             func.coalesce(PredictionResult.home_score, Match.home_score),
@@ -510,6 +511,7 @@ async def list_predictions(
         )
         .join(Match, Match.id == Prediction.match_id)
         .outerjoin(PredictionResult, PredictionResult.prediction_id == Prediction.id)
+        .outerjoin(League, Match.league_id == League.id)
         .outerjoin(home_team, Match.home_team_id == home_team.id)
         .outerjoin(away_team, Match.away_team_id == away_team.id)
     )
@@ -587,6 +589,7 @@ async def list_predictions(
             match_id=p.match_id,
             match_home_team=home_name,
             match_away_team=away_name,
+            match_league_name=league_name or "Unknown league",
             match_kickoff=match_kickoff,
             match_status=match_status,
             home_score=home_score,
@@ -615,6 +618,7 @@ async def list_predictions(
             p,
             home_name,
             away_name,
+            league_name,
             match_kickoff,
             match_status,
             home_score,
@@ -776,6 +780,79 @@ async def get_prediction_by_id(
         pass
 
     return response
+
+
+@router.get(
+    "/predictions/{prediction_id}/result",
+    summary="Get a prediction result and current match outcome verification",
+    response_model=dict[str, Any],
+)
+async def get_prediction_result_by_id(
+    prediction_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Return result details and live admin verification without prediction caching."""
+    from models.league import League
+
+    stmt = (
+        select(Prediction, Match, League, PredictionResult)
+        .join(Match, Match.id == Prediction.match_id)
+        .outerjoin(League, League.id == Match.league_id)
+        .outerjoin(
+            PredictionResult,
+            PredictionResult.prediction_id == Prediction.id,
+        )
+        .where(Prediction.id == prediction_id)
+    )
+    result = await db.execute(stmt)
+    row = result.one_or_none()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prediction result not found",
+        )
+
+    prediction, match, league, evaluated_result = row
+    home_score = (
+        evaluated_result.home_score
+        if evaluated_result and evaluated_result.home_score is not None
+        else match.home_score
+    )
+    away_score = (
+        evaluated_result.away_score
+        if evaluated_result and evaluated_result.away_score is not None
+        else match.away_score
+    )
+    return {
+        "success": True,
+        "data": {
+            "prediction_id": prediction.id,
+            "match_id": match.id,
+            "league_name": league.name if league else "Unknown league",
+            "home_team_name": match.home_team_name or "Home team",
+            "away_team_name": match.away_team_name or "Away team",
+            "match_kickoff": match.kickoff_at.isoformat() if match.kickoff_at else None,
+            "match_status": match.status,
+            "home_score": home_score,
+            "away_score": away_score,
+            "model_version": prediction.model_version,
+            "ai_explanation": prediction.ai_explanation,
+            "home_probability": prediction.home_probability,
+            "draw_probability": prediction.draw_probability,
+            "away_probability": prediction.away_probability,
+            "over_2_5_probability": prediction.over_2_5_probability,
+            "btts_probability": prediction.btts_probability,
+            "admin_verify_gg": prediction.admin_verify_gg,
+            "admin_verify_win": prediction.admin_verify_win,
+            "admin_verify_over_2_5": prediction.admin_verify_over_2_5,
+            "evaluated_at": (
+                evaluated_result.evaluated_at.isoformat()
+                if evaluated_result and evaluated_result.evaluated_at
+                else None
+            ),
+        },
+        "meta": {"verification_is_current": True},
+    }
 
 
 @router.get(

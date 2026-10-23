@@ -257,6 +257,7 @@ export interface PredictionDetail {
   match_id: string;
   match_home_team: string;
   match_away_team: string;
+  match_league_name?: string | null;
   match_kickoff?: string | null;
   match_status?: string | null;
   home_score?: number | null;
@@ -296,6 +297,29 @@ export interface PredictionDetail {
   model_version?: string | null;
   prediction_version?: string | null;
   generated_at?: string | null;
+}
+
+export interface PredictionResultDetails {
+  prediction_id: string;
+  match_id: string;
+  league_name: string;
+  home_team_name: string;
+  away_team_name: string;
+  match_kickoff?: string | null;
+  match_status: string;
+  ai_explanation?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
+  model_version: string;
+  home_probability?: number | null;
+  draw_probability?: number | null;
+  away_probability?: number | null;
+  over_2_5_probability?: number | null;
+  btts_probability?: number | null;
+  admin_verify_gg?: boolean | null;
+  admin_verify_win?: boolean | null;
+  admin_verify_over_2_5?: boolean | null;
+  evaluated_at?: string | null;
 }
 
 export interface SearchResponse {

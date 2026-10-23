@@ -321,7 +321,7 @@ async function PredictionDetailContent({
             Date.now())) && (
         <Card>
           <CardHeader>
-            <CardTitle>Admin Verification</CardTitle>
+            <CardTitle>Match outcome</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-3 text-sm sm:flex-row sm:gap-6">

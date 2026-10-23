@@ -69,7 +69,7 @@ export function Header() {
                   variant={pathname === item.href ? "default" : "ghost"}
                   size="sm"
                   className={cn(
-                    "px-3.5 text-sm font-semibold transition-all",
+                    "px-3.5 text-sm font-semibold transition-all cursor-pointer",
                     pathname === item.href &&
                       "shadow-[0_12px_22px_rgba(13,128,87,0.22)] ring-1 ring-primary/15",
                   )}

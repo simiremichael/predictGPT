@@ -161,7 +161,7 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
     count_result.scalar.return_value = 1
     rows_result = MagicMock()
     rows_result.all.return_value = [
-        (prediction, "Home FC", "Away FC", None, "scheduled", None, None)
+        (prediction, "Home FC", "Away FC", "Premier League", None, "scheduled", None, None)
     ]
     database = AsyncMock()
     database.execute = AsyncMock(side_effect=[count_result, rows_result])
@@ -193,6 +193,7 @@ async def test_prediction_history_includes_home_and_away_team_names() -> None:
 
     assert response["data"][0]["match_home_team"] == "Home FC"
     assert response["data"][0]["match_away_team"] == "Away FC"
+    assert response["data"][0]["match_league_name"] == "Premier League"
 
 
 def test_research_status_requires_saved_search_sources() -> None:

@@ -14,6 +14,7 @@ import type {
   MatchSummary,
   PredictionDetail,
   PredictionHistoryItem,
+  PredictionResultDetails,
   PredictionStats,
   ProviderStatus,
   ResearchData,
@@ -651,6 +652,8 @@ export const api = {
     admin_verify_win: boolean | null;
     admin_verify_over_2_5: boolean | null;
   }>(`/api/v1/predictions/${id}`),
+  getPredictionResult: (id: string) =>
+    request<PredictionResultDetails>(`/api/v1/predictions/${id}/result`),
   getMatchPredictions: (matchId: string, params?: { page?: number; page_size?: number }) => {
     const search = new URLSearchParams();
     if (params?.page) search.set("page", String(params.page));

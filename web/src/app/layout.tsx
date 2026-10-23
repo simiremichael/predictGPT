@@ -8,13 +8,17 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { AuthProvider } from "@/contexts/auth";
 
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://football-ai.app").replace(/\/$/, "");
+
 export const metadata: Metadata = {
   title: {
     default: "Football AI - AI-Powered Football Match Predictions",
     template: "%s | Football AI",
   },
   description:
-    "Probabilistic football match predictions using Poisson models with optional AI research integration.",
+    "Explore football match predictions, probability estimates, scorelines, team form, and research context for fixtures across major leagues.",
+  metadataBase: new URL(siteUrl),
+  alternates: { canonical: "/" },
   keywords: [
     "football",
     "soccer",
@@ -30,22 +34,31 @@ export const metadata: Metadata = {
   authors: [{ name: "Football AI" }],
   openGraph: {
     type: "website",
-    locale: "en-US",
-    url: "https://football-ai.app",
+    locale: "en_GB",
+    url: siteUrl,
     siteName: "Football AI",
     title: "Football AI - AI-Powered Football Match Predictions",
     description:
-      "Probabilistic football match predictions using Poisson models with optional AI research integration.",
+      "Explore football match predictions, probability estimates, scorelines, team form, and research context for fixtures across major leagues.",
+    images: [{ url: "/logo.png", width: 512, height: 512, alt: "Football AI" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Football AI - AI-Powered Football Match Predictions",
     description:
-      "Probabilistic football match predictions using Poisson models with optional AI research integration.",
+      "Explore football match predictions, probability estimates, scorelines, team form, and research context for fixtures across major leagues.",
+    images: ["/logo.png"],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
 };
 
@@ -66,6 +79,31 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "Organization",
+                  "@id": `${siteUrl}/#organization`,
+                  name: "Football AI",
+                  url: siteUrl,
+                  logo: `${siteUrl}/logo.png`,
+                },
+                {
+                  "@type": "WebSite",
+                  "@id": `${siteUrl}/#website`,
+                  name: "Football AI",
+                  url: siteUrl,
+                  publisher: { "@id": `${siteUrl}/#organization` },
+                  inLanguage: "en",
+                },
+              ],
+            }).replace(/</g, "\\u003c"),
+          }}
+        />
         <QueryProvider>
           <AuthProvider>
           <ThemeProvider

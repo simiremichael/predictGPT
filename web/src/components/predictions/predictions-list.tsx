@@ -228,11 +228,17 @@ function PredictionItem({
   };
 
   return (
-    <Link href={`/predictions/${item.prediction_id}`}>
+    <Link
+      href={
+        played
+          ? `/results/${item.prediction_id}`
+          : `/predictions/${item.prediction_id}`
+      }
+    >
       <div className="group cursor-pointer rounded-[1.5rem] border border-border/80 bg-card/85 p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.08)]">
          <div className="flex flex-col gap-4 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
-           <div className="flex min-w-0 flex-1 items-center gap-3">
-             <div className="flex items-center gap-2">
+           <div className="flex min-w-0 flex-1 flex-col items-start gap-3 sm:flex-row sm:items-center">
+             <div className="flex max-w-full flex-wrap items-center gap-2">
                <Badge
                  variant="secondary"
                  className={confidenceInfo.bg}
@@ -249,14 +255,19 @@ function PredictionItem({
                </span>
              </div>
 
-             <div className="min-w-0 font-semibold tracking-tight text-foreground">
-               <span className="truncate">{item.match_home_team}</span>
-               <span className="mx-2 text-muted-foreground">vs</span>
-               <span className="truncate">{item.match_away_team}</span>
+             <div className="min-w-0 flex-1">
+               <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5 font-semibold tracking-tight text-foreground [overflow-wrap:anywhere]">
+                 <span>{item.match_home_team}</span>
+                 <span className="shrink-0 text-muted-foreground">vs</span>
+                 <span>{item.match_away_team}</span>
+               </div>
+               <div className="mt-0.5 break-words text-xs text-muted-foreground">
+                 {item.match_league_name || "Unknown league"}
+               </div>
              </div>
            </div>
 
-           <div className="flex flex-wrap items-center justify-end gap-2">
+           <div className="flex w-full flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
              {played && item.home_score != null && item.away_score != null && (
                <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5 text-center">
                  <div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
