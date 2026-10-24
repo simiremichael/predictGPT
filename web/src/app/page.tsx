@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BarChart3,
   CalendarDays,
+  Check,
   ChevronRight,
   Globe2,
   Shield,
@@ -11,6 +12,7 @@ import {
   Target,
   Trophy,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { MatchCard } from "@/components/match-card";
@@ -280,7 +282,37 @@ export default async function HomePage() {
 
           <div className="space-y-3">
             {recentPredictions.length > 0 ? (
-              recentPredictions.map((item: PredictionHistoryItem) => (
+              recentPredictions.map((item: PredictionHistoryItem) => {
+                const winPicks = [
+                  { label: "Home", probability: item.home_probability },
+                  { label: "Draw", probability: item.draw_probability },
+                  { label: "Away", probability: item.away_probability },
+                ].filter(
+                  (pick): pick is { label: string; probability: number } =>
+                    typeof pick.probability === "number",
+                );
+                const winPick = winPicks.reduce<(typeof winPicks)[number] | null>(
+                  (best, pick) =>
+                    best === null || pick.probability > best.probability ? pick : best,
+                  null,
+                );
+                const overProbability = item.over_2_5_probability;
+                const underProbability = item.under_2_5_probability;
+                const goalsPick =
+                  overProbability == null && underProbability == null
+                    ? null
+                    : overProbability != null &&
+                        (underProbability == null || overProbability >= underProbability)
+                      ? { label: "Over 2.5", probability: overProbability }
+                      : { label: "Under 2.5", probability: underProbability! };
+                const bttsProbability = item.btts_probability;
+                const bttsPick = bttsProbability == null
+                  ? null
+                  : bttsProbability >= 0.5
+                    ? { label: "Yes", probability: bttsProbability }
+                    : { label: "No", probability: 1 - bttsProbability };
+
+                return (
                 <Link
                   key={item.prediction_id}
                   href={`/predictions/${item.prediction_id}`}
@@ -308,50 +340,39 @@ export default async function HomePage() {
                           Win
                         </span>
                         <p className="text-sm font-bold">
-                          {item.home_probability != null &&
-                          item.home_probability >=
-                            (item.draw_probability ?? 0) &&
-                          item.home_probability >= (item.away_probability ?? 0)
-                            ? "H"
-                            : item.draw_probability != null &&
-                                item.draw_probability >=
-                                  (item.away_probability ?? 0)
-                              ? "D"
-                              : "A"}
+                          {winPick
+                            ? `${winPick.label} ${Math.round(winPick.probability * 100)}%`
+                            : "—"}
                         </p>
+                        <VerificationMark verified={item.admin_verify_win} />
                       </div>
                       <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
                         <span className="text-[9px] uppercase text-muted-foreground">
                           O 2.5
                         </span>
                         <p className="text-sm font-bold">
-                          {item.over_2_5_probability != null &&
-                          item.over_2_5_probability >= 0.5
-                            ? "O2.5"
-                            : "U2.5"}
+                          {goalsPick
+                            ? `${goalsPick.label} ${Math.round(goalsPick.probability * 100)}%`
+                            : "—"}
                         </p>
+                        <VerificationMark verified={item.admin_verify_over_2_5} />
                       </div>
                       <div className="rounded-xl bg-muted/40 px-3 py-1.5 text-center">
                         <span className="text-[9px] uppercase text-muted-foreground">
                           BTTS
                         </span>
                         <p className="text-sm font-bold">
-                          {item.btts_probability != null &&
-                          item.btts_probability >= 0.5
-                            ? "GG"
-                            : "NG"}
+                          {bttsPick
+                            ? `${bttsPick.label} ${Math.round(bttsPick.probability * 100)}%`
+                            : "—"}
                         </p>
+                        <VerificationMark verified={item.admin_verify_gg} />
                       </div>
                     </div>
-                    <Badge
-                      variant="default"
-                      className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]"
-                    >
-                      {(item.model_confidence * 100).toFixed(0)}%
-                    </Badge>
                   </div>
                 </Link>
-              ))
+                );
+              })
             ) : predictionsUnavailable ? (
               <EmptyState
                 title="Today's predictions unavailable"
@@ -367,6 +388,20 @@ export default async function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function VerificationMark({ verified }: { verified?: boolean | null }) {
+  if (verified == null) return null;
+
+  return (
+    <span
+      className={`mt-1 inline-flex items-center justify-center ${verified ? "text-green-600" : "text-red-600"}`}
+      title={verified ? "Correct prediction" : "Incorrect prediction"}
+      aria-label={verified ? "Correct prediction" : "Incorrect prediction"}
+    >
+      {verified ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+    </span>
   );
 }
 
