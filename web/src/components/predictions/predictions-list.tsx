@@ -274,6 +274,12 @@ function PredictionItem({
   nowMs: number;
 }) {
   const confidenceInfo = getConfidenceColor(item.model_confidence);
+  const kickoff = item.match_kickoff
+    ? new Date(parseMatchTimestamp(item.match_kickoff))
+    : null;
+  const kickoffLabel = kickoff && Number.isFinite(kickoff.getTime())
+    ? kickoff.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    : new Date(item.generated_at).toLocaleDateString();
 
   const renderVerify = (
     checked: boolean | null | undefined,
@@ -314,7 +320,12 @@ function PredictionItem({
                  </span>
                </Badge>
                <AIGeneratedBadge />
-               <MatchStateBadge kickoffAt={item.match_kickoff} played={played} nowMs={nowMs} />
+               <MatchStateBadge
+                 kickoffAt={item.match_kickoff}
+                 matchStatus={item.match_status}
+                 played={played}
+                 nowMs={nowMs}
+               />
                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
                  {item.model_version}
                </span>
@@ -403,9 +414,7 @@ function PredictionItem({
 
              <div className="text-right text-xs text-muted-foreground">
                <Calendar className="mr-1 inline h-3 w-3" />
-               {item.match_kickoff
-                 ? new Date(item.match_kickoff).toLocaleDateString()
-                 : new Date(item.generated_at).toLocaleDateString()}
+               {kickoffLabel}
              </div>
            </div>
 
@@ -415,24 +424,34 @@ function PredictionItem({
     );
   }
 
+function parseMatchTimestamp(value: string): string {
+  // Database timestamps without an explicit offset are stored as UTC.
+  return /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`;
+}
+
 function MatchStateBadge({
   kickoffAt,
+  matchStatus,
   played,
   nowMs,
 }: {
   kickoffAt?: string | null;
+  matchStatus?: string | null;
   played: boolean;
   nowMs: number;
 }) {
-  const kickoffMs = kickoffAt ? new Date(kickoffAt).getTime() : Number.NaN;
+  const kickoffMs = kickoffAt
+    ? new Date(parseMatchTimestamp(kickoffAt)).getTime()
+    : Number.NaN;
   const elapsedMinutes = Number.isFinite(kickoffMs)
     ? (nowMs - kickoffMs) / 60_000
     : null;
+  const status = matchStatus?.toLowerCase();
   const isInPlay =
     !played &&
     elapsedMinutes !== null &&
     elapsedMinutes >= 0 &&
-    elapsedMinutes <= 100;
+    (status === "live" || status === "paused" || elapsedMinutes <= 120);
   const label = played ? "Played" : isInPlay ? "In-play" : "Upcoming";
 
   return (
