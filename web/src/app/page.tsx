@@ -268,6 +268,16 @@ export default async function HomePage() {
             </Link>
           </div>
 
+          <div
+            role="note"
+            className="mb-4 flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground"
+          >
+            <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <p>
+              Predictions are currently generated on Saturdays and Sundays only.
+            </p>
+          </div>
+
           <div className="space-y-3">
             {recentPredictions.length > 0 ? (
               recentPredictions.map((item: PredictionHistoryItem) => (

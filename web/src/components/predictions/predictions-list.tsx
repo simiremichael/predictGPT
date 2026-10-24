@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Calendar } from "lucide-react";
 import { api } from "@/lib/api";
@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AIGeneratedBadge } from "@/components/ai-generated-badge";
-import type { PredictionHistoryItem } from "@/types/models";
+import type { League, PredictionHistoryItem } from "@/types/models";
 import type { PaginatedResult } from "@/lib/api";
 import { getConfidenceColor } from "@/lib/predictions";
 import { useAuth } from "@/contexts/auth";
@@ -46,6 +46,7 @@ export function PredictionsList({
 }: PredictionsListProps) {
   const { user } = useAuth();
   const [filterDate, setFilterDate] = useState<string | null>(null);
+  const [filterLeagueId, setFilterLeagueId] = useState(leagueId ?? "");
   const [nowMs, setNowMs] = useState(() => Date.now());
   const todayParts = new Intl.DateTimeFormat("en", {
     timeZone: "Africa/Lagos",
@@ -60,6 +61,28 @@ export function PredictionsList({
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    // Keep a link-provided league filter in sync when navigation changes the URL.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilterLeagueId(leagueId ?? "");
+  }, [leagueId]);
+
+  const { data: leagues = [] } = useQuery({
+    queryKey: ["prediction-league-options"],
+    queryFn: async () => {
+      const firstPage = await api.listLeagues({ page: 1, page_size: 100 });
+      const remainingPages = await Promise.all(
+        Array.from({ length: Math.max(0, firstPage.meta.total_pages - 1) }, (_, index) =>
+          api.listLeagues({ page: index + 2, page_size: 100 }),
+        ),
+      );
+      return [firstPage, ...remainingPages]
+        .flatMap((page) => page.data)
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+    staleTime: 5 * 60_000,
+  });
+
   const {
     data: result,
     error,
@@ -71,7 +94,7 @@ export function PredictionsList({
     queryKey: [
       "predictions",
       matchId,
-      leagueId,
+      filterLeagueId,
       teamId,
       played,
       minElapsedMinutes,
@@ -82,7 +105,7 @@ export function PredictionsList({
       user?.id,
     ],
     initialPageParam: 1,
-    initialData: filterDate === null && initialData && (played || !user)
+    initialData: filterDate === null && filterLeagueId === (leagueId ?? "") && initialData && (played || !user)
       ? {
           pages: [initialData],
           pageParams: [1],
@@ -91,7 +114,7 @@ export function PredictionsList({
     queryFn: ({ pageParam }) =>
       api.getPredictions({
         match_id: matchId || undefined,
-        league_id: leagueId || undefined,
+        league_id: filterLeagueId || undefined,
         team_id: teamId || undefined,
         page: pageParam,
         page_size: initialPageSize,
@@ -127,7 +150,7 @@ export function PredictionsList({
     return <LoadingState message="Loading predictions..." />;
   }
 
-  if (!result || rows.length === 0) {
+  if (!result) {
     return (
       <EmptyState
         title="No predictions found"
@@ -143,6 +166,19 @@ export function PredictionsList({
   return (
     <div className="space-y-4">
       {showDateFilter && <div className="flex flex-wrap items-center gap-3">
+        <select
+          aria-label="Filter predictions by league"
+          value={filterLeagueId}
+          onChange={(event) => setFilterLeagueId(event.target.value)}
+          className="h-9 max-w-full rounded-md border border-border bg-background px-3 text-sm"
+        >
+          <option value="">All leagues</option>
+          {leagues.map((league: League) => (
+            <option key={league.id} value={league.id}>
+              {league.name}{league.country ? ` — ${league.country}` : ""}
+            </option>
+          ))}
+        </select>
         <Button
           size="sm"
           variant={filterDate === todayStr ? "default" : "outline"}
@@ -171,6 +207,15 @@ export function PredictionsList({
           </Button>
         )}
        </div>}
+      {!played && showDateFilter && (
+        <div
+          role="note"
+          className="flex items-start gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm text-muted-foreground"
+        >
+          <Calendar className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <p>Predictions are currently generated on Saturdays and Sundays only.</p>
+        </div>
+      )}
       {!played && (!isSubscribed || freeRemaining !== undefined) && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
           <p className="font-semibold text-foreground">
@@ -187,9 +232,22 @@ export function PredictionsList({
           </Link>
         </div>
       )}
-      {rows.map((item: PredictionHistoryItem) => (
-        <PredictionItem key={item.prediction_id} item={item} played={played} nowMs={nowMs} />
-      ))}
+      {rows.length === 0 ? (
+        <EmptyState
+          title="No predictions found"
+          description={
+            filterLeagueId
+              ? "There are no predictions for this league and date. Try another league or clear the filters."
+              : played
+                ? "Completed match results will appear here."
+                : "Predictions for unfinished matches will appear here."
+          }
+        />
+      ) : (
+        rows.map((item: PredictionHistoryItem) => (
+          <PredictionItem key={item.prediction_id} item={item} played={played} nowMs={nowMs} />
+        ))
+      )}
       {error && <p className="text-center text-sm text-destructive">{error.message}</p>}
       {hasNextPage && (
         <div className="flex justify-center py-2">

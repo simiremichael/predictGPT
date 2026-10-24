@@ -25,6 +25,14 @@ interface PredictionDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
+interface PredictionResearchSource {
+  url: string;
+  title?: string | null;
+  publisher?: string | null;
+  snippet?: string | null;
+  published_at?: string | null;
+}
+
 export async function generateMetadata({ params }: PredictionDetailPageProps) {
   const { id } = await params;
   try {
@@ -74,6 +82,7 @@ async function PredictionDetailContent({
 }) {
   let prediction: PredictionDetail | null = null;
   let error: Error | null = null;
+  let researchSources: PredictionResearchSource[] = [];
 
   try {
     const res = await api.getPredictionById(predictionId);
@@ -84,8 +93,25 @@ async function PredictionDetailContent({
     const savedResearch = newsSnapshot.research as
       | Partial<PredictionDetail["research"]>
       | undefined;
-    const researchSources = Array.isArray(newsSnapshot.sources)
-      ? newsSnapshot.sources
+    researchSources = Array.isArray(newsSnapshot.sources)
+      ? newsSnapshot.sources.flatMap((source): PredictionResearchSource[] => {
+          if (!source || typeof source !== "object") return [];
+          const item = source as Partial<PredictionResearchSource>;
+          if (typeof item.url !== "string") return [];
+          try {
+            const url = new URL(item.url);
+            if (url.protocol !== "https:" && url.protocol !== "http:") return [];
+          } catch {
+            return [];
+          }
+          return [{
+            url: item.url,
+            title: item.title,
+            publisher: item.publisher,
+            snippet: item.snippet,
+            published_at: item.published_at,
+          }];
+        })
       : [];
 
     prediction = {
@@ -298,19 +324,54 @@ async function PredictionDetailContent({
         </Card>
       )}
 
-      {prediction.ai_evidence && prediction.ai_evidence.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Evidence Sources</CardTitle>
-            <CardDescription>
-              Research findings that influenced the AI adjustment
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>AI Team Information</CardTitle>
+          <CardDescription>
+            Team news and availability gathered for this match.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {prediction.ai_evidence && prediction.ai_evidence.length > 0 ? (
             <AiEvidenceDisplay evidence={prediction.ai_evidence} />
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No specific injuries, lineup updates, or team news were extracted for this prediction.
+            </p>
+          )}
+
+          {researchSources.length > 0 && (
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">Research sources</h3>
+              <ul className="space-y-3">
+                {researchSources.map((source, index) => (
+                  <li key={`${source.url}-${index}`} className="rounded-lg border border-border p-3">
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      {source.title || source.publisher || new URL(source.url).hostname}
+                    </a>
+                    {source.publisher && source.title && (
+                      <p className="mt-1 text-xs text-muted-foreground">{source.publisher}</p>
+                    )}
+                    {source.snippet && (
+                      <p className="mt-2 text-sm leading-relaxed">{source.snippet}</p>
+                    )}
+                    {source.published_at && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Published {new Date(source.published_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </CardContent>
+      </Card>
 
       {(prediction.admin_verify_gg !== null ||
         prediction.admin_verify_win !== null ||
