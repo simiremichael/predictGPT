@@ -122,7 +122,8 @@ class PredictionService:
                 one exists.
             context_hash: Optional context hash for freshness tracking.
             prediction_context: Preloaded database-first match context.
-            include_research: If False, skip web research and AI adjustment.
+            include_research: If False, skip web research. AI still evaluates
+                the baseline prediction and may adjust it from available context.
 
         Returns:
             PredictionOutputSchema with the prediction.
@@ -168,7 +169,9 @@ class PredictionService:
             # ── Phase 4: Load research and apply AI adjustment ─────── #
             research_result = None
             ai_adjustment_applied = False
-            ai_adjustment_schema = AIAdjustmentSchema(applied=False)
+            ai_adjustment_schema = AIAdjustmentSchema(
+                applied=False, analysis_completed=False
+            )
             research_summary = ResearchSummarySchema(available=False)
             ai_explanation_text: str | None = None
 
@@ -201,19 +204,23 @@ class PredictionService:
                         match_input, base_model_result, features, ai_features
                     )
 
+                    adj = adjustment_result.ai_adjustment
+                    ai_analysis_completed = adjustment_result.analysis_completed
+                    ai_adjustment_applied = adjustment_result.adjustment_applied
+                    ai_adjustment_schema = AIAdjustmentSchema(
+                        applied=adjustment_result.adjustment_applied,
+                        analysis_completed=ai_analysis_completed,
+                        version=self._ai_adjustment_layer.VERSION,
+                        home_attack_adjustment=adj.home_attack_adjustment,
+                        away_attack_adjustment=adj.away_attack_adjustment,
+                        home_defense_adjustment=adj.home_defense_adjustment,
+                        away_defense_adjustment=adj.away_defense_adjustment,
+                        confidence=adj.confidence,
+                        reason_codes=adj.reason_codes,
+                        source_ids=adj.source_ids,
+                    )
+
                     if adjustment_result.adjustment_applied:
-                        ai_adjustment_applied = True
-                        adj = adjustment_result.ai_adjustment
-                        ai_adjustment_schema = AIAdjustmentSchema(
-                            applied=True,
-                            home_attack_adjustment=adj.home_attack_adjustment,
-                            away_attack_adjustment=adj.away_attack_adjustment,
-                            home_defense_adjustment=adj.home_defense_adjustment,
-                            away_defense_adjustment=adj.away_defense_adjustment,
-                            confidence=adj.confidence,
-                            reason_codes=adj.reason_codes,
-                            source_ids=adj.source_ids,
-                        )
 
                         # Recalculate with adjusted lambdas
                         adjusted = adjustment_result.adjusted_model_result
@@ -367,6 +374,7 @@ class PredictionService:
                     "lambda_away": round(model_result.lambda_away, 4),
                     "data_quality": round(features.data_quality, 4),
                     "ai_adjustment_applied": ai_adjustment_applied,
+                    "ai_analysis_completed": ai_adjustment_schema.analysis_completed,
                     "research_available": research_summary.available,
                     "success": True,
                 },
@@ -1202,7 +1210,8 @@ class PredictionService:
                 ],
                 ai_adjustment_json=(
                     output.ai_adjustment.model_dump(mode="json")
-                    if output.ai_adjustment.applied
+                    if output.ai_adjustment.analysis_completed
+                    or output.ai_adjustment.applied
                     else None
                 ),
                 source_ids=output.source_ids,
@@ -1256,6 +1265,17 @@ class PredictionService:
 
     def _reconstruct_output(self, prediction: Any, scorelines: list[Any]) -> PredictionOutputSchema:
         """Reconstruct prediction output from stored DB models."""
+        stored_adjustment = (
+            dict(prediction.ai_adjustment_json)
+            if isinstance(prediction.ai_adjustment_json, dict)
+            else {"applied": False}
+        )
+        # Before analysis status was stored, only rows with an applied
+        # adjustment had JSON saved. Treat those legacy rows as analyzed.
+        if "analysis_completed" not in stored_adjustment:
+            stored_adjustment["analysis_completed"] = bool(
+                stored_adjustment.get("applied")
+            )
         top_4 = [
             ScorelineSchema(
                 home_goals=sl.home_goals,
@@ -1333,13 +1353,7 @@ class PredictionService:
                     else {}
                 )
             ),
-            ai_adjustment=AIAdjustmentSchema(
-                **(
-                    prediction.ai_adjustment_json
-                    if isinstance(prediction.ai_adjustment_json, dict)
-                    else {"applied": False}
-                )
-            ),
+            ai_adjustment=AIAdjustmentSchema(**stored_adjustment),
             ai_explanation=prediction.ai_explanation,
             source_ids=prediction.source_ids or [],
             context_hash=prediction.context_hash,

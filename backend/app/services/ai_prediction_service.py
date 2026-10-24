@@ -18,7 +18,8 @@ The pipeline:
 from __future__ import annotations
 
 import logging
-from datetime import UTC, date, datetime, time, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 from typing import Any
 
 from sqlalchemy import select
@@ -158,6 +159,7 @@ class AIPredictionService:
         limit: int = 10,
         include_research: bool = True,
         kickoff_date: date | None = None,
+        job_id: str | None = None,
     ) -> dict[str, Any]:
         """Fetch fixtures from DB and generate AI predictions for each.
 
@@ -171,11 +173,11 @@ class AIPredictionService:
 
             async with AsyncSessionLocal() as session:
                 return await self._generate_predictions_batch(
-                    session, league_id, league_ids, limit, include_research, kickoff_date
+                    session, league_id, league_ids, limit, include_research, kickoff_date, job_id
                 )
 
         return await self._generate_predictions_batch(
-            db, league_id, league_ids, limit, include_research, kickoff_date
+            db, league_id, league_ids, limit, include_research, kickoff_date, job_id
         )
 
     async def _generate_predictions_batch(
@@ -183,17 +185,20 @@ class AIPredictionService:
         db: AsyncSession,
         league_id: str | None,
         league_ids: list[str] | None,
-        limit: int,
+        limit: int | None,
         include_research: bool,
         kickoff_date: date | None = None,
+        job_id: str | None = None,
     ) -> dict[str, Any]:
         from football_data.models import FixtureStatus
         from models.match import Match
 
         now = datetime.now(UTC)
-        target_date = kickoff_date or now.date()
-        day_start = datetime.combine(target_date, time.min, tzinfo=UTC)
-        day_end = day_start + timedelta(days=1)
+        local_tz = ZoneInfo("Africa/Lagos")
+        target_date = kickoff_date or now.astimezone(local_tz).date()
+        day_start_local = datetime.combine(target_date, time.min, tzinfo=local_tz)
+        day_start = day_start_local.astimezone(UTC)
+        day_end = (day_start_local + timedelta(days=1)).astimezone(UTC)
 
         stmt = (
             select(Match)
@@ -204,8 +209,9 @@ class AIPredictionService:
                 Match.kickoff_at < day_end,
             )
             .order_by(Match.kickoff_at)
-            .limit(limit)
         )
+        if limit is not None:
+            stmt = stmt.limit(limit)
 
         if league_id:
             stmt = stmt.where(Match.league_id == league_id)
@@ -214,6 +220,11 @@ class AIPredictionService:
 
         result = await db.execute(stmt)
         matches = result.scalars().all()
+
+        if job_id:
+            from jobs.job_manager import set_job_progress
+
+            await set_job_progress(job_id, total=len(matches), succeeded=0, failed=0)
 
         generated = 0
         failed = 0
@@ -229,15 +240,28 @@ class AIPredictionService:
                     generated += 1
                     predictions.append(pred_result["data"])
                 else:
+                    try:
+                        await db.rollback()
+                    except Exception:
+                        logger.exception("Could not reset DB session after failed match")
                     failed += 1
                     errors.append(f"Match {match.id}: {pred_result.get('error', 'unknown')}")
             except Exception as exc:
+                try:
+                    await db.rollback()
+                except Exception:
+                    logger.exception("Could not reset DB session after failed match")
                 failed += 1
                 errors.append(f"Match {match.id}: {str(exc)}")
                 logger.exception(
                     "Failed to generate prediction for match",
                     extra={"match_id": match.id, "error": str(exc)},
                 )
+            finally:
+                if job_id:
+                    from jobs.job_manager import set_job_progress
+
+                    await set_job_progress(job_id, succeeded=generated, failed=failed)
 
         if generated:
             from core.cache import invalidate_prediction_list_caches

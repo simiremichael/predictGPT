@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete, desc, func, not_, or_, select
@@ -58,11 +59,136 @@ from models.research import (
     ResearchRun,
     WebSourceExtended,
 )
+from models.user import Subscription, SubscriptionStatus, User
 from schemas.api import PredictionHistoryItem
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/users", response_model=dict[str, Any])
+async def admin_list_users(
+    _admin: str = Depends(verify_admin_api_key),
+    db: AsyncSession = Depends(get_db),
+    search: str | None = Query(None, min_length=1, max_length=255),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+) -> dict[str, Any]:
+    """List registered accounts and their current subscription status."""
+    page_num = get_page(page)
+    ps = get_page_size(page_size)
+    stmt = select(User, Subscription).outerjoin(
+        Subscription, Subscription.user_id == User.id
+    )
+    if search:
+        stmt = stmt.where(func.lower(User.email).contains(search.strip().lower()))
+
+    count_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = count_result.scalar() or 0
+    result = await db.execute(
+        stmt.order_by(User.created_at.desc()).offset((page_num - 1) * ps).limit(ps)
+    )
+    now = datetime.now(UTC)
+    items = []
+    for user, subscription in result.all():
+        status_value = subscription.status.value if subscription else None
+        period_end = subscription.current_period_end if subscription else None
+        if period_end and period_end.tzinfo is None:
+            period_end = period_end.replace(tzinfo=UTC)
+        if status_value == SubscriptionStatus.ACTIVE.value and period_end and period_end <= now:
+            status_value = SubscriptionStatus.EXPIRED.value
+        items.append({
+            "id": user.id,
+            "email": user.email,
+            "country": user.country,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser,
+            "is_subscribed": user.has_active_subscription,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "subscription_status": status_value,
+            "subscription_period_end": period_end.isoformat() if period_end else None,
+        })
+
+    return {
+        "success": True,
+        "data": items,
+        "meta": {
+            "page": page_num,
+            "page_size": ps,
+            "total": total,
+            "total_pages": max(1, -(-total // ps)),
+        },
+    }
+
+
+@router.get("/subscriptions", response_model=dict[str, Any])
+async def admin_list_subscriptions(
+    _admin: str = Depends(verify_admin_api_key),
+    db: AsyncSession = Depends(get_db),
+    search: str | None = Query(None, min_length=1, max_length=255),
+    status_: str | None = Query(None, alias="status", max_length=20),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+) -> dict[str, Any]:
+    """List subscription records with account and billing period details."""
+    page_num = get_page(page)
+    ps = get_page_size(page_size)
+    stmt = select(Subscription, User.email).join(User, User.id == Subscription.user_id)
+    if search:
+        stmt = stmt.where(func.lower(User.email).contains(search.strip().lower()))
+    if status_:
+        try:
+            status_filter = SubscriptionStatus(status_.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Unsupported subscription status",
+            ) from None
+        stmt = stmt.where(Subscription.status == status_filter)
+
+    count_result = await db.execute(select(func.count()).select_from(stmt.subquery()))
+    total = count_result.scalar() or 0
+    result = await db.execute(
+        stmt.order_by(Subscription.created_at.desc())
+        .offset((page_num - 1) * ps)
+        .limit(ps)
+    )
+    now = datetime.now(UTC)
+    items = []
+    for subscription, email in result.all():
+        period_end = subscription.current_period_end
+        if period_end and period_end.tzinfo is None:
+            period_end = period_end.replace(tzinfo=UTC)
+        status_value = subscription.status.value
+        if status_value == SubscriptionStatus.ACTIVE.value and period_end and period_end <= now:
+            status_value = SubscriptionStatus.EXPIRED.value
+        items.append({
+            "id": subscription.id,
+            "user_id": subscription.user_id,
+            "email": email,
+            "status": status_value,
+            "amount": subscription.amount,
+            "currency": subscription.currency,
+            "current_period_start": (
+                subscription.current_period_start.isoformat()
+                if subscription.current_period_start else None
+            ),
+            "current_period_end": period_end.isoformat() if period_end else None,
+            "cancel_at_period_end": subscription.cancel_at_period_end,
+            "created_at": subscription.created_at.isoformat() if subscription.created_at else None,
+        })
+
+    return {
+        "success": True,
+        "data": items,
+        "meta": {
+            "page": page_num,
+            "page_size": ps,
+            "total": total,
+            "total_pages": max(1, -(-total // ps)),
+        },
+    }
 
 
 def _prediction_has_research(prediction: Any) -> bool:
@@ -208,6 +334,25 @@ async def get_admin_stats(
 ) -> dict[str, Any]:
     """Platform-wide statistics (admin only)."""
     stats: dict[str, Any] = {}
+
+    registered_users_result = await db.execute(select(func.count()).select_from(User))
+    stats["total_registered_users"] = registered_users_result.scalar() or 0
+
+    now = datetime.now(UTC)
+    active_subscribers_stmt = (
+        select(func.count(User.id))
+        .join(Subscription, Subscription.user_id == User.id)
+        .where(User.is_subscribed.is_(True))
+        .where(Subscription.status == SubscriptionStatus.ACTIVE)
+        .where(
+            or_(
+                Subscription.current_period_end.is_(None),
+                Subscription.current_period_end > now,
+            )
+        )
+    )
+    active_subscribers_result = await db.execute(active_subscribers_stmt)
+    stats["active_subscribers"] = active_subscribers_result.scalar() or 0
 
     match_count_stmt = select(func.count()).select_from(Match)
     result = await db.execute(match_count_stmt)
@@ -447,7 +592,17 @@ async def admin_list_predictions(
             under_2_5_probability=p.under_2_5_probability,
             btts_probability=p.btts_probability,
             research_available=_prediction_has_research(p),
-            ai_adjustment_applied=bool(p.ai_adjustment_json),
+            ai_adjustment_applied=bool(
+                p.ai_adjustment_json
+                and p.ai_adjustment_json.get("applied", True)
+            ),
+            ai_analysis_completed=bool(
+                p.ai_adjustment_json
+                and p.ai_adjustment_json.get(
+                    "analysis_completed",
+                    p.ai_adjustment_json.get("applied", False),
+                )
+            ),
             context_hash=p.context_hash,
             admin_verify_gg=p.admin_verify_gg,
             admin_verify_win=p.admin_verify_win,
@@ -527,11 +682,11 @@ async def trigger_batch_predictions(
         True,
         description="Run web search research for team news before generating each prediction",
     ),
-    limit: int = Query(
-        50,
+    limit: int | None = Query(
+        None,
         ge=1,
         le=500,
-        description="Maximum number of matches on the selected kickoff date",
+        description="Optional maximum number of matches on the selected kickoff date; defaults to all matches",
     ),
     kickoff_date: date | None = Query(
         None,
@@ -544,7 +699,7 @@ async def trigger_batch_predictions(
     """
     from jobs.job_manager import create_job, update_job_status
 
-    target_date = kickoff_date or datetime.now(UTC).date()
+    target_date = kickoff_date or datetime.now(ZoneInfo("Africa/Lagos")).date()
 
     job_id = await create_job(
         job_type="batch_prediction",
@@ -578,6 +733,7 @@ async def trigger_batch_predictions(
                     limit=limit,
                     include_research=include_research,
                     kickoff_date=target_date,
+                    job_id=job_id,
                 )
 
                 all_predictions = result.get("data", {}).get("predictions", [])

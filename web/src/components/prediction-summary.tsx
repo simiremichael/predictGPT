@@ -20,6 +20,12 @@ export function PredictionSummary({
 }: PredictionSummaryProps) {
   const outcome = getPredictionOutcome(prediction);
   const confidenceInfo = getConfidenceColor(prediction.model_confidence);
+  const aiAnalysisCompleted =
+    prediction.ai_adjustment?.analysis_completed ??
+    prediction.ai_analysis_completed ??
+    false;
+  const aiAdjustmentApplied =
+    prediction.ai_adjustment?.applied ?? prediction.ai_adjustment_applied ?? false;
 
   return (
     <div
@@ -42,6 +48,17 @@ export function PredictionSummary({
           </p>
         </div>
       )}
+
+      <div className="mb-3 flex flex-wrap justify-center gap-2" aria-label="AI prediction status">
+        <Badge variant={aiAnalysisCompleted ? "success" : "warning"}>
+          {aiAnalysisCompleted ? "AI analysis complete" : "AI analysis unavailable"}
+        </Badge>
+        {aiAnalysisCompleted && (
+          <Badge variant={aiAdjustmentApplied ? "success" : "muted"}>
+            {aiAdjustmentApplied ? "Adjustment applied" : "No adjustment needed"}
+          </Badge>
+        )}
+      </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">
         <div>

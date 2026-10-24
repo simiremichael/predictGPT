@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlparse
 
 from web_research.base import WebSearchProvider
 from web_research.deduplicator import deduplicate_sources
@@ -100,6 +101,7 @@ class MatchResearchService:
             away_team=away_team,
             competition=competition,
             kickoff_at=kickoff_at.isoformat() if kickoff_at else None,
+            season=str(kickoff_at.year) if kickoff_at else None,
         )
 
         # Check cache
@@ -122,6 +124,7 @@ class MatchResearchService:
         sources: list[ResearchSource] = []
         search_failures: list[dict[str, str]] = []
         searched_queries = 0
+        rate_limited = False
         for query_name, query_str, _priority in queries:
             searched_queries += 1
             try:
@@ -137,6 +140,7 @@ class MatchResearchService:
                     }
                 )
                 if isinstance(error, SearchRateLimitError):
+                    rate_limited = True
                     logger.warning(
                         "Search provider deferred match research; stopping further searches",
                         extra={
@@ -160,6 +164,116 @@ class MatchResearchService:
                 source.search_category = query_name
                 source.search_categories = [query_name]
                 sources.append(source)
+
+        # Discover each club's official domain, then search that domain
+        # directly. The first result is not trusted by default: a candidate
+        # needs an official-site signal and a team-name match before it can
+        # drive a site-scoped query.
+        official_site_queries = [
+            ("home_official_site_discovery", "home_official_site", home_team),
+            ("away_official_site_discovery", "away_official_site", away_team),
+        ]
+        if not rate_limited:
+            for _discovery_category, query_name, team_name in official_site_queries:
+                domain = self._find_official_site_domain(team_name, sources)
+                if not domain:
+                    continue
+                query_str = (
+                    f"site:{domain} {team_name} {competition or ''} "
+                    "team news injuries squad lineup recent results"
+                )
+                searched_queries += 1
+                try:
+                    provider = await self.get_search_provider()
+                    raw_results = await provider.search(query_str, limit=3)
+                except Exception as error:
+                    search_failures.append(
+                        {
+                            "query_name": query_name,
+                            "query": query_str,
+                            "error_type": type(error).__name__,
+                            "error": str(error),
+                        }
+                    )
+                    if isinstance(error, SearchRateLimitError):
+                        rate_limited = True
+                        break
+                    continue
+
+                for raw in raw_results or []:
+                    source = normalize_search_result(
+                        title=raw.title,
+                        url=raw.url,
+                        snippet=raw.snippet,
+                        publisher=raw.publisher,
+                        published_at=raw.published_at,
+                        credibility_enabled=self._settings.source_credibility_enabled,
+                    )
+                    result_domain = urlparse(source.url).netloc.casefold().removeprefix("www.")
+                    if result_domain != domain and not result_domain.endswith(f".{domain}"):
+                        continue
+                    source.search_category = query_name
+                    source.search_categories = [query_name]
+                    source.source_type = SourceType.OFFICIAL_TEAM
+                    source.credibility_score = max(source.credibility_score, 0.95)
+                    sources.append(source)
+
+        # Some competitions and less-covered teams have little indexed match
+        # preview content. When the normal pass has no usable hits, try a small
+        # set of broader but still match-specific searches before concluding
+        # there is no research context.
+        if not sources and not rate_limited:
+            fallback_queries = [
+                (
+                    "fallback_fixture_preview",
+                    f'"{home_team}" "{away_team}" '
+                    f'{competition or "football"} preview analysis',
+                    5,
+                ),
+                (
+                    "fallback_home_team_news",
+                    f'"{home_team}" latest team news form results '
+                    f'{competition or "football"}',
+                    4,
+                ),
+                (
+                    "fallback_away_team_news",
+                    f'"{away_team}" latest team news form results '
+                    f'{competition or "football"}',
+                    4,
+                ),
+            ]
+            for query_name, query_str, _priority in fallback_queries:
+                searched_queries += 1
+                try:
+                    provider = await self.get_search_provider()
+                    raw_results = await provider.search(query_str, limit=3)
+                except Exception as error:
+                    search_failures.append(
+                        {
+                            "query_name": query_name,
+                            "query": query_str,
+                            "error_type": type(error).__name__,
+                            "error": str(error),
+                        }
+                    )
+                    if isinstance(error, SearchRateLimitError):
+                        rate_limited = True
+                        break
+                    continue
+
+                for raw in raw_results or []:
+                    source = normalize_search_result(
+                        title=raw.title,
+                        url=raw.url,
+                        snippet=raw.snippet,
+                        publisher=raw.publisher,
+                        published_at=raw.published_at,
+                        credibility_enabled=self._settings.source_credibility_enabled,
+                    )
+                    source.search_category = query_name
+                    source.search_categories = [query_name]
+                    sources.append(source)
 
         if search_failures:
             # The console formatter prints only the log message, not `extra`
@@ -239,7 +353,14 @@ class MatchResearchService:
                     "market_odds",
                     "match_conditions",
                 }
-                if source_categories and source_categories.issubset(statistical_categories):
+                is_fallback_context = any(
+                    category.startswith("fallback_") for category in source_categories
+                )
+                if (
+                    source_categories
+                    and source_categories.issubset(statistical_categories)
+                    and not is_fallback_context
+                ):
                     continue
                 content = await self._retrieve_source_content(source)
                 if not content:
@@ -247,22 +368,71 @@ class MatchResearchService:
 
                 try:
                     categories = source_categories or {None}
-                    if categories & {None, "injury_news", "match_preview"}:
+                    if categories & {
+                        None,
+                        "injury_news",
+                        "match_preview",
+                        "fallback_fixture_preview",
+                        "fallback_home_team_news",
+                        "fallback_away_team_news",
+                        "home_team_news",
+                        "away_team_news",
+                        "home_official_site",
+                        "away_official_site",
+                    }:
                         injuries.extend(await self._ai_service.extract_injuries(
-                            content, source.url, home_team, away_team
+                            content,
+                            source.url,
+                            home_team,
+                            away_team,
+                            match_date=kickoff_at.date().isoformat()
+                            if kickoff_at
+                            else "unknown",
                         ))
-                    if categories & {None, "injury_news", "suspensions", "match_preview"}:
+                    if categories & {
+                        None,
+                        "injury_news",
+                        "suspensions",
+                        "match_preview",
+                        "fallback_fixture_preview",
+                        "fallback_home_team_news",
+                        "fallback_away_team_news",
+                        "home_team_news",
+                        "away_team_news",
+                        "home_official_site",
+                        "away_official_site",
+                    }:
                         suspensions.extend(await self._ai_service.extract_suspensions(
                             content, source.url, home_team, away_team
                         ))
-                    if categories & {None, "predicted_lineup", "formation_analysis"}:
+                    if categories & {
+                        None,
+                        "predicted_lineup",
+                        "formation_analysis",
+                        "home_team_news",
+                        "away_team_news",
+                        "home_official_site",
+                        "away_official_site",
+                        "fallback_home_team_news",
+                        "fallback_away_team_news",
+                    }:
                         lineup = await self._ai_service.extract_lineup(
                             content, source.url, home_team, away_team
                         )
                         if lineup:
                             lineups.append(lineup)
                     if categories & {
-                        None, "predicted_lineup", "formation_analysis", "match_preview"
+                        None,
+                        "predicted_lineup",
+                        "formation_analysis",
+                        "match_preview",
+                        "home_team_news",
+                        "away_team_news",
+                        "home_official_site",
+                        "away_official_site",
+                        "fallback_fixture_preview",
+                        "fallback_home_team_news",
+                        "fallback_away_team_news",
                     }:
                         team_news.extend(await self._ai_service.extract_team_news(
                             content, source.url, home_team, away_team
@@ -326,6 +496,62 @@ class MatchResearchService:
                 source.content = content
                 source.content_source = "search_result_snippet"
                 return content
+        return None
+
+    @staticmethod
+    def _find_official_site_domain(
+        team_name: str, sources: list[ResearchSource]
+    ) -> str | None:
+        """Find a plausible official team domain from discovery search results."""
+        import re
+
+        team_tokens = {
+            token
+            for token in re.findall(r"[a-z0-9]+", team_name.casefold())
+            if len(token) > 2 and token not in {"fc", "afc", "cf", "sc"}
+        }
+        if not team_tokens:
+            return None
+
+        generic_hosts = {
+            "wikipedia.org",
+            "facebook.com",
+            "instagram.com",
+            "x.com",
+            "twitter.com",
+            "youtube.com",
+            "premierleague.com",
+            "uefa.com",
+            "fifa.com",
+            "espn.com",
+            "bbc.com",
+        }
+        for source in sources:
+            categories = set(source.search_categories or [])
+            if source.search_category:
+                categories.add(source.search_category)
+            if not categories.intersection(
+                {"home_official_site_discovery", "away_official_site_discovery"}
+            ):
+                continue
+
+            title = (source.title or "").casefold()
+            snippet = (source.snippet or "").casefold()
+            title_tokens = set(re.findall(r"[a-z0-9]+", title))
+            mentions_team = team_tokens.issubset(title_tokens)
+            says_official = "official" in title or "official" in snippet
+            parsed = urlparse(source.url)
+            domain = parsed.netloc.casefold().removeprefix("www.")
+            if (
+                mentions_team
+                and says_official
+                and domain
+                and not any(
+                    domain == host or domain.endswith(f".{host}")
+                    for host in generic_hosts
+                )
+            ):
+                return domain
         return None
 
     def _filter_by_cutoff(

@@ -145,6 +145,7 @@ class AIAdjustmentSchema(BaseModel):
     """Schema for AI adjustment in API responses."""
 
     applied: bool
+    analysis_completed: bool = False
     version: str | None = None
     home_attack_adjustment: float = 0.0
     away_attack_adjustment: float = 0.0

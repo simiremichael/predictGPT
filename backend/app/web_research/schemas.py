@@ -58,6 +58,8 @@ class InjuryEvidence(BaseModel):
     player: str
     team: str | None = None
     position: str | None = None
+    is_regular: bool | None = None
+    role_evidence: str | None = None
     status: str | None = None
     injury_type: str | None = None
     expected_return: str | None = None

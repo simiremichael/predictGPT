@@ -189,6 +189,7 @@ export interface ResearchSummary {
 
 export interface AIAdjustment {
   applied: boolean;
+  analysis_completed?: boolean;
   version?: string | null;
   home_attack_adjustment: number;
   away_attack_adjustment: number;
@@ -219,6 +220,7 @@ export interface PredictionDetail {
   match_id: string;
   match_home_team: string;
   match_away_team: string;
+  match_league_name?: string | null;
   match_kickoff?: string | null;
   model: string;
   model_version: string;
@@ -242,7 +244,9 @@ export interface PredictionDetail {
   score_matrix?: ScoreMatrix | null;
   goal_distributions?: GoalDistributions | null;
   research: ResearchSummary;
-  ai_adjustment: AIAdjustment;
+  ai_adjustment?: AIAdjustment;
+  ai_analysis_completed?: boolean;
+  ai_adjustment_applied?: boolean;
   ai_explanation?: string | null;
   confidence: number;
   uncertainty: number;
@@ -275,6 +279,7 @@ export interface PredictionDetail {
    btts_probability?: number | null;
    research_available: boolean;
    ai_adjustment_applied: boolean;
+   ai_analysis_completed: boolean;
    admin_verify_gg?: boolean | null;
    admin_verify_win?: boolean | null;
    admin_verify_over_2_5?: boolean | null;

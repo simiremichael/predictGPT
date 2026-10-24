@@ -29,13 +29,8 @@ export async function generateMetadata({ params }: PredictionDetailPageProps) {
   const { id } = await params;
   try {
     const res = await api.getPredictionById(id);
-    let matchHome = "Unknown";
-    let matchAway = "Unknown";
-    try {
-      const match = await api.getMatch(res.match_id);
-      matchHome = match.home_team_name || match.home_team?.name || "Unknown";
-      matchAway = match.away_team_name || match.away_team?.name || "Unknown";
-    } catch {}
+    const matchHome = res.match_home_team || "Unknown";
+    const matchAway = res.match_away_team || "Unknown";
     return {
       title: `${matchHome} vs ${matchAway} | Prediction | Football AI`,
       description: `AI-powered prediction for ${matchHome} vs ${matchAway}.`,
@@ -45,7 +40,8 @@ export async function generateMetadata({ params }: PredictionDetailPageProps) {
   }
 }
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function PredictionDetailPage({
   params,
@@ -81,12 +77,8 @@ async function PredictionDetailContent({
 
   try {
     const res = await api.getPredictionById(predictionId);
-    const match = await api.getMatch(res.match_id);
-
-    const homeName =
-      match.home_team_name || match.home_team?.name || "Home Team";
-    const awayName =
-      match.away_team_name || match.away_team?.name || "Away Team";
+    const homeName = res.match_home_team || "Home Team";
+    const awayName = res.match_away_team || "Away Team";
 
     const newsSnapshot = res.news_snapshot || {};
     const savedResearch = newsSnapshot.research as
@@ -101,6 +93,7 @@ async function PredictionDetailContent({
       match_id: res.match_id,
       match_home_team: homeName,
       match_away_team: awayName,
+      match_league_name: res.match_league_name || null,
       match_kickoff: res.match_kickoff || null,
       model: res.model_version || "poisson",
       model_version: res.model_version || "v1.0.0",
@@ -153,7 +146,7 @@ async function PredictionDetailContent({
         clean_sheets: { home_clean_sheet: 0, away_clean_sheet: 0 },
         double_chance: { home_or_draw: 0, draw_or_away: 0, home_or_away: 0 },
       },
-      data_quality: 0,
+      data_quality: res.data_quality ?? 0,
       model_confidence: res.confidence ?? 0,
       prediction_stability: "medium",
       feature_explanations: [],
@@ -179,15 +172,16 @@ async function PredictionDetailContent({
         researched_at: savedResearch?.researched_at,
       },
       ai_adjustment: {
-        applied: !!res.ai_adjustment,
-        version: null,
-        home_attack_adjustment: 0,
-        away_attack_adjustment: 0,
-        home_defense_adjustment: 0,
-        away_defense_adjustment: 0,
-        confidence: 0,
-        reason_codes: [],
-        source_ids: [],
+        applied: res.ai_adjustment?.applied ?? res.ai_adjustment_applied ?? false,
+        analysis_completed: res.ai_adjustment?.analysis_completed ?? res.ai_analysis_completed ?? false,
+        version: res.ai_adjustment?.version ?? null,
+        home_attack_adjustment: res.ai_adjustment?.home_attack_adjustment ?? 0,
+        away_attack_adjustment: res.ai_adjustment?.away_attack_adjustment ?? 0,
+        home_defense_adjustment: res.ai_adjustment?.home_defense_adjustment ?? 0,
+        away_defense_adjustment: res.ai_adjustment?.away_defense_adjustment ?? 0,
+        confidence: res.ai_adjustment?.confidence ?? 0,
+        reason_codes: res.ai_adjustment?.reason_codes ?? [],
+        source_ids: res.ai_adjustment?.source_ids ?? [],
       },
       ai_explanation: res.ai_explanation || null,
       confidence: res.confidence ?? 0,
@@ -219,6 +213,11 @@ async function PredictionDetailContent({
             </Badge>
           </CardTitle>
           <CardDescription>
+            {prediction.match_home_team} vs {prediction.match_away_team}
+            {prediction.match_league_name
+              ? ` · ${prediction.match_league_name}`
+              : ""}
+            <br />
             {prediction.match_kickoff
               ? `Kickoff: ${new Date(prediction.match_kickoff).toLocaleString()}`
               : `Generated: ${new Date(prediction.generated_at).toLocaleString()}`}

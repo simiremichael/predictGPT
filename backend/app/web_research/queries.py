@@ -69,15 +69,89 @@ DEFAULT_QUERY_TEMPLATES: list[QueryTemplate] = [
         category="form",
         priority=8,
     ),
+    QueryTemplate(
+        name="home_team_form",
+        template=(
+            "{home_team} latest results recent form goals scored conceded "
+            "{competition} {season} before {kickoff_at}"
+        ),
+        category="recent_form",
+        priority=7,
+    ),
+    QueryTemplate(
+        name="away_team_form",
+        template=(
+            "{away_team} latest results recent form goals scored conceded "
+            "{competition} {season} before {kickoff_at}"
+        ),
+        category="recent_form",
+        priority=7,
+    ),
+    QueryTemplate(
+        name="home_team_news",
+        template=(
+            "{home_team} team news form injuries predicted lineup manager comments "
+            "{competition} {kickoff_at}"
+        ),
+        category="recent_form",
+        priority=6,
+    ),
+    QueryTemplate(
+        name="away_team_news",
+        template=(
+            "{away_team} team news form injuries predicted lineup manager comments "
+            "{competition} {kickoff_at}"
+        ),
+        category="recent_form",
+        priority=6,
+    ),
+    QueryTemplate(
+        name="match_result_history",
+        template=(
+            "{home_team} vs {away_team} previous meetings head to head results "
+            "{competition}"
+        ),
+        category="head_to_head",
+        priority=6,
+    ),
+    QueryTemplate(
+        name="home_team_standings",
+        template=(
+            "{home_team} {competition} {season} league table position points "
+            "goals for against"
+        ),
+        category="league_standings",
+        priority=5,
+    ),
+    QueryTemplate(
+        name="away_team_standings",
+        template=(
+            "{away_team} {competition} {season} league table position points "
+            "goals for against"
+        ),
+        category="league_standings",
+        priority=5,
+    ),
+    QueryTemplate(
+        name="home_official_site_discovery",
+        template='"{home_team}" official website club',
+        category="official_site_discovery",
+        priority=5,
+    ),
+    QueryTemplate(
+        name="away_official_site_discovery",
+        template='"{away_team}" official website club',
+        category="official_site_discovery",
+        priority=5,
+    ),
 ]
 
 
 class MatchResearchQueryBuilder:
     """Generates search queries for a specific match.
 
-    Queries are not exhaustive - a curated set of templates covers the
-    most important information categories without generating dozens of
-    searches.
+    A curated set of match and team queries covers the key information
+    categories without generating an unbounded number of searches.
     """
 
     def __init__(self, templates: list[QueryTemplate] | None = None) -> None:

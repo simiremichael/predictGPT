@@ -214,6 +214,13 @@ class AIFeatureBuilder:
                 vector.injuries.append(injury.model_dump())
 
                 position_lower = (injury.position or "").lower().replace(" ", "_")
+                injury_status = (injury.status or "").lower()
+                is_unavailable = injury_status in {
+                    "confirmed_out", "likely_out", "doubtful", "questionable"
+                }
+                if injury.is_regular is not True or not is_unavailable:
+                    continue
+
                 if any(role in position_lower for role in {"forward", "attacker", "striker", "winger"}):
                     vector.key_attacker_missing = True
                 elif any(
@@ -232,6 +239,9 @@ class AIFeatureBuilder:
 
         defender_missing_count = sum(
             1 for i in vector.injuries
+            if i.get("is_regular") is True
+            and (i.get("status") or "").lower()
+            in {"confirmed_out", "likely_out", "doubtful", "questionable"}
             if any(
                 role in (i.get("position") or "").lower().replace(" ", "_")
                 for role in {"defender", "centre_back", "centre-back", "cb", "full_back", "lb", "rb"}
@@ -341,6 +351,10 @@ class AIFeatureBuilder:
             parts.append(
                 f"Injury: {injury.get('player')} - team="
                 f"{injury.get('team')}, status={injury.get('status')}, "
+                f"position={injury.get('position') or 'unknown'}, "
+                f"is_regular={injury.get('is_regular')}, "
+                f"role_evidence={injury.get('role_evidence') or 'unknown'}, "
+                f"expected_return={injury.get('expected_return') or 'unknown'}, "
                 f"evidence={injury.get('evidence_status')}, "
                 f"confidence={injury.get('confidence')}"
             )
@@ -389,6 +403,8 @@ class AIFeatureBuilder:
             "fixture_congestion",
             "market_odds",
             "match_conditions",
+            "home_official_site",
+            "away_official_site",
         }
         relevant_sources = sorted(
             (

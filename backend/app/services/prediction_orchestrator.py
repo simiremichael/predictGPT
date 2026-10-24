@@ -82,7 +82,8 @@ class PredictionOrchestrator:
             match_id: Internal match UUID.
             db_session: Optional SQLAlchemy session.
             force_refresh: If True, always generate a new prediction.
-            include_research: If True, load web research and apply AI adjustment.
+            include_research: If True, load web research. AI adjustment analysis
+                still runs when research is disabled or unavailable.
             context_hash: Optional context hash to check for data freshness.
                 If provided and matches the stored prediction's context hash,
                 the existing prediction is considered fresh and returned.

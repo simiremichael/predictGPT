@@ -73,6 +73,7 @@ class AIAdjustedPrediction:
     adjusted_model_result: ModelResult
     adjustment_applied: bool
     explanation: str
+    analysis_completed: bool = False
 
 
 class AIAdjustmentLayer:
@@ -153,10 +154,13 @@ class AIAdjustmentLayer:
         home_recent = list(getattr(match_input, "home_recent_fixture", []))
         away_recent = list(getattr(match_input, "away_recent_fixture", []))
 
-        def recent_goal_totals(recent: list[Any], team_id: str | None, is_home: bool) -> tuple[int | str, int | str]:
+        def recent_goal_summary(
+            recent: list[Any], team_id: str | None, is_home: bool
+        ) -> tuple[float | str, float | str, int, str]:
             goals_for = 0
             goals_against = 0
             counted = 0
+            wins = draws = losses = 0
             for fixture in recent:
                 if (
                     not fixture.is_finished
@@ -171,18 +175,43 @@ class AIAdjustmentLayer:
                 else:
                     team_played_home = is_home
                 if team_played_home:
-                    goals_for += fixture.home_score
-                    goals_against += fixture.away_score
+                    team_goals = fixture.home_score
+                    opponent_goals = fixture.away_score
                 else:
-                    goals_for += fixture.away_score
-                    goals_against += fixture.home_score
+                    team_goals = fixture.away_score
+                    opponent_goals = fixture.home_score
+                goals_for += team_goals
+                goals_against += opponent_goals
+                if team_goals > opponent_goals:
+                    wins += 1
+                elif team_goals == opponent_goals:
+                    draws += 1
+                else:
+                    losses += 1
                 counted += 1
-            return (goals_for, goals_against) if counted else ("unknown", "unknown")
+            if not counted:
+                return "unknown", "unknown", 0, "unknown"
+            return (
+                round(goals_for / counted, 2),
+                round(goals_against / counted, 2),
+                counted,
+                f"{wins}-{draws}-{losses}",
+            )
 
-        home_last5_goals_for, home_last5_goals_against = recent_goal_totals(
+        (
+            home_last5_goals_for,
+            home_last5_goals_against,
+            home_last5_games,
+            home_last5_record,
+        ) = recent_goal_summary(
             home_recent[-5:], match_input.home_team_id, True
         )
-        away_last5_goals_for, away_last5_goals_against = recent_goal_totals(
+        (
+            away_last5_goals_for,
+            away_last5_goals_against,
+            away_last5_games,
+            away_last5_record,
+        ) = recent_goal_summary(
             away_recent[-5:], match_input.away_team_id, False
         )
 
@@ -193,11 +222,21 @@ class AIAdjustmentLayer:
         home_season_goals_against = home_stats.goals_against if home_stats else "unknown"
         away_season_goals_for = away_stats.goals_for if away_stats else "unknown"
         away_season_goals_against = away_stats.goals_against if away_stats else "unknown"
+        home_season_games = home_stats.games_played if home_stats else "unknown"
+        away_season_games = away_stats.games_played if away_stats else "unknown"
+
+        def goals_per_game(goals: Any, games: Any) -> float | str:
+            if isinstance(goals, (int, float)) and isinstance(games, (int, float)) and games > 0:
+                return round(goals / games, 2)
+            return "unknown"
 
         user_prompt = AI_ADJUSTMENT_USER_PROMPT.format(
             home_team=match_input.home_team_name,
             away_team=match_input.away_team_name,
-            league=match_input.league_id,
+            league=match_input.league_name or match_input.league_id,
+            kickoff_date=match_input.kickoff_at.date().isoformat()
+            if match_input.kickoff_at
+            else "unknown",
             lambda_home=base_result.lambda_home,
             lambda_away=base_result.lambda_away,
             home_win_prob=round(base_hda["home"], 4),
@@ -219,8 +258,22 @@ class AIAdjustmentLayer:
             else "unknown",
             home_season_goals_for=home_season_goals_for,
             home_season_goals_against=home_season_goals_against,
+            home_season_games=home_season_games,
+            home_season_goals_for_per_game=goals_per_game(
+                home_season_goals_for, home_season_games
+            ),
+            home_season_goals_against_per_game=goals_per_game(
+                home_season_goals_against, home_season_games
+            ),
             away_season_goals_for=away_season_goals_for,
             away_season_goals_against=away_season_goals_against,
+            away_season_games=away_season_games,
+            away_season_goals_for_per_game=goals_per_game(
+                away_season_goals_for, away_season_games
+            ),
+            away_season_goals_against_per_game=goals_per_game(
+                away_season_goals_against, away_season_games
+            ),
             home_avg_goals_per_game=ai_features.home_avg_goals_per_game
             if ai_features.home_avg_goals_per_game is not None
             else "unknown",
@@ -245,14 +298,20 @@ class AIAdjustmentLayer:
             h2h_avg_goals=h2h_avg_goals,
             home_last5_goals_for=home_last5_goals_for,
             home_last5_goals_against=home_last5_goals_against,
+            home_last5_games=home_last5_games,
+            home_last5_record=home_last5_record,
             away_last5_goals_for=away_last5_goals_for,
             away_last5_goals_against=away_last5_goals_against,
+            away_last5_games=away_last5_games,
+            away_last5_record=away_last5_record,
             evidence_text=evidence_text,
             context_source_ids=", ".join(context_source_ids) or "none",
         )
 
         # Query the AI provider for adjustments
-        ai_adjustment = await self._get_ai_adjustment(system_prompt, user_prompt, match_input)
+        ai_adjustment, analysis_completed = await self._get_ai_adjustment(
+            system_prompt, user_prompt, match_input
+        )
         ai_adjustment = self._validate_adjustment_sources(
             ai_adjustment, ai_features, context_source_ids
         )
@@ -283,6 +342,7 @@ class AIAdjustmentLayer:
                 adjusted_model_result=base_result,
                 adjustment_applied=False,
                 explanation="No AI adjustment applied based on available evidence.",
+                analysis_completed=analysis_completed,
             )
 
         # Apply adjustment to lambdas
@@ -346,11 +406,12 @@ class AIAdjustmentLayer:
             adjusted_model_result=adjusted_result,
             adjustment_applied=True,
             explanation=explanation,
+            analysis_completed=analysis_completed,
         )
 
     async def _get_ai_adjustment(
         self, system_prompt: str, user_prompt: str, match_input: PredictionInput | None = None
-    ) -> AIFeatureAdjustment:
+    ) -> tuple[AIFeatureAdjustment, bool]:
         """Query the AI provider for adjustment values."""
         if self._ai_provider is None:
             from ai.factory import get_ai_provider
@@ -358,7 +419,7 @@ class AIAdjustmentLayer:
                 self._ai_provider = get_ai_provider()
             except Exception as exc:
                 logger.warning("AI adjustment provider initialization failed: %s", exc)
-                return AIFeatureAdjustment()
+                return AIFeatureAdjustment(), False
 
         adjustment_schema = {
             "type": "object",
@@ -400,13 +461,15 @@ class AIAdjustmentLayer:
                 schema=adjustment_schema,
             )
 
-            if result:
-                return AIFeatureAdjustment(**result)
-            else:
-                return AIFeatureAdjustment()
+            if isinstance(result, dict):
+                # Providers use an empty object to signal parse/API failures.
+                # A non-empty zero-adjustment response still counts as a
+                # completed analysis.
+                return AIFeatureAdjustment(**result), bool(result)
+            return AIFeatureAdjustment(), False
         except Exception as exc:
             logger.warning("AI adjustment query failed; using statistical prediction: %s", exc)
-            return AIFeatureAdjustment()
+            return AIFeatureAdjustment(), False
 
     def _fallback_adjustment(
         self, match_input: PredictionInput | None

@@ -65,7 +65,10 @@ class AIExplanationService:
         user_prompt = EXPLANATION_USER_PROMPT.format(
             home_team=prediction.match_home_team,
             away_team=prediction.match_away_team,
-            competition=getattr(match_input, "league_id", "Unknown"),
+            competition=(
+                getattr(match_input, "league_name", None)
+                or getattr(match_input, "league_id", "Unknown")
+            ),
             kickoff_at=prediction.match_kickoff.isoformat() if prediction.match_kickoff else "TBD",
             lambda_home=prediction.expected_goals.home,
             lambda_away=prediction.expected_goals.away,

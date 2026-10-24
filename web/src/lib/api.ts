@@ -6,6 +6,7 @@ import type {
   ApiResponseMeta,
 } from "@/types/api";
 import type {
+  AIAdjustment,
   AiEvidenceItem,
   AuthResponse,
   League,
@@ -226,6 +227,36 @@ export interface AdminTeam {
   is_active: boolean;
   created_at: string | null;
   match_count: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  country: string | null;
+  is_active: boolean;
+  is_superuser: boolean;
+  is_subscribed: boolean;
+  created_at: string | null;
+  subscription_status: string | null;
+  subscription_period_end: string | null;
+}
+
+export interface AdminSubscription {
+  id: string;
+  user_id: string;
+  email: string;
+  status: string;
+  amount: number;
+  currency: string;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  created_at: string | null;
+}
+
+export interface AdminOverviewStats {
+  total_registered_users: number;
+  active_subscribers: number;
 }
 
 export interface ModelAccuracyReport {
@@ -620,6 +651,9 @@ export const api = {
   getPredictionById: (id: string) => request<{
     prediction_id: string;
     match_id: string;
+    match_home_team?: string | null;
+    match_away_team?: string | null;
+    match_league_name?: string | null;
     match_kickoff?: string | null;
     model_version: string;
     prediction_version: string;
@@ -634,13 +668,16 @@ export const api = {
     under_2_5_probability: number | null;
     btts_probability: number | null;
     confidence: number | null;
+    data_quality?: number;
     prediction_status: string;
     feature_snapshot: Record<string, unknown>;
     news_snapshot: Record<string, unknown>;
     odds_snapshot: Record<string, unknown>;
     ai_explanation: string | null;
     ai_evidence: AiEvidenceItem[];
-    ai_adjustment: unknown;
+    ai_adjustment?: AIAdjustment | null;
+    ai_analysis_completed?: boolean;
+    ai_adjustment_applied?: boolean;
     source_ids: string[];
     top_scorelines: Array<{
       rank: number;
@@ -700,6 +737,35 @@ export const api = {
 
   // Admin — all calls send the X-Admin-Api-Key header.
   admin: {
+    stats: () => request<AdminOverviewStats>("/api/v1/admin/stats", {
+      headers: adminHeaders(),
+    }),
+    listUsers: (params?: { page?: number; page_size?: number; search?: string }) => {
+      const qs = buildQs({
+        page: params?.page,
+        page_size: params?.page_size,
+        search: params?.search,
+      });
+      return requestPaginated<AdminUser>(`/api/v1/admin/users${qs}`, {
+        headers: adminHeaders(),
+      });
+    },
+    listSubscriptions: (params?: {
+      page?: number;
+      page_size?: number;
+      search?: string;
+      status?: string;
+    }) => {
+      const qs = buildQs({
+        page: params?.page,
+        page_size: params?.page_size,
+        search: params?.search,
+        status: params?.status,
+      });
+      return requestPaginated<AdminSubscription>(`/api/v1/admin/subscriptions${qs}`, {
+        headers: adminHeaders(),
+      });
+    },
     modelAccuracy: () =>
       request<ModelAccuracyReport>("/api/v1/admin/model-accuracy", {
         headers: adminHeaders(),

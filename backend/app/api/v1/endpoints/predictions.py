@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from core.cache import (
     cache_match_key,
@@ -189,6 +189,12 @@ async def get_prediction(
             "over_2_5_probability": pred_dict.get("over_2_5_probability"),
             "under_2_5_probability": pred_dict.get("under_2_5_probability"),
             "btts_probability": pred_dict.get("btts_probability"),
+            "ai_analysis_completed": bool(
+                (pred_dict.get("ai_adjustment") or {}).get("analysis_completed")
+            ),
+            "ai_adjustment_applied": bool(
+                (pred_dict.get("ai_adjustment") or {}).get("applied")
+            ),
         }
         response = {
             "success": True,
@@ -608,7 +614,17 @@ async def list_predictions(
             under_2_5_probability=p.under_2_5_probability,
             btts_probability=p.btts_probability,
             research_available=_prediction_has_research(p),
-            ai_adjustment_applied=bool(p.ai_adjustment_json),
+            ai_adjustment_applied=bool(
+                p.ai_adjustment_json
+                and p.ai_adjustment_json.get("applied", True)
+            ),
+            ai_analysis_completed=bool(
+                p.ai_adjustment_json
+                and p.ai_adjustment_json.get(
+                    "analysis_completed",
+                    p.ai_adjustment_json.get("applied", False),
+                )
+            ),
             context_hash=p.context_hash,
             admin_verify_gg=p.admin_verify_gg,
             admin_verify_win=p.admin_verify_win,
@@ -675,17 +691,13 @@ async def get_prediction_by_id(
     Free users can see basic prediction metadata but full details
     (scorelines, AI evidence, adjustments) require an active subscription.
     """
-    cache_key = cache_prediction_key(prediction_id)
-
-    try:
-        cached = await get_cached(cache_key)
-        if cached:
-            return cached
-    except Exception:
-        pass
-
     stmt = (
-        select(Prediction, PredictionScoreline, Match.kickoff_at)
+        select(Prediction, PredictionScoreline, Match)
+        .options(
+            selectinload(Match.league),
+            selectinload(Match.home_team),
+            selectinload(Match.away_team),
+        )
         .join(Match, Match.id == Prediction.match_id)
         .outerjoin(PredictionScoreline, PredictionScoreline.prediction_id == Prediction.id)
         .where(Prediction.id == prediction_id)
@@ -701,7 +713,8 @@ async def get_prediction_by_id(
         )
 
     pred = rows[0][0]
-    match_kickoff = rows[0][2]
+    match = rows[0][2]
+    match_kickoff = match.kickoff_at
     scorelines = [row[1] for row in rows]
 
     is_subscribed = await _is_subscribed(user_email)
@@ -712,6 +725,11 @@ async def get_prediction_by_id(
             "data": {
                 "prediction_id": pred.id,
                 "match_id": pred.match_id,
+                "match_home_team": match.home_team_name
+                or (match.home_team.name if match.home_team else None),
+                "match_away_team": match.away_team_name
+                or (match.away_team.name if match.away_team else None),
+                "match_league_name": match.league.name if match.league else None,
                 "match_kickoff": match_kickoff.isoformat() if match_kickoff else None,
                 "model_version": pred.model_version,
                 "prediction_version": pred.prediction_version,
@@ -726,6 +744,9 @@ async def get_prediction_by_id(
                 "under_2_5_probability": pred.under_2_5_probability,
                 "btts_probability": pred.btts_probability,
                 "confidence": pred.confidence,
+                "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
+                if isinstance(pred.feature_snapshot, dict)
+                else 0.0,
                 "prediction_status": pred.prediction_status,
                 "feature_snapshot": pred.feature_snapshot
                 if isinstance(pred.feature_snapshot, dict)
@@ -734,7 +755,20 @@ async def get_prediction_by_id(
                 "odds_snapshot": pred.odds_snapshot if isinstance(pred.odds_snapshot, dict) else {},
                 "ai_explanation": pred.ai_explanation,
                 "ai_evidence": pred.ai_evidence_json,
-                "ai_adjustment": pred.ai_adjustment_json,
+                "ai_adjustment": {
+                    **(
+                        pred.ai_adjustment_json
+                        if isinstance(pred.ai_adjustment_json, dict)
+                        else {"applied": False}
+                    ),
+                    "analysis_completed": bool(
+                        pred.ai_adjustment_json
+                        and pred.ai_adjustment_json.get(
+                            "analysis_completed",
+                            pred.ai_adjustment_json.get("applied", False),
+                        )
+                    ),
+                },
                 "source_ids": pred.source_ids,
                 "context_hash": pred.context_hash,
                 "admin_verify_gg": pred.admin_verify_gg,
@@ -758,6 +792,11 @@ async def get_prediction_by_id(
             "data": {
                 "prediction_id": pred.id,
                 "match_id": pred.match_id,
+                "match_home_team": match.home_team_name
+                or (match.home_team.name if match.home_team else None),
+                "match_away_team": match.away_team_name
+                or (match.away_team.name if match.away_team else None),
+                "match_league_name": match.league.name if match.league else None,
                 "match_kickoff": match_kickoff.isoformat() if match_kickoff else None,
                 "model_version": pred.model_version,
                 "prediction_version": pred.prediction_version,
@@ -771,17 +810,23 @@ async def get_prediction_by_id(
                 "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
                 if isinstance(pred.feature_snapshot, dict)
                 else 0.0,
+                "ai_analysis_completed": bool(
+                    pred.ai_adjustment_json
+                    and pred.ai_adjustment_json.get(
+                        "analysis_completed",
+                        pred.ai_adjustment_json.get("applied", False),
+                    )
+                ),
+                "ai_adjustment_applied": bool(
+                    pred.ai_adjustment_json
+                    and pred.ai_adjustment_json.get("applied", True)
+                ),
             },
             "meta": {
                 "subscription_required": True,
                 "message": "Full prediction details including scorelines and AI evidence require an active subscription.",
             },
         }
-
-    try:
-        await set_cached(cache_key, response, ttl=get_settings().cache_ttl_predictions)
-    except Exception:
-        pass
 
     return response
 
@@ -910,7 +955,17 @@ async def get_match_predictions(
                 "over_2_5_probability": pred.over_2_5_probability,
                 "btts_probability": pred.btts_probability,
                 "research_available": _prediction_has_research(pred),
-                "ai_adjustment_applied": bool(pred.ai_adjustment_json),
+                "ai_adjustment_applied": bool(
+                    pred.ai_adjustment_json
+                    and pred.ai_adjustment_json.get("applied", True)
+                ),
+                "ai_analysis_completed": bool(
+                    pred.ai_adjustment_json
+                    and pred.ai_adjustment_json.get(
+                        "analysis_completed",
+                        pred.ai_adjustment_json.get("applied", False),
+                    )
+                ),
                 "data_quality": pred.feature_snapshot.get("data_quality", 0.0)
                 if isinstance(pred.feature_snapshot, dict)
                 else 0.0,
@@ -939,6 +994,7 @@ async def get_match_predictions(
             pred.pop("btts_probability", None)
             pred.pop("research_available", None)
             pred.pop("ai_adjustment_applied", None)
+            pred.pop("ai_analysis_completed", None)
             pred.pop("top_scorelines", None)
 
     return {

@@ -5,10 +5,12 @@ import {
   Check,
   CheckSquare,
   Calendar,
+  CreditCard,
   RefreshCw,
   Search,
   Square,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -24,7 +26,9 @@ import {
   api,
   ApiError,
   type AdminLeague,
+  type AdminSubscription,
   type AdminTeam,
+  type AdminUser,
 } from "@/lib/api";
 import {
   revalidateLeagues,
@@ -39,6 +43,7 @@ import type {
 } from "@/types/models";
 import { LoadingState, EmptyState } from "@/components/loading-states";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pagination } from "@/components/ui/pagination";
@@ -863,14 +868,15 @@ function AdminPredictions() {
           void generateMutation.mutate({
             clear_all: clearAll,
             include_research: true,
-            limit: 500,
             kickoff_date: filterDate ?? todayStr,
           });
         }}
         disabled={generateMutation.isPending || generationInProgress}
       >
         {generateMutation.isPending || generationInProgress
-          ? "Generating..."
+          ? jobStatus?.data?.total
+            ? `Generating ${jobStatus.data.succeeded ?? 0} / ${jobStatus.data.total}`
+            : "Generating..."
           : `Generate for ${filterDate ?? todayStr}`}
       </Button>
     </div>
@@ -1049,7 +1055,7 @@ function AdminPredictions() {
     onError: (e) => toast.error(errMsg(e)),
   });
 
-  const { data: jobStatus, isError: jobStatusError } = useQuery({
+  const { data: jobStatus } = useQuery({
     queryKey: ["admin-job-status", currentJobId],
     queryFn: () => api.admin.getJobStatus(currentJobId!),
     enabled: !!currentJobId,
@@ -1070,16 +1076,9 @@ function AdminPredictions() {
     } else if (currentJobId && jobStatus?.data?.status === "failed") {
       toast.error("Prediction generation failed");
       setCurrentJobId(null);
-    } else if (jobStatusError && currentJobId) {
-      const timer = setTimeout(() => {
-        setCurrentJobId(null);
-        queryClient.invalidateQueries({ queryKey: ["admin-predictions"] });
-        toast("Prediction generation started (job tracking unavailable)");
-      }, 30000);
-      return () => clearTimeout(timer);
     }
   }, [
-    jobStatus, jobStatusError, queryClient, currentJobId,
+    jobStatus, queryClient, currentJobId,
   ]);
 
   const generationInProgress =
@@ -1249,7 +1248,8 @@ function AdminPredictions() {
                 <th className="px-3 py-2 font-medium">A</th>
                 <th className="px-3 py-2 font-medium">Top 4 Scorelines</th>
                 <th className="px-3 py-2 font-medium">Research</th>
-                <th className="px-3 py-2 font-medium">AI Adj.</th>
+                <th className="px-3 py-2 font-medium">AI analyzed</th>
+                <th className="px-3 py-2 font-medium">Adjustment</th>
                 <th className="px-3 py-2 font-medium">Match Date</th>
                 <th className="px-3 py-2 font-medium">BTTS</th>
                 <th className="px-3 py-2 font-medium">Win</th>
@@ -1295,10 +1295,19 @@ function AdminPredictions() {
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    {p.ai_adjustment_applied ? (
+                    {p.ai_analysis_completed ? (
                       <span className="text-xs text-green-600">Yes</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">No</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {!p.ai_analysis_completed ? (
+                      <span className="text-xs text-muted-foreground">Unavailable</span>
+                    ) : p.ai_adjustment_applied ? (
+                      <span className="text-xs text-green-600">Applied</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No change needed</span>
                     )}
                   </td>
                   <td className="px-3 py-2">
@@ -1345,7 +1354,158 @@ function AdminPredictions() {
   );
 }
 
+function formatAdminDate(value: string | null): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString();
+}
+
+function AdminUsers() {
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebounce(searchInput, 350);
+  const { data, error, isPending } = useQuery({
+    queryKey: ["admin-users", page, search],
+    queryFn: () => api.admin.listUsers({ page, page_size: PAGE_SIZE, search: search || undefined }),
+  });
+  const rows = data?.data ?? [];
+
+  if (error) return <EmptyState title="Could not load registered users" description={errMsg(error)} />;
+  if (isPending && !data) return <LoadingState message="Loading registered users..." />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><Users className="h-5 w-5 text-primary" /> Registered users</h2>
+          <p className="text-sm text-muted-foreground">{data?.meta.total ?? 0} accounts</p>
+        </div>
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search by email..."
+            value={searchInput}
+            onChange={(event) => { setSearchInput(event.target.value); setPage(1); }}
+          />
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <EmptyState title={search ? "No users match your search" : "No registered users yet"} />
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/70">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead><tr className="bg-muted/40 text-muted-foreground">
+              <th className="px-4 py-3 font-semibold">Email</th>
+              <th className="px-4 py-3 font-semibold">Country</th>
+              <th className="px-4 py-3 font-semibold">Account</th>
+              <th className="px-4 py-3 font-semibold">Subscription</th>
+              <th className="px-4 py-3 font-semibold">Access until</th>
+              <th className="px-4 py-3 font-semibold">Registered</th>
+            </tr></thead>
+            <tbody>{rows.map((user: AdminUser) => (
+              <tr key={user.id} className="border-t border-border/60 transition-colors hover:bg-muted/20">
+                <td className="max-w-[280px] break-all px-4 py-3 font-medium">{user.email}{user.is_superuser && <Badge className="ml-2" variant="outline">Admin</Badge>}</td>
+                <td className="px-4 py-3">{user.country || "—"}</td>
+                <td className="px-4 py-3"><Badge variant={user.is_active ? "success" : "muted"}>{user.is_active ? "Active" : "Disabled"}</Badge></td>
+                <td className="px-4 py-3"><Badge variant={user.is_subscribed ? "success" : "muted"}>{user.is_subscribed ? "Active" : user.subscription_status || "Free"}</Badge></td>
+                <td className="px-4 py-3">{formatAdminDate(user.subscription_period_end)}</td>
+                <td className="px-4 py-3">{formatAdminDate(user.created_at)}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {data && data.meta.total_pages > 1 && <Pagination page={page} pageSize={PAGE_SIZE} total={data.meta.total} totalPages={data.meta.total_pages} onPageChange={setPage} className="justify-center" />}
+    </div>
+  );
+}
+
+function AdminSubscriptions() {
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const search = useDebounce(searchInput, 350);
+  const { data, error, isPending } = useQuery({
+    queryKey: ["admin-subscriptions", page, search, statusFilter],
+    queryFn: () => api.admin.listSubscriptions({
+      page,
+      page_size: PAGE_SIZE,
+      search: search || undefined,
+      status: statusFilter || undefined,
+    }),
+  });
+  const rows = data?.data ?? [];
+  const statusVariant = (status: string) =>
+    status === "active" ? "success" as const
+      : status === "past_due" || status === "incomplete" ? "warning" as const
+        : status === "expired" || status === "cancelled" || status === "unpaid" ? "muted" as const
+          : "outline" as const;
+
+  if (error) return <EmptyState title="Could not load subscriptions" description={errMsg(error)} />;
+  if (isPending && !data) return <LoadingState message="Loading subscriptions..." />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-bold"><CreditCard className="h-5 w-5 text-primary" /> Subscriptions</h2>
+          <p className="text-sm text-muted-foreground">{data?.meta.total ?? 0} subscription records</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative sm:w-64">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Search by email..." value={searchInput} onChange={(event) => { setSearchInput(event.target.value); setPage(1); }} />
+          </div>
+          <select
+            aria-label="Filter subscriptions by status"
+            value={statusFilter}
+            onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}
+            className="h-10 rounded-xl border border-input bg-background px-3 text-sm"
+          >
+            <option value="">All statuses</option>
+            {["active", "past_due", "unpaid", "cancelled", "incomplete", "expired"].map((status) => <option key={status} value={status}>{status.replace("_", " ")}</option>)}
+          </select>
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <EmptyState title={search || statusFilter ? "No subscriptions match these filters" : "No subscriptions yet"} />
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border/80 bg-card/70">
+          <table className="w-full min-w-[780px] text-left text-sm">
+            <thead><tr className="bg-muted/40 text-muted-foreground">
+              <th className="px-4 py-3 font-semibold">Customer</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Amount</th>
+              <th className="px-4 py-3 font-semibold">Period start</th>
+              <th className="px-4 py-3 font-semibold">Period end</th>
+              <th className="px-4 py-3 font-semibold">Renewal</th>
+            </tr></thead>
+            <tbody>{rows.map((subscription: AdminSubscription) => (
+              <tr key={subscription.id} className="border-t border-border/60 transition-colors hover:bg-muted/20">
+                <td className="max-w-[280px] break-all px-4 py-3 font-medium">{subscription.email}</td>
+                <td className="px-4 py-3"><Badge variant={statusVariant(subscription.status)}>{subscription.status.replace("_", " ")}</Badge></td>
+                <td className="px-4 py-3 font-semibold">{new Intl.NumberFormat(undefined, { style: "currency", currency: subscription.currency.toUpperCase(), maximumFractionDigits: 2 }).format(subscription.amount)}</td>
+                <td className="px-4 py-3">{formatAdminDate(subscription.current_period_start)}</td>
+                <td className="px-4 py-3">{formatAdminDate(subscription.current_period_end)}</td>
+                <td className="px-4 py-3">{subscription.cancel_at_period_end ? "Ends this period" : "Renews"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+      {data && data.meta.total_pages > 1 && <Pagination page={page} pageSize={PAGE_SIZE} total={data.meta.total} totalPages={data.meta.total_pages} onPageChange={setPage} className="justify-center" />}
+    </div>
+  );
+}
+
 export default function AdminPage() {
+  const { data: overviewStats } = useQuery({
+    queryKey: ["admin-overview-stats"],
+    queryFn: api.admin.stats,
+    staleTime: 60_000,
+  });
+
   return (
     <div className="space-y-6">
       <section className="surface-card rounded-[1.75rem] p-5 sm:p-6">
@@ -1359,12 +1519,31 @@ export default function AdminPage() {
         </p>
       </section>
 
+      <section className="grid gap-3 sm:grid-cols-2" aria-label="User and subscriber totals">
+        <div className="surface-card flex items-center gap-4 rounded-2xl p-4 sm:p-5">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Users className="h-5 w-5" /></span>
+          <div>
+            <p className="text-sm text-muted-foreground">Registered users</p>
+            <p className="text-2xl font-black tabular-nums">{overviewStats ? overviewStats.total_registered_users.toLocaleString() : "—"}</p>
+          </div>
+        </div>
+        <div className="surface-card flex items-center gap-4 rounded-2xl p-4 sm:p-5">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><CreditCard className="h-5 w-5" /></span>
+          <div>
+            <p className="text-sm text-muted-foreground">Active subscribers</p>
+            <p className="text-2xl font-black tabular-nums">{overviewStats ? overviewStats.active_subscribers.toLocaleString() : "—"}</p>
+          </div>
+        </div>
+      </section>
+
       <Tabs defaultValue="leagues" className="space-y-4">
-        <TabsList>
+        <TabsList className="grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
           <TabsTrigger value="leagues">Leagues</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
           <TabsTrigger value="predictions">Predictions</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
         </TabsList>
         <TabsContent value="leagues">
           <AdminLeagues />
@@ -1377,6 +1556,12 @@ export default function AdminPage() {
         </TabsContent>
         <TabsContent value="predictions">
           <AdminPredictions />
+        </TabsContent>
+        <TabsContent value="users">
+          <AdminUsers />
+        </TabsContent>
+        <TabsContent value="subscriptions">
+          <AdminSubscriptions />
         </TabsContent>
       </Tabs>
     </div>

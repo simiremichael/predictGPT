@@ -64,11 +64,13 @@ class AIService:
         source_id: str,
         home_team: str,
         away_team: str,
+        match_date: str = "unknown",
     ) -> list[InjuryEvidence]:
         """Extract injury evidence from web content."""
         return await self._extract_evidence(
             content, source_id, home_team, away_team,
             INJURY_EXTRACTION_USER_PROMPT, InjuryEvidence,
+            match_date=match_date,
         )
 
     async def extract_suspensions(
@@ -119,6 +121,7 @@ class AIService:
         away_team: str,
         user_prompt_template: str,
         result_model: type,
+        **prompt_values: str,
     ) -> list[Any]:
         """Generic evidence extraction using the AI provider.
 
@@ -133,6 +136,7 @@ class AIService:
             away_team=away_team,
             source_id=source_id,
             content=content,
+            **prompt_values,
         )
 
         try:
